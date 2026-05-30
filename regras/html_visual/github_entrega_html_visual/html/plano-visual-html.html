@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plano Visual HTML</title>
+  <style>
+    :root {
+      --bg: #f6f7f2;
+      --ink: #1f2520;
+      --muted: #637069;
+      --line: #d9dfd5;
+      --panel: #ffffff;
+      --green: #2f8f61;
+      --red: #c84f49;
+      --yellow: #c99418;
+      --blue: #2f6f9f;
+      --teal: #11847f;
+      --violet: #7655a6;
+      --shadow: 0 14px 34px rgba(31, 37, 32, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.78), rgba(246,247,242,0.98)),
+        var(--bg);
+      line-height: 1.45;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 40px);
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      max-width: 780px;
+    }
+
+    .status-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 10px;
+      max-width: 1180px;
+      margin: 18px auto 0;
+      padding: 0 20px 22px;
+    }
+
+    .status {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--blue);
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 96px;
+      box-shadow: var(--shadow);
+    }
+
+    .status.good { border-left-color: var(--green); }
+    .status.warn { border-left-color: var(--yellow); }
+    .status.bad { border-left-color: var(--red); }
+    .status.info { border-left-color: var(--teal); }
+
+    .status strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+
+    .status span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 22px;
+    }
+
+    nav {
+      position: sticky;
+      top: 106px;
+      align-self: start;
+      display: grid;
+      gap: 8px;
+    }
+
+    nav button,
+    .copy-btn {
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 10px 12px;
+      min-height: 42px;
+      text-align: left;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    nav button.active {
+      background: #1f2520;
+      color: #ffffff;
+      border-color: #1f2520;
+    }
+
+    .copy-btn {
+      text-align: center;
+      color: #ffffff;
+      background: var(--teal);
+      border-color: var(--teal);
+    }
+
+    section {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    section.active { display: block; }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fbfcf8;
+      min-height: 128px;
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .badge.good { background: var(--green); }
+    .badge.warn { background: var(--yellow); color: #1f2520; }
+    .badge.bad { background: var(--red); }
+    .badge.info { background: var(--blue); }
+
+    .rule {
+      border-left: 6px solid var(--teal);
+      background: #f4fbfa;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 14px 0;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #202820;
+      color: #f3f8ef;
+      border-radius: 8px;
+      padding: 16px;
+      overflow: auto;
+      max-height: 360px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 12px;
+      counter-reset: step;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px 14px 14px 52px;
+      position: relative;
+      background: #ffffff;
+    }
+
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--violet);
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    .checks {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    label.check {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      accent-color: var(--green);
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 860px) {
+      .topbar { grid-template-columns: 1fr; }
+      .status-strip { grid-template-columns: 1fr; }
+      main { grid-template-columns: 1fr; }
+      nav {
+        position: static;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      nav { grid-template-columns: 1fr; }
+      section { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div>
+        <h1>Plano Visual HTML</h1>
+        <p class="subtitle">Diagnostico e acao para restaurar o comportamento correto: HTML renderizado/interativo primeiro, codigo so quando pedido.</p>
+      </div>
+      <button class="copy-btn" data-copy="ruleText">Copiar regra</button>
+    </div>
+    <div class="status-strip" aria-label="Resumo de status">
+      <div class="status good"><strong>Correto</strong><span>Canvas/preview quando mostra pagina renderizada.</span></div>
+      <div class="status bad"><strong>Incorreto</strong><span>Abandonar visualizacao para evitar codigo.</span></div>
+      <div class="status warn"><strong>A verificar</strong><span>Duplicatas em Gerenciar memorias.</span></div>
+      <div class="status info"><strong>Teste</strong><span>HTML visual, codigo recolhido e nova aba.</span></div>
+    </div>
+  </header>
+
+  <main>
+    <nav aria-label="Secoes do plano">
+      <button class="active" data-tab="diagnostico">Diagnostico</button>
+      <button data-tab="regra">Regra</button>
+      <button data-tab="plano">Plano</button>
+      <button data-tab="testes">Testes</button>
+      <button data-tab="checklist">Checklist</button>
+    </nav>
+
+    <div>
+      <section id="diagnostico" class="active">
+        <h2>Diagnostico</h2>
+        <div class="grid">
+          <div class="card">
+            <span class="badge good">preservar</span>
+            <strong>Canvas nao e o problema</strong>
+            <p>Ele e desejado quando entrega a pagina visual renderizada como foco principal.</p>
+          </div>
+          <div class="card">
+            <span class="badge bad">corrigir</span>
+            <strong>Codigo aberto virou falso alvo</strong>
+            <p>A regra tentou evitar codigo bruto e acabou enfraquecendo a previa visual.</p>
+          </div>
+          <div class="card">
+            <span class="badge warn">risco</span>
+            <strong>Memorias parecidas</strong>
+            <p>Memorias visuais sobrepostas podem fazer a IA obedecer a regra antiga e a nova ao mesmo tempo.</p>
+          </div>
+          <div class="card">
+            <span class="badge info">direcao</span>
+            <strong>Visual primeiro</strong>
+            <p>Para HTML, visual significa interface renderizada/interativa, com preview e abertura em nova aba quando possivel.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="regra">
+        <h2>Regra aprimorada</h2>
+        <div class="rule" id="ruleText">Quando o usuario pedir HTML visual, pagina HTML, pagina visual renderizada, canvas com HTML, painel, dashboard, guia navegavel, previa interativa, interface local ou artefato funcional semelhante, interpretar visual como interface HTML renderizada/interativa, nao como imagem estatica gerada. Entregar como foco principal canvas/previa visual, pagina renderizada, arquivo HTML abrivel/baixavel, painel interativo ou botao/link para abrir em nova aba/tela cheia. Nao substituir pedido de HTML visual por imagem gerada. Geracao de imagem deve ser foco principal somente quando o usuario pedir explicitamente imagem, foto, ilustracao, arte, mockup estatico, miniatura estatica ou print anotado, ou como fallback declarado se a renderizacao HTML nao estiver disponivel. O canvas e correto quando mostra a pagina visual e nao deve ser evitado, removido, anulado ou substituido por codigo. Se HTML/CSS/JS/codigo aparecer por padrao, tratar como problema de exibicao: usar ou orientar o botao Previa, abrir em nova aba/tela cheia quando possivel e nao repetir codigo bruto. Codigo pode aparecer minimizado, encurtado, recolhido em dropdown/aba/botao ou acessivel por Codigo; codigo aberto e longo so deve aparecer quando o usuario pedir explicitamente.</div>
+        <button class="copy-btn" data-copy="ruleText">Copiar regra</button>
+      </section>
+
+      <section id="plano">
+        <h2>Plano de acao</h2>
+        <div class="steps">
+          <div class="step"><strong>Congelar estado</strong><br>Nao criar memoria nova e nao apagar duplicatas antes de ver o texto completo.</div>
+          <div class="step"><strong>Identificar regra-alvo</strong><br>Encontrar a memoria visual corrigida e qualquer memoria intermediaria que possa conflitar.</div>
+          <div class="step"><strong>Consolidar</strong><br>Atualizar a regra existente com linguagem positiva: preservar preview/canvas e esconder codigo bruto.</div>
+          <div class="step"><strong>Validar Boltão</strong><br>Se aparecer "Memoria atualizada", considerar persistencia confirmada visualmente.</div>
+          <div class="step"><strong>Testar conversa limpa</strong><br>Pedir pagina HTML visual de extensao Chrome e verificar se a entrega principal e HTML renderizado/interativo, nao imagem nem codigo.</div>
+        </div>
+      </section>
+
+      <section id="testes">
+        <h2>Testes</h2>
+        <p>Teste principal para conversa limpa:</p>
+        <pre id="testMain">Crie uma pagina HTML visual simples para explicar como carregar uma extensao local no Chrome. Quero a interface HTML renderizada em canvas/previa como entrega principal, com botao ou link para abrir em nova aba/tela cheia se possivel. Nao gere imagem estatica. Nao quero codigo HTML aberto na conversa, salvo se eu pedir.</pre>
+        <button class="copy-btn" data-copy="testMain">Copiar teste principal</button>
+        <p class="note">Resultado esperado: preview/canvas/pagina renderizada/interativa primeiro; nova aba quando possivel; codigo recolhido/minimizado se aparecer; imagem apenas se pedida ou fallback declarado.</p>
+        <p>Teste de permissao para codigo:</p>
+        <pre id="testCode">Agora mostre o codigo HTML completo desse arquivo.</pre>
+        <button class="copy-btn" data-copy="testCode">Copiar teste de codigo</button>
+      </section>
+
+      <section id="checklist">
+        <h2>Checklist</h2>
+        <div class="checks">
+          <label class="check"><input type="checkbox"><span>Gerenciar memorias foi aberto ou a lista relevante foi copiada.</span></label>
+          <label class="check"><input type="checkbox"><span>A regra-alvo foi identificada sem apagar nada.</span></label>
+          <label class="check"><input type="checkbox"><span>O texto final consolidado preserva canvas/preview como correto.</span></label>
+          <label class="check"><input type="checkbox"><span>O cartao/botao "Memoria atualizada" apareceu.</span></label>
+          <label class="check"><input type="checkbox"><span>O teste em conversa limpa entregou pagina visual renderizada como foco principal.</span></label>
+          <label class="check"><input type="checkbox"><span>Codigo bruto so apareceu depois de pedido explicito.</span></label>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const buttons = document.querySelectorAll("nav button");
+    const sections = document.querySelectorAll("main section");
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        buttons.forEach((item) => item.classList.remove("active"));
+        sections.forEach((section) => section.classList.remove("active"));
+        button.classList.add("active");
+        document.getElementById(button.dataset.tab).classList.add("active");
+      });
+    });
+
+    document.querySelectorAll("[data-copy]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const target = document.getElementById(button.dataset.copy);
+        const text = target.innerText.trim();
+        await navigator.clipboard.writeText(text);
+        const original = button.textContent;
+        button.textContent = "Copiado";
+        window.setTimeout(() => { button.textContent = original; }, 1200);
+      });
+    });
+  </script>
+</body>
+</html>
