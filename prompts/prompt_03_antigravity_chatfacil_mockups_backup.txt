@@ -1,0 +1,50 @@
+PROMPT 03 — ANTIGRAVITY: ESTRUTURA CHAT FÁCIL, MOCKUPS E PROTOCOLO DE BACKUP
+
+Objetivo:
+Criar a estrutura visual, mockups, documentação e protocolo de backup da extensão Chat Fácil no GitHub.
+
+Repositório:
+erickvaq/chatgpt-cofre-operacional
+
+Caminhos obrigatórios:
+- ferramentas/chat-facil/
+- ferramentas/chat-facil/mockups/
+- backups/extensoes/chat-facil/
+- backups/extensoes/chat-facil/INDEX.md
+
+Contexto:
+Chat Fácil é uma extensão local de Chrome/Edge usada para acelerar fluxos dentro do ChatGPT: capturar mensagens, transferir texto entre abas/conversas, repetir capturas, auxiliar backups e reduzir copiar/colar manual.
+
+Tarefa:
+1. Abrir ou clonar o repositório.
+2. Criar os caminhos obrigatórios se não existirem.
+3. Criar mockups HTML/CSS simples em `ferramentas/chat-facil/mockups/`, representando:
+   - popup principal;
+   - seleção de origem/destino;
+   - captura de últimas mensagens;
+   - envio para outra aba;
+   - status/LED: amarelo = texto preparado, vermelho = enviado/processando, verde = resposta concluída/pronta;
+   - área de log/histórico;
+   - aviso de que a extensão é opcional e depende do ambiente atual.
+4. Criar/atualizar:
+   - ferramentas/chat-facil/README.md
+   - ferramentas/chat-facil/REGRA_CHAT_FACIL.md
+   - ferramentas/chat-facil/FUNCOES_ATUALIZADAS.md
+   - ferramentas/chat-facil/CHANGELOG.md
+   - ferramentas/chat-facil/mockups/INDEX.md
+   - backups/extensoes/chat-facil/INDEX.md
+5. Registrar que toda atualização futura da extensão deve gerar backup versionado em:
+   backups/extensoes/chat-facil/YYYY-MM-DD_HHhMM-BRT_vNN_resumo-curto/
+6. Não alterar a extensão funcional se ela já existir; criar mockups/documentação separados.
+7. Fazer `git status`.
+8. Fazer commit:
+   docs: adiciona estrutura e mockups da extensao Chat Facil
+9. Fazer push, se GitHub estiver autenticado.
+10. Entregar relatório final com arquivos criados/modificados, funções documentadas, caminho do backup/documentação, commit e status do push.
+
+Segurança:
+- Não apagar arquivos antigos.
+- Não sobrescrever backups anteriores.
+- Não renomear Chat Bridge/Chat Fácil sem confirmação.
+- Se GitHub pedir login, token ou permissão, pare e diga exatamente o que preciso autorizar.
+- Se o push falhar, deixar pacote local pronto e explicar como enviar depois.

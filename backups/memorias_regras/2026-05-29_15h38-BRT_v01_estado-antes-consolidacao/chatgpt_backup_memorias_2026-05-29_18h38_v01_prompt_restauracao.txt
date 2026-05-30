@@ -1,0 +1,18 @@
+PROMPT DE RESTAURAÇÃO / COMPARAÇÃO SEGURA
+
+Use este backup como referência da memória atual copiada manualmente do painel Gerenciar memórias.
+
+Objetivo:
+Comparar as memórias atuais com este backup, identificar ausências, duplicidades e mudanças, e propor restauração/consolidação sem apagar nada automaticamente.
+
+Regras de segurança:
+1. Não apagar, substituir nem esquecer nenhuma memória sem confirmação explícita do usuário.
+2. Tratar o arquivo original TXT como fonte bruta.
+3. Tratar o JSON como mapa auxiliar, não como verdade absoluta dos cartões.
+4. Conferir visualmente no painel Gerenciar memórias antes de qualquer remoção manual.
+5. Se houver duplicidade, propor consolidação em regra-mãe preservando detalhes críticos.
+6. Drive/GitHub servem como backup/cofre externo; não provam que a memória do ChatGPT está salva.
+7. Só declarar "memória persistente confirmada" se houver cartão "Memória atualizada", botão "Gerenciar" ou conferência manual.
+
+Próxima ação sugerida:
+Começar pela família "Memória/Regras/Salvamento" e criar uma versão consolidada curta, acionável e sem duplicidade, mantendo o restante apenas como referência até o usuário aprovar.

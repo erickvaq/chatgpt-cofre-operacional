@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel de Entrega Final - Backup e Regras</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f7f4;
+      --ink: #1d2525;
+      --muted: #687170;
+      --line: #d8ddd8;
+      --panel: #ffffff;
+      --good: #18865b;
+      --warn: #ad6b00;
+      --block: #b83b4b;
+      --info: #2f6f9f;
+      --shadow: 0 12px 30px rgba(30, 40, 35, .08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+
+    header {
+      background: #20302d;
+      color: white;
+      padding: 28px 24px;
+      border-bottom: 5px solid #78b892;
+    }
+
+    header .wrap,
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    p { margin: 0 0 10px; }
+
+    main {
+      padding: 22px 0 36px;
+    }
+
+    .subtitle {
+      color: #d8ebe2;
+      max-width: 900px;
+      margin: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin: 18px 0;
+    }
+
+    .card,
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .card {
+      padding: 14px;
+      min-height: 120px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .good { color: var(--good); }
+    .warn { color: var(--warn); }
+    .block { color: var(--block); }
+    .info { color: var(--info); }
+    .dot.good { background: var(--good); }
+    .dot.warn { background: var(--warn); }
+    .dot.block { background: var(--block); }
+    .dot.info { background: var(--info); }
+
+    section {
+      padding: 18px;
+      margin: 14px 0;
+    }
+
+    .cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    ul {
+      margin: 8px 0 0;
+      padding-left: 20px;
+    }
+
+    li { margin: 5px 0; }
+
+    code,
+    .path {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+
+    .path {
+      display: block;
+      background: #f2f5f3;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      margin: 6px 0;
+    }
+
+    .copybox {
+      width: 100%;
+      min-height: 360px;
+      resize: vertical;
+      border: 1px solid #bfc8c3;
+      border-radius: 8px;
+      padding: 14px;
+      font: 13px/1.45 Consolas, "Courier New", monospace;
+      color: #17201f;
+      background: #fbfcfb;
+      white-space: pre-wrap;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    button {
+      border: 1px solid #1d5e4b;
+      background: #216b55;
+      color: white;
+      border-radius: 7px;
+      padding: 9px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:hover { background: #1b5947; }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .banner {
+      border-left: 5px solid var(--warn);
+      background: #fff8eb;
+      padding: 12px 14px;
+      border-radius: 6px;
+    }
+
+    @media (max-width: 900px) {
+      .grid,
+      .cols {
+        grid-template-columns: 1fr;
+      }
+
+      h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Painel de Entrega Final</h1>
+      <p class="subtitle">Backup de memorias/regras, Codex Orquestrador, GitHub, Antigravity e Chat Facil. Entrega unica para copiar ao ChatGPT atual.</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <article class="card">
+        <div class="status good"><span class="dot good"></span>Memoria</div>
+        <h3>Confirmada</h3>
+        <p>Apareceu "Memoria atualizada" e a resposta disse "Memoria persistente confirmada".</p>
+      </article>
+      <article class="card">
+        <div class="status good"><span class="dot good"></span>Backup</div>
+        <h3>Verificado</h3>
+        <p>O ZIP de 18h38 foi confirmado como backup real e padronizado para 15h38-BRT.</p>
+      </article>
+      <article class="card">
+        <div class="status block"><span class="dot block"></span>GitHub</div>
+        <h3>Bloqueado</h3>
+        <p>Repositorio esperado retornou 404. Nao houve commit nem push.</p>
+      </article>
+      <article class="card">
+        <div class="status warn"><span class="dot warn"></span>Antigravity</div>
+        <h3>Pendente</h3>
+        <p>Prompt preparado. Programacao/mockups nao foram executados no Codex.</p>
+      </article>
+    </div>
+
+    <section>
+      <h2>Concluido</h2>
+      <ul>
+        <li>Prompt de salvamento foi colado na bancada limpa autorizada do ChatGPT.</li>
+        <li>Memoria persistente confirmada visualmente por "Memoria atualizada".</li>
+        <li>Backup real de memorias/regras verificado.</li>
+        <li>ZIP padronizado criado localmente.</li>
+        <li>Relatorio final, indice e mapa de duplicatas criados.</li>
+        <li>Entrega unica Markdown, painel HTML e ZIP final preparados.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Bloqueado/Pendente</h2>
+      <div class="banner">
+        <p><strong>GitHub segue bloqueado.</strong> O repositorio <code>erickvaq/chatgpt-cofre-operacional</code> retornou <code>404 Not Found</code>. GitHub e backup/versionamento, nao prova de memoria ativa.</p>
+      </div>
+      <ul>
+        <li>Criar/liberar o repositorio GitHub ou informar outro repositorio autorizado.</li>
+        <li>Fazer commit/push quando o repositorio estiver acessivel.</li>
+        <li>Copiar a lista real atual do painel Gerenciar memorias para backup pos-salvamento.</li>
+        <li>Enviar o prompt do Chat Facil ao Antigravity.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Arquivos criados</h2>
+      <div class="cols">
+        <div>
+          <h3>Entrega principal</h3>
+          <span class="path">C:\Users\Windows User\Documents\Codex\2026-05-29\c-users-windows-user-desktop-roteiro\ENTREGA_FINAL_PARA_CHATGPT.md</span>
+          <span class="path">C:\Users\Windows User\Documents\Codex\2026-05-29\c-users-windows-user-desktop-roteiro\PAINEL_ENTREGA_FINAL.html</span>
+        </div>
+        <div>
+          <h3>Backup e relatorios</h3>
+          <span class="path">C:\Users\Windows User\Documents\Codex\2026-05-29\c-users-windows-user-desktop-roteiro\RELATORIO_FINAL_BACKUP_REGRAS_CODEX_ANTIGRAVITY.md</span>
+          <span class="path">C:\Users\Windows User\Documents\Codex\2026-05-29\c-users-windows-user-desktop-roteiro\backups\memorias_regras\INDEX.md</span>
+          <span class="path">C:\Users\Windows User\Documents\Codex\2026-05-29\c-users-windows-user-desktop-roteiro\backups\memorias_regras\MAPA_DUPLICATAS_MEMORIAS.md</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="toolbar">
+        <h2 style="margin:0">Copiar para ChatGPT</h2>
+        <button type="button" onclick="copyDelivery()">Selecionar/copiar texto</button>
+        <span id="copyStatus" class="note">Use esta area como entrega unica para o ChatGPT atual.</span>
+      </div>
+      <textarea id="deliveryText" class="copybox" spellcheck="false"># Entrega final para ChatGPT atual
+
+Data: 2026-05-29 17h25 BRT
+Processo: backup de memorias/regras, Codex orquestrador, GitHub, Antigravity e Chat Facil.
+
+## Resumo executivo
+
+O ciclo local foi finalizado pelo Codex. A regra do Codex Orquestrador foi salva/consolidada na conversa limpa autorizada do ChatGPT, com confirmacao visual. O backup real de memorias foi verificado, padronizado, organizado localmente e preparado para envio ao GitHub. Tambem foi criado um mapa seguro de duplicatas para revisao futura, sem apagar nada.
+
+## Memoria
+
+Status: memoria persistente confirmada.
+
+Evidencias:
+- Apareceu o cartao/botao "Memoria atualizada".
+- A resposta do ChatGPT limpo informou "Memoria persistente confirmada".
+- A resposta informou que a regra foi consolidada/atualizada com regras parecidas existentes, sem criar duplicata nova.
+
+Regra consolidada:
+Codex -> Antigravity -> ChatGPT limpo -> GitHub -> backups -> roteiros ZIP -> processos em etapas.
+
+## GitHub
+
+Status: bloqueado.
+
+Motivos:
+- GitHub connector retornou 404 Not Found.
+- git ls-remote retornou Repository not found.
+- GitHub CLI gh nao esta instalado/disponivel.
+- Nao houve commit/push.
+
+## Antigravity
+
+Status: prompt preparado, nao executado no Codex.
+
+## Proxima acao objetiva
+
+Liberar/criar o repositorio erickvaq/chatgpt-cofre-operacional no GitHub e autorizar o acesso do conector/app GitHub, ou informar um repositorio alternativo explicitamente autorizado.</textarea>
+    </section>
+  </main>
+
+  <script>
+    async function copyDelivery() {
+      const box = document.getElementById('deliveryText');
+      const status = document.getElementById('copyStatus');
+      box.focus();
+      box.select();
+      try {
+        await navigator.clipboard.writeText(box.value);
+        status.textContent = 'Texto copiado para a area de transferencia.';
+      } catch (error) {
+        status.textContent = 'Texto selecionado. Use Ctrl+C para copiar.';
+      }
+    }
+  </script>
+</body>
+</html>
+
