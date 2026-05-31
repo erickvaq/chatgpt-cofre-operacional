@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChatFÁCIL</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main>
+
+    <!-- CABEÇALHO -->
+    <header>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <div class="logo">CF</div>
+        <div>
+          <h1>ChatFÁCIL</h1>
+          <p>ponte local entre conversas</p>
+        </div>
+      </div>
+      <div style="display:flex; gap:5px; align-items:center;">
+        <button id="btn-always-top" class="btn-top" title="Manter janela sempre no topo">📌 Topo</button>
+        <button id="btn-fix-window" class="btn-fix" title="Abrir como janela persistente">⧉ Fixar</button>
+      </div>
+    </header>
+
+    <!-- STATUS: FONTE + DESTINO + FILA -->
+    <section class="status">
+      <div class="status-row">
+        <span class="status-label">Fila:</span>
+        <div style="display:flex; align-items:center; gap:5px;">
+          <span class="led-dot IDLE" id="popup-led"></span>
+          <span id="popup-state-text" class="status-value">Livre</span>
+        </div>
+      </div>
+      <div id="sourceStatus" class="muted">🟢 Fonte: detectando…</div>
+      <div id="selectedDestStatus" class="muted">🎯 Destino: nenhum selecionado</div>
+    </section>
+
+    <!-- CAPTURA + ENVIO PARA DESTINO (grupo verde) -->
+    <section class="panel">
+      <div class="section-head">
+        <h2>▶ Para o Destino</h2>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <input id="recentCount" type="number" min="1" max="999" step="1"
+            inputmode="numeric" value="1" aria-label="Quantidade de mensagens"
+            style="width:44px; height:24px; text-align:center; font-size:12px;">
+          <span style="font-size:10px; color:#94a3b8;">msg</span>
+          <button id="captureAllToggle" class="toggle" aria-pressed="false">Todas</button>
+        </div>
+      </div>
+
+      <!-- Botões [Colar | Enviar | Auto] -->
+      <div class="btn-trio">
+        <button id="pasteToDestBtn" class="btn-trio-item btn-green" title="Colar no destino sem enviar">
+          📋 Colar
+        </button>
+        <button id="submitDestination" class="btn-trio-item btn-green-dark" title="Enviar o que já está no campo do destino">
+          🚀 Enviar
+        </button>
+        <button id="autoSendBtn" class="btn-trio-item btn-green-auto" title="Captura, cola e envia automaticamente">
+          ⚡ Auto
+        </button>
+      </div>
+
+      <!-- Atalhos embaixo dos botões -->
+      <div class="btn-trio shortcut-row">
+        <input class="sc-input" data-action="pasteToDestBtn"   readonly placeholder="atalho" title="Clique e pressione a tecla">
+        <input class="sc-input" data-action="submitDestination" readonly placeholder="atalho" title="Clique e pressione a tecla">
+        <input class="sc-input" data-action="autoSendBtn"      readonly placeholder="atalho" title="Clique e pressione a tecla">
+      </div>
+
+      <!-- Print -->
+      <button id="capturePrintAndSend" class="btn-full secondary" style="margin-top:5px;">📸 Capturar print e enviar</button>
+    </section>
+
+    <!-- TRAZER RESPOSTA (grupo azul) -->
+    <section class="panel panel-blue">
+      <div class="section-head">
+        <h2>◀ Trazer do Destino</h2>
+      </div>
+
+      <!-- Botões [Trazer | Enviar | Auto] -->
+      <div class="btn-trio">
+        <button id="pullDestinationResponse" class="btn-trio-item btn-blue" title="Traz resposta do destino e cola na aba atual">
+          📥 Trazer
+        </button>
+        <button id="submitSourceBtn" class="btn-trio-item btn-blue-dark" title="Envia o conteúdo já colado na aba atual (fonte)">
+          🚀 Enviar
+        </button>
+        <button id="autoReturnBtn" class="btn-trio-item btn-blue-auto" title="Traz, cola e envia automaticamente na fonte">
+          ⚡ Auto
+        </button>
+      </div>
+
+      <!-- Atalhos embaixo dos botões -->
+      <div class="btn-trio shortcut-row">
+        <input class="sc-input" data-action="pullDestinationResponse" readonly placeholder="atalho" title="Clique e pressione a tecla">
+        <input class="sc-input" data-action="submitSourceBtn"         readonly placeholder="atalho" title="Clique e pressione a tecla">
+        <input class="sc-input" data-action="autoReturnBtn"           readonly placeholder="atalho" title="Clique e pressione a tecla">
+      </div>
+    </section>
+
+    <!-- DESTINOS CONECTADOS -->
+    <section class="panel">
+      <div class="section-head">
+        <h2>Destinos</h2>
+        <div style="display:flex; gap:4px;">
+          <button id="refreshTabs"  class="icon-button" title="Atualizar">🔄</button>
+          <button id="btnAddDest"   class="icon-button" title="Adicionar destino ChatGPT">+ Adicionar</button>
+          <button id="btnRemoveDest" class="icon-button danger" title="Remover destino selecionado">− Remover</button>
+        </div>
+      </div>
+
+      <!-- Dropdown de abas ChatGPT disponíveis -->
+      <div id="addDestDropdown" class="add-dest-dropdown" style="display:none;">
+        <div class="add-dest-header">Abas ChatGPT disponíveis para adicionar:</div>
+        <div id="availableTabsList" class="available-tabs-list"></div>
+        <button id="btnCloseDropdown" class="icon-button" style="margin-top:6px; width:100%; font-size:10px;">✕ Fechar</button>
+      </div>
+
+      <div id="connectedDestList" class="tab-list" style="margin-top:6px;"></div>
+    </section>
+
+    <!-- MODO ASSISTIDO: CODEX / ANTIGRAVITY -->
+    <details class="panel">
+      <summary>⚙️ Modo Assistido (Codex / Antigravity)</summary>
+      <div style="padding-top:8px;">
+        <p style="font-size:10px; color:#64748b; margin-bottom:8px; line-height:1.4;">
+          Use quando o destino não é uma aba Chrome (Codex Desktop, Antigravity Desktop).
+        </p>
+        <div class="legacy-grid">
+          <button id="btnCopyForCodex"           class="icon-button">📋 Copiar p/ Codex</button>
+          <button id="btnPasteCodexResponse"      class="icon-button">📥 Colar resp. Codex</button>
+          <button id="btnCopyForAntigravity"      class="icon-button">📋 Copiar p/ Antigravity</button>
+          <button id="btnPasteAntigravityResponse" class="icon-button">📥 Colar resp. Antigrav.</button>
+        </div>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.08);">
+          <div style="font-size:10px; color:#475569; margin-bottom:4px;">Indicadores de papel:</div>
+          <div id="roleIndicators" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- ITENS CAPTURADOS -->
+    <details class="panel">
+      <summary>📁 Itens capturados</summary>
+      <div class="legacy-grid" style="margin-top:8px;">
+        <button id="captureSelection"  class="icon-button">📝 Capturar Seleção</button>
+        <button id="sendSelection"     class="icon-button">📤 Enviar Seleção</button>
+        <button id="captureScreenshot" class="icon-button">🖼️ Capturar Print</button>
+        <button id="sendLast"          class="icon-button">⏩ Reenviar Último</button>
+        <button id="clearItems"        class="danger icon-button">🗑️ Limpar Tudo</button>
+      </div>
+      <div id="items" class="items"></div>
+    </details>
+
+    <section id="statusMessage" class="message" aria-live="polite"></section>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

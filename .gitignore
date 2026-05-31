@@ -1,0 +1,37 @@
+# Ignorar backups internos desnecessários e estados antigos
+BACKUP_ESTADO_FUNCIONAL/
+BACKUP_PROTOTIPO_ATUAL/
+WORKSPACE_CHATBRIDGE_V0_3_2/
+chat_bridge_ext_v0_2_5_instalador/
+chat_bridge_ext_v0_3_1_instalador/
+chat_bridge_ext_v0_2_5_instalador.zip
+COPIA_DESTINO_USADO.txt
+
+# Ignorar pastas de backup locais com carimbo de data/hora
+backups/2026-*
+backups/backup_*
+backups/pre_*
+
+# Ignorar rascunhos de documentos soltos na raiz (pois estão em documentacao/)
+/AGENTS.md
+/HANDOFF_IA.md
+/ESTADO_ARQUIVOS.md
+/RELATORIO_ANTIGRAVITY_V0_3_2.md
+/RELATORIO_CODEX_AUDITORIA_V0_3_2.md
+/RELATORIO_PASSO_3_HANDOFF.md
+/PLANO_TECNICO_CHATFACIL_V0_3_2.md
+/CHECKLIST_TESTE_CHROME_V0_3_2.md
+/PROMPT_ANTIGRAVITY_CONTINUAR.md
+
+# Ignorar arquivos temporários, logs e segredos
+*.log
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db
+node_modules/
+.env
+.env.*
+_temp/
+_backup/
+_*/
