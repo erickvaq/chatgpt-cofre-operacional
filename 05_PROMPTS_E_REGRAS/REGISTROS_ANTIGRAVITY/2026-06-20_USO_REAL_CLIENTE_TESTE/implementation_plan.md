@@ -1,41 +1,42 @@
-# Plano de Implementação — Configuração GitHub e Teste da REGRA 24
+# Plano de Implementação — Atualização de Padrão (Sem BAT)
 
-Este plano descreve as etapas para configurar o repositório remoto do GitHub, testar a geração sincronizada de entregas visuais em HTML e PDF (REGRA 24) e documentar o aprendizado em arquivos persistentes de regras do projeto.
+Este plano descreve as etapas para atualizar as regras persistentes, memória operacional do Codex e o histórico de processos para o novo padrão de entregas sem a geração automática de arquivos `.bat` auxiliares.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> A credencial/token do GitHub do usuário deve estar configurada localmente (ou o Windows Credential Manager deve gerenciar) para permitir que o comando `git push` ocorra com sucesso sem solicitar credenciais de forma interativa. Se for solicitada autenticação interativa, o agente irá parar e solicitar intervenção manual.
+> A partir desta alteração, nenhuma entrega visual padrão gerará arquivos `.bat` de abertura rápida. O padrão de conferência será abrir a pasta final no Explorer e verificar o HTML/PDF.
 
 ## Proposed Changes
 
-### Configuração do Git e Entrega de Teste
-
-#### [NEW] [gerar_teste_regra24.py](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/03_SCRIPTS/gerar_teste_regra24.py)
-Criar um script Python para gerar programaticamente os arquivos HTML e PDF do teste de entrega visual no formato e pasta corretos, utilizando ReportLab para a conversão para PDF em conformidade com as bibliotecas locais.
-
-#### [NEW] [TESTE_ENTREGA_VISUAL_2026-06-20_V1.html](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_ENTREGA_VISUAL_2026-06-20_V1/TESTE_ENTREGA_VISUAL_2026-06-20_V1.html)
-Arquivo HTML contendo o conteúdo do teste visual (data de criação, versão, descrição da regra).
-
-#### [NEW] [TESTE_ENTREGA_VISUAL_2026-06-20_V1.pdf](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_ENTREGA_VISUAL_2026-06-20_V1/TESTE_ENTREGA_VISUAL_2026-06-20_V1.pdf)
-Arquivo PDF gerado a partir do conteúdo do teste visual.
-
-### Documentação de Regras e Histórico
+### Documentação de Regras, Memórias e Histórico
 
 #### [MODIFY] [REGRAS_PERSISTENTES_DO_PROJETO.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md)
-Adicionar os novos aprendizados do teste de entrega à REGRA 24 (como a necessidade de manter a estrutura de subpastas dedicadas, verificação de Git remotes e tratamento de erros do push).
+Remover a geração de arquivos `.bat` automáticos e estabelecer a abertura da pasta no Explorer nas Regras 9, 12, 16, 24 e 25.
 
-#### [NEW] [HISTORICO_DE_PROCESSOS_VALIDOS.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/HISTORICO_DE_PROCESSOS_VALIDOS.md)
-Criar o arquivo de histórico registrando as etapas executadas, caminhos de arquivo, comandos, links do GitHub e o padrão `PADRAO_ENTREGA_VISUAL_HTML_PDF_GITHUB`.
+#### [MODIFY] [MEMORIA_OPERACIONAL_DO_CODEX.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/MEMORIA_OPERACIONAL_DO_CODEX.md)
+Atualizar a memória para desativar `.bat` por padrão em entregas de clientes.
 
-#### [NEW] [REGRAS_PERSISTENTES_DO_PROJETO.md.bak](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/backups/REGRAS_PERSISTENTES_DO_PROJETO.md.bak)
-Criar backup dos arquivos de regras antes de rodar o precheck final.
+#### [MODIFY] [HISTORICO_DE_PROCESSOS_VALIDOS.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/HISTORICO_DE_PROCESSOS_VALIDOS.md)
+Registrar a Etapa 3 e o padrão `PADRAO_ENTREGA_CLIENTE_SEM_BAT`.
+
+### Backups
+
+#### [NEW] [REGRAS_PERSISTENTES_DO_PROJETO_2026-06-20_V4.md.bak](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/backups/REGRAS_PERSISTENTES_DO_PROJETO_2026-06-20_V4.md.bak)
+#### [NEW] [MEMORIA_OPERACIONAL_DO_CODEX_2026-06-20_V3.md.bak](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/backups/MEMORIA_OPERACIONAL_DO_CODEX_2026-06-20_V3.md.bak)
+#### [NEW] [HISTORICO_DE_PROCESSOS_VALIDOS_2026-06-20_V4.md.bak](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/backups/HISTORICO_DE_PROCESSOS_VALIDOS_2026-06-20_V4.md.bak)
+
+### Sincronização dos Registros do Antigravity
+
+#### [NEW] [implementation_plan.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/implementation_plan.md)
+#### [NEW] [task.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/task.md)
+#### [NEW] [walkthrough.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/walkthrough.md)
 
 ## Verification Plan
 
 ### Automated Tests
-- Executar `python 00_SISTEMA_PRECHECK\precheck_regras.py` para garantir que o arquivo de regras editado continua válido e contém as 24 regras esperadas.
+- Executar `python 00_SISTEMA_PRECHECK\precheck_regras.py` para atestar a validade estrutural e de contagem do arquivo de regras persistentes.
 
 ### Manual Verification
-- O agente usará o comando `Start-Process` no PowerShell para abrir o PDF gerado no leitor padrão do Windows ou navegador, garantindo que o arquivo não seja exibido em texto bruto no chat do Antigravity.
-- O agente confirmará a presença do repositório remoto no GitHub usando `git remote -v` e validará o sucesso do envio com `git push`.
+- Validar `git status` antes do commit.
+- Confirmar sucesso do push para a branch `main` no repositório remoto.

@@ -53,33 +53,3 @@ Para todas as entregas visuais futuras, siga estritamente estas etapas obrigató
     *   `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/task.md`
     *   `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/walkthrough.md`
 *   **Versionamento e Push:** Todos os arquivos de registros, regras modificadas e backups foram adicionados, commitados e enviados ao GitHub por push confirmado na branch `main`.
-
----
-
-## Histórico de Atualização de Padrão (2026-06-20 - Etapa 3)
-
-*   **O que foi feito:** Atualização das Regras 24 e 25 e da Memória Operacional do Codex para remover a geração automática de arquivos `.bat` em entregas normais, e transição para o padrão `PADRAO_ENTREGA_CLIENTE_SEM_BAT` onde a conferência é feita abrindo a pasta de entrega diretamente no Explorer.
-*   **Backups criados:**
-    *   `05_PROMPTS_E_REGRAS/backups/REGRAS_PERSISTENTES_DO_PROJETO_2026-06-20_V4.md.bak`
-    *   `05_PROMPTS_E_REGRAS/backups/MEMORIA_OPERACIONAL_DO_CODEX_2026-06-20_V3.md.bak`
-    *   `05_PROMPTS_E_REGRAS/backups/HISTORICO_DE_PROCESSOS_VALIDOS_2026-06-20_V4.md.bak`
-*   **Novo Procedimento Mapeado:** `PADRAO_ENTREGA_CLIENTE_SEM_BAT` cadastrado e validado.
-*   **Arquivos Antigravity alterados e copiados:**
-    *   `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/implementation_plan.md`
-    *   `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/task.md`
-    *   `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/walkthrough.md`
-
----
-
-## Modelo de Procedimento: PADRAO_ENTREGA_CLIENTE_SEM_BAT
-
-Para todas as entregas de cliente, relatórios financeiros e conferências visuais, siga estritamente estas etapas obrigatórias:
-
-1.  **Carregar regras persistentes:** Rodar o script `python 00_SISTEMA_PRECHECK\precheck_regras.py` antes de iniciar.
-2.  **Gerar HTML e PDF:** Gerar o HTML de prévia e o PDF final e salvá-los na mesma pasta de entrega final dedicada em `02_RELATORIOS_GERADOS\`.
-3.  **Nomear com Data e Versão:** Nomear os arquivos contendo o cliente/assunto, a data e a versão (ex: `CLIENTE_TESTE_USO_REAL_2026-06-20_V2_FINAL.pdf` e `CLIENTE_TESTE_USO_REAL_2026-06-20_V2_FINAL.html`). Não sobrescrever versão anterior.
-4.  **Abertura para Conferência:** Abrir a pasta final no Windows Explorer (usando `explorer.exe` ou similar). Não criar arquivos `.bat` por padrão na pasta final.
-5.  **Confirmar Existência e Tamanho:** Validar localmente que tanto o PDF quanto o HTML existem na pasta final e possuem tamanhos maiores que zero.
-6.  **Commit e Push:** Adicionar todos os arquivos da entrega ao Git, fazer commit e enviar por push para a branch `main`.
-7.  **Informar links individuais:** Fornecer caminhos locais e links reais individuais do GitHub (nunca links da pasta geral).
-

@@ -34,7 +34,7 @@ o arquivo abre como texto bruto mostrando `%PDF-1.4` — isso está errado.
    ABRIR_PDF.bat "nome_do_arquivo.pdf"
    ```
 
-2. Mostrar o caminho completo do PDF em **texto puro** (não como link):
+2. Mostrar o caminho completo do PDF in **texto puro** (não como link):
    ```
    C:\Users\Windows User\Desktop\chatgpt projetos\Relatorio_WidePay_Lotes\02_RELATORIOS_GERADOS\arquivo.pdf
    ```
@@ -134,11 +134,11 @@ de abertura: painel HTML, script .bat ou atalho .lnk.
 Nao entregar apenas caminho em texto puro quando o usuario precisar visualizar
 rapidamente.
 
-Padrao de entrega apos gerar qualquer relatorio (PADRAO_ENTREGA_CLIENTE_SEM_BAT):
-1. Abrir automaticamente via Start-Process (externo, nunca dentro do Antigravity) ou abrir a pasta no Explorer para conferência.
-2. Criar ou atualizar o painel HTML de acesso rapido (ABRIR_RELATORIO_*.html) se for necessário.
-3. Para relatórios e entregas de cliente, não criar arquivos `.bat` por padrão (seguir PADRAO_ENTREGA_CLIENTE_SEM_BAT). Só criar se houver pedido explícito ou necessidade técnica explicada antes.
-4. Se atalhos .bat forem criados sob demanda, devem constar no relatório com caminho local, tamanho e link GitHub individual.
+Padrao de entrega apos gerar qualquer relatorio:
+1. Abrir automaticamente via Start-Process (externo, nunca dentro do Antigravity)
+2. Criar ou atualizar o painel HTML de acesso rapido (ABRIR_RELATORIO_*.html)
+3. Criar scripts .bat para: abrir PDF, abrir previa HTML, abrir pasta
+4. Criar atalhos .lnk do Windows para os mesmos arquivos
 5. Nunca criar link clicavel direto para .pdf no chat — causa abertura como texto bruto
 
 ---
@@ -211,7 +211,7 @@ Antes de entregar qualquer relatorio final (PDF, HTML, DOCX ou planilha), confir
 | 4 | O PDF final NAO sobrescreveu arquivo anterior sem autorizacao | [ ] |
 | 5 | O PDF corrigido tem nome novo (`_CORRIGIDO`, `_V2` ou com data) | [ ] |
 | 6 | Existe previa HTML do relatorio em `02_RELATORIOS_GERADOS` | [ ] |
-| 7 | Pasta final aberta no Windows Explorer para conferência (sem BAT por padrão) | [ ] |
+| 7 | Existe painel HTML, `.bat` ou `.lnk` para abertura pratica | [ ] |
 | 8 | Nenhum link direto para `.pdf` foi criado no chat do Antigravity | [ ] |
 | 9 | Botoes e atalhos apontam para o arquivo corrigido mais recente | [ ] |
 | 10| O PDF foi aberto externamente via Start-Process (nao como texto) | [ ] |
@@ -260,14 +260,12 @@ Sempre que o agente criar, modificar ou entregar arquivos do projeto, deve forne
 
 Links `file:///` em Markdown dentro do Antigravity nao sao solucao confiavel para abrir arquivos finais. PDF, DOCX, HTML, HTA, planilhas e imagens devem ser abertos por lancador externo, HTA, BAT, LNK, PowerShell `Start-Process` ou aplicativo padrao do Windows.
 
-Abertura e atalhos na pasta de entrega (PADRAO_ENTREGA_CLIENTE_SEM_BAT):
+Os atalhos auxiliares (.bat e .lnk) sao permitidos e recomendados para facilitar a abertura dos arquivos finais no Windows, desde que sigam a seguinte organizacao:
 1. O sistema deve criar uma pasta final limpa e dedicada para a entrega de cada cliente (ex: `02_RELATORIOS_GERADOS\CAMILA_FERROLHO_V3_FINAL\`).
-2. Dentro dessa pasta devem residir unicamente os arquivos finais (PDF, HTML, DOCX) e arquivos auxiliares estritamente necessários.
-3. Não criar arquivos `.bat` automaticamente por padrão para entregas de cliente, pois basta abrir a pasta final.
-4. O padrão de conferência agora é abrir a pasta final no Windows Explorer usando o comando apropriado (ex: `explorer.exe "caminho_da_pasta"`).
-5. Só criar `.bat` se solicitado explicitamente ou houver necessidade técnica real que deve ser justificada previamente.
-6. Se um `.bat` for criado por exceção, ele deve usar caminhos relativos com `%~dp0` (ex: `cd /d "%~dp0" && start "" "nome_do_arquivo.pdf"`), possuir numeração e nomes claros (ex: `01_ABRIR_PDF_FINAL.bat`), e constar no relatório com caminho local, tamanho e link GitHub individual.
-7. Links clicaveis do Antigravity devem abrir preferencialmente a pasta de entrega limpa em vez do arquivo individual diretamente.
+2. Dentro dessa pasta devem residir unicamente: os arquivos finais (PDF, HTML, DOCX), os atalhos de abertura auxiliares e um arquivo LEIA_ME opcional.
+3. Os atalhos auxiliares devem possuir numeracao e nomes claros, como `01_ABRIR_PDF_FINAL.bat` ou `02_ABRIR_PREVIA_HTML.bat`.
+4. Os scripts .bat devem utilizar caminhos relativos ao diretorio em que estao armazenados (`cd /d "%~dp0"` seguido de `start "" "nome_do_arquivo.pdf"`), mantendo a pasta limpa, portavel e sem poluir o diretorio raiz ou geral do projeto.
+5. Links clicaveis do Antigravity devem abrir preferencialmente a pasta de entrega limpa em vez do arquivo individual diretamente.
 
 ---
 
@@ -409,7 +407,7 @@ Regras do modo consolidado:
 
 Sempre que o usuario pedir para gerar arquivo de visualizacao, relatorio, conferencia, painel, resumo financeiro, previa, documento visual ou entrega final, a entrega visual deve sair em pares: um arquivo `.html` e um arquivo `.pdf`.
 
-Esta regra nao elimina as conferencias previas obrigatorias. Quando o conteudo envolver calculos financeiros, contrato, WidePay, parcelas, carnes, boletos ou valores, o agente deve primeiro gerar e validar a conferencia permitida pelas regras anteriores. O PDF/HTML final so deve ser tratado como entrega final depois das validacoes aplicaveis.
+Esta regra nao elimina as conferencias previas obrigatorias. Quando o conteudo envolver calculos financeiros, contrato, WidePay, parcelas, carnes, boletos or valores, o agente deve primeiro gerar e validar a conferencia permitida pelas regras anteriores. O PDF/HTML final so deve ser tratado como entrega final depois das validacoes aplicaveis.
 
 Regras de geracao:
 1. Sempre gerar os dois formatos para entrega visual final: um `.html` para previa visual/interativa e um `.pdf` para conferencia, impressao e envio.
@@ -417,7 +415,7 @@ Regras de geracao:
 3. Os nomes dos dois arquivos devem conter assunto ou cliente, tipo do documento, data de criacao e versao.
 4. Padrao recomendado: `TIPO_ASSUNTO_YYYY-MM-DD_V1.html` e `TIPO_ASSUNTO_YYYY-MM-DD_V1.pdf`.
 5. Nunca sobrescrever arquivo final antigo. Se `V1` existir, criar `V2`; se `V2` existir, criar `V3`, e assim por diante.
-6. Depois de gerar o PDF e o HTML na mesma pasta final de entrega, abrir a pasta final no Windows Explorer (e abrir o PDF externamente se necessário) para conferência.
+6. Depois de gerar o PDF, abrir externamente para conferencia usando aplicativo padrao, navegador, leitor de PDF, `Start-Process`, BAT, HTA ou launcher adequado.
 7. Nunca abrir PDF como texto bruto dentro do editor ou chat.
 8. Depois de gerar HTML e PDF, confirmar obrigatoriamente: existencia dos dois arquivos, tamanho dos arquivos, PDF realmente criado e HTML abrivel.
 
@@ -430,10 +428,8 @@ Regras de GitHub:
 6. Quando GitHub estiver configurado e seguro, adicionar os arquivos HTML e PDF da entrega, criar commit com mensagem clara contendo data e versao, fazer push e confirmar o push.
 7. Informar link GitHub somente depois de push confirmado. Nunca inventar link de arquivo ainda nao publicado.
 
-Abertura e Atalhos na Pasta de Entrega (PADRAO_ENTREGA_CLIENTE_SEM_BAT):
-1. Para entregas de cliente, relatórios financeiros, conferências visuais e entregas finais, não criar arquivos `.bat` automaticamente por padrão.
-2. O padrão obrigatório é colocar o HTML e o PDF na mesma pasta final de entrega e abrir a pasta no Windows Explorer para conferência.
-3. Só criar `.bat` se houver necessidade técnica real (explicada previamente) ou pedido explícito. Se criado, deve usar caminhos relativos com `%~dp0` e constar no relatório final com caminho local, tamanho e link GitHub individual.
+Abertura e Atalhos na Pasta de Entrega:
+1. Sempre gerar arquivos de abertura rápida `.bat` dentro da mesma subpasta da entrega, usando caminhos relativos (ex: `cd /d "%~dp0"` e `start "" "arquivo.pdf"`) com numeração clara (ex: `01_ABRIR_PDF_FINAL.bat` e `02_ABRIR_PREVIA_HTML.bat`). Isso garante portabilidade e evita poluição do diretório raiz.
 
 Formato final obrigatorio para entregas visuais:
 
@@ -470,7 +466,7 @@ ENTREGA FINAL GERADA
 
 ## REGRA 25 — Memória Operacional e Registro Obrigatório de Artefatos no GitHub
 
-Toda e qualquer criação, alteração ou citação de arquivos de relevância para o projeto (HTML, PDF, scripts, `.bat` sob demanda, regras, históricos, backups, etc.) ou de auditoria do Antigravity/Codex deve possuir caminho local do Windows e link correspondente no GitHub.
+Toda e qualquer criação, alteração ou citação de arquivos de relevância para o projeto (HTML, PDF, scripts, `.bat`, regras, históricos, backups, etc.) ou de auditoria do Antigravity/Codex deve possuir caminho local do Windows e link correspondente no GitHub.
 
 Regras operacionais de artefatos:
 1. **Preservação de arquivos no projeto:** Todos os arquivos gerados devem ser mantidos na estrutura do projeto.
@@ -478,4 +474,3 @@ Regras operacionais de artefatos:
 3. **Links Reais:** Sempre retornar links reais correspondentes aos arquivos publicados no GitHub. É proibido simular ou inventar links de arquivos que não foram efetivamente enviados.
 4. **Arquivos do Antigravity:** Os arquivos auxiliares de planejamento, tarefas e execução (`implementation_plan.md`, `task.md`, `walkthrough.md`) gerados em pastas temporárias do Antigravity (ex: `.gemini/antigravity-ide/brain/...`) devem ser copiados obrigatoriamente para `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/` antes de cada commit, versionados e enviados ao GitHub.
 5. **Segurança de Dados:** Nunca registrar ou subir ao repositório senhas, tokens, cookies, credenciais ou chaves de API.
-

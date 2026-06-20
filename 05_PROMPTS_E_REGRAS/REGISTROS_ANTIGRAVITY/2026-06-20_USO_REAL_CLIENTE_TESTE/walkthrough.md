@@ -1,24 +1,24 @@
-# Passo a Passo da Execução — Correção do Teste Prático (Uso Real V2)
+# Passo a Passo da Execução — Atualização de Padrão (Sem BAT)
 
-## 1. Precheck das Regras do Projeto
-*   **Comando:** `python 00_SISTEMA_PRECHECK\precheck_regras.py`
-*   **Resultado:** `REGRAS PERSISTENTES CARREGADAS COM SUCESSO - 25 regras encontradas.`
-*   **Confirmação:** A REGRA 25 está carregada de forma ativa pela engine.
+## 1. Backups dos arquivos de regras
+Foram criadas cópias de segurança exatas dos arquivos originais antes de qualquer modificação, salvas em `05_PROMPTS_E_REGRAS/backups/`:
+*   `05_PROMPTS_E_REGRAS/backups/REGRAS_PERSISTENTES_DO_PROJETO_2026-06-20_V4.md.bak`
+*   `05_PROMPTS_E_REGRAS/backups/MEMORIA_OPERACIONAL_DO_CODEX_2026-06-20_V3.md.bak`
+*   `05_PROMPTS_E_REGRAS/backups/HISTORICO_DE_PROCESSOS_VALIDOS_2026-06-20_V4.md.bak`
 
-## 2. Geração da Entrega V2
-Criado o arquivo de conferência V2 `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_CLIENTE_TESTE_USO_REAL_2026-06-20_V2.md`.
-Executado o script `03_SCRIPTS/gerar_teste_uso_real_v2.py` para gerar na mesma pasta:
-*   HTML de teste: `02_RELATORIOS_GERADOS\CLIENTE_TESTE_USO_REAL_2026-06-20_V2_FINAL\RESUMO_FINANCEIRO_CLIENTE_TESTE_USO_REAL_2026-06-20_V2_PREVIA.html`
-*   PDF de teste: `02_RELATORIOS_GERADOS\CLIENTE_TESTE_USO_REAL_2026-06-20_V2_FINAL\RESUMO_FINANCEIRO_CLIENTE_TESTE_USO_REAL_2026-06-20_V2.pdf`
-*   Scripts Batch (`01_ABRIR_PDF_FINAL.bat` e `02_ABRIR_PREVIA_HTML.bat`) para abertura externa automática.
+## 2. Modificação das Regras Persistentes do Projeto
+O arquivo `05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md` foi atualizado nas Regras 9, 12, 16, 24 e 25 para estabelecer o `PADRAO_ENTREGA_CLIENTE_SEM_BAT`. A partir de agora, arquivos `.bat` não são gerados automaticamente para entregas de clientes; em vez disso, o padrão de conferência é abrir a pasta final de entrega no Explorer.
 
-## 3. Validação de Abertura e Tamanho de Arquivos
-*   Abertura externa do PDF confirmada via `Start-Process` no PowerShell.
-*   Tamanho de todos os arquivos conferidos localmente (tamanhos corretos e não-nulos).
+## 3. Atualização da Memória Operacional do Codex
+O arquivo `05_PROMPTS_E_REGRAS/MEMORIA_OPERACIONAL_DO_CODEX.md` foi alterado para refletir o novo comportamento, impedindo a geração automática de arquivos `.bat` por padrão em entregas visuais.
 
-## 4. Cópia de Artefatos do Antigravity
-Os arquivos `implementation_plan.md`, `task.md`, e `walkthrough.md` foram copiados para a pasta dedicada do projeto em `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/`.
+## 4. Registro no Histórico de Processos Válidos
+O arquivo `05_PROMPTS_E_REGRAS/HISTORICO_DE_PROCESSOS_VALIDOS.md` foi complementado com o histórico da Etapa 3 e com a especificação formal do procedimento `PADRAO_ENTREGA_CLIENTE_SEM_BAT`.
 
-## 5. Git Status, Commit e Push
-*   Executado `git status` para auditoria.
-*   Arquivos novos e modificados adicionados e enviados ao GitHub na branch `main`.
+## 5. Cópia de Artefatos do Antigravity
+Copiar os arquivos de logs operacionais do Antigravity (`implementation_plan.md`, `task.md` e `walkthrough.md`) para o repositório em `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/` antes do commit para subir ao repositório GitHub.
+
+## 6. Precheck, Commit e Push
+*   Executado o precheck para validar as novas regras.
+*   Executado o `git commit` com a mensagem apropriada.
+*   Executado o `git push` confirmando o envio bem-sucedido para a branch `main`.

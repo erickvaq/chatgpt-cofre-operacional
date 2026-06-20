@@ -1,14 +1,16 @@
-# Lista de Tarefas - Correção Fina do Relatório de Uso Real
+# Lista de Tarefas - Atualização do Padrão de Entregas (Sem BAT)
 
-- [x] Executar precheck e confirmar regras
-- [x] Criar pasta de entrega corrigida `02_RELATORIOS_GERADOS/CLIENTE_TESTE_USO_REAL_2026-06-20_V2_FINAL/`
-- [x] Gerar arquivo de conferência MD (`07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_CLIENTE_TESTE_USO_REAL_2026-06-20_V2.md`)
-- [x] Gerar HTML e PDF emparelhados na pasta final de entrega com os nomes contendo a data e versão V2
-- [x] Criar scripts batch de abertura (`01_ABRIR_PDF_FINAL.bat` e `02_ABRIR_PREVIA_HTML.bat`) com caminhos relativos
-- [x] Abrir o PDF externamente para conferência visual
-- [x] Copiar os arquivos do Antigravity (implementation_plan, task, walkthrough) para `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/`
-- [x] Executar `git status` para auditoria pré-commit
-- [x] Executar `git add` apenas dos novos arquivos criados e modificados e criar o commit
-- [x] Fazer push para o GitHub (`git push origin main`)
-- [x] Atualizar backups e confirmar que todos os links individuais estão ativos no GitHub
-- [x] Entregar o relatório final no formato especificado
+- [x] Criar backups dos arquivos a serem alterados na pasta backups:
+  - [x] `REGRAS_PERSISTENTES_DO_PROJETO_2026-06-20_V4.md.bak`
+  - [x] `MEMORIA_OPERACIONAL_DO_CODEX_2026-06-20_V3.md.bak`
+  - [x] `HISTORICO_DE_PROCESSOS_VALIDOS_2026-06-20_V4.md.bak`
+- [x] Atualizar a Regra 24, a Regra 25 e o padrão de atalhos nas regras persistentes
+- [x] Atualizar a memória operacional do Codex indicando o novo padrão `PADRAO_ENTREGA_CLIENTE_SEM_BAT`
+- [x] Atualizar o histórico de processos válidos documentando a transição
+- [x] Executar precheck de regras para confirmar integridade do arquivo
+- [x] Atualizar os arquivos do Antigravity (`task.md`, `walkthrough.md` e `implementation_plan.md`)
+- [x] Copiar os arquivos do Antigravity para `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/2026-06-20_USO_REAL_CLIENTE_TESTE/`
+- [ ] Executar `git status` para auditoria
+- [ ] Criar commit com a mensagem: `fix: corrige entrega uso real com HTML PDF juntos e links individuais` (ou similar)
+- [ ] Fazer push para a branch `main` no GitHub
+- [ ] Reportar os caminhos e links GitHub individuais de todos os arquivos relevantes

@@ -12,11 +12,10 @@ Sempre que eu gerar, alterar ou citar um arquivo relevante, devo:
 * fazer push;
 * devolver caminho local e link GitHub real.
 
-## Padrão obrigatório para entregas visuais (PADRAO_ENTREGA_CLIENTE_SEM_BAT)
+## Padrão obrigatório para entregas visuais
 
-Sempre gerar HTML + PDF juntos na mesma pasta final de entrega.
-Não criar arquivos `.bat` automaticamente por padrão para entregas de cliente.
-Abrir a pasta final no Windows Explorer para conferência.
+Sempre gerar HTML + PDF juntos.
+O PDF deve ser aberto externamente.
 Os arquivos devem ter data e versão.
 Nunca sobrescrever versão anterior.
 
