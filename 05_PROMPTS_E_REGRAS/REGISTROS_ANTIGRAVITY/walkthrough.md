@@ -22,3 +22,9 @@ Criado o arquivo de auditoria `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/TESTE_R
 *   Executado `git status` para auditoria do stage.
 *   Arquivos criados adicionados (`git add`) e commitados com a mensagem: `teste: valida REGRA 25 artefatos com links GitHub 2026-06-20 V1` (SHA: `5691f6a`).
 *   Envio confirmado ao GitHub via `git push origin main` com sucesso.
+
+## 6. Correção Fina de Links Individuais
+*   O arquivo de auditoria foi atualizado para incluir a tabela detalhada de conferência de links individuais para todos os arquivos criados ou modificados.
+*   Todos os links de arquivos individuais foram conferidos e confirmados como ativos no GitHub.
+*   Novo commit e push foram efetuados para subir os arquivos atualizados de auditoria e registros do Antigravity.
+
