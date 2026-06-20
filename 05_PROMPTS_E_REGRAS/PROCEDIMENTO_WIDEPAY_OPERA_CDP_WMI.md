@@ -1,0 +1,53 @@
+# Procedimento Operacional: Acesso Automatizado WidePay via Opera GX, WMI e CDP 9444
+
+## 1. O Problema Encontrado
+Ao executar comandos de automação que abrem navegadores diretamente no terminal da Antigravity IDE, o processo é iniciado dentro de um **Windows Job Object**. Quando a tarefa de terminal termina, o Windows encerra automaticamente o processo pai e todos os seus filhos, matando o navegador dedicado e derrubando a porta do CDP.
+
+## 2. Por que o Chrome/Porta 9222 Falharam?
+* **Chrome principal do usuário:** Normalmente está aberto e rodando sem flags de depuração ativa. Quando tentamos abrir um Chrome de debug na porta 9222 ou 9333, o Chrome detecta uma instância ativa no mesmo diretório de perfil e redireciona a chamada para ela, ignorando as flags de CDP (`--remote-debugging-port`).
+* **Conflitos de Porta:** A porta `9222` costuma ser a porta padrão de CDP e frequentemente entra em conflito com outras instâncias do Chrome ou do Edge.
+
+## 3. Por que 127.0.0.1 Falhou?
+O endpoint `127.0.0.1:9444` às vezes é rejeitado pelo navegador devido à política de origens permitidas (CORS/Host Headers), especialmente se `--remote-allow-origins=*` não funcionar em conexões estritas. O uso de `localhost:9444` é mais estável e aceito por padrão pelo protocolo de depuração do Chromium.
+
+## 4. A Solução Correta: Opera GX + WMI
+Para evitar o encerramento do processo pelo Job Object da IDE, utilizamos a criação de processos via **WMI (Windows Management Instrumentation)** pelo CIM no PowerShell. Isso spawna o processo do Opera como filho de `wmiprvse.exe`, desvinculando-o inteiramente da árvore de processos do terminal da IDE.
+
+### Parâmetros Oficiais:
+* **Navegador:** Opera GX (ou Opera comum)
+* **Porta CDP:** `9444`
+* **Host/Endpoint:** `localhost:9444`
+* **Perfil Dedicado:** `08_NAVEGADOR_WIDEPAY\OperaProfile_9444`
+
+---
+
+## 5. Como Testar o CDP
+Execute o seguinte comando no terminal para verificar se o CDP está respondendo corretamente na porta `9444`:
+```powershell
+Invoke-WebRequest http://localhost:9444/json/version -UseBasicParsing
+```
+O retorno esperado é um JSON contendo a versão do Chromium e a `webSocketDebuggerUrl`.
+
+---
+
+## 6. Como Agir se o Login for Necessário
+O script de consulta detecta automaticamente se a página atual do WidePay é a tela de login (`/conta/acessar`).
+* O preenchimento da senha é **estritamente manual** por questões de segurança.
+* Se a página solicitar login, o script irá parar a execução retornando o código de status apropriado, avisando que o usuário deve efetuar o login manualmente na janela do Opera.
+* Uma vez efetuado o login, o usuário deve enviar a mensagem informando o sucesso ao agente.
+
+---
+
+## 7. Como Consultar um Cliente no WidePay
+Para qualquer busca de cliente (ex: Filinto Queiroz):
+1. Limpar filtros anteriores de status selecionando todos os checkboxes na página (Ativo, Cancelado, Finalizado, Pendente) e clicando em "Aplicar" (`id: "jab-1088"`).
+2. Digitar o nome no campo de busca (`id: "jab-1036-field"`) e clicar em pesquisar (`id: "jab-1038"`).
+3. Varre **todas as páginas de resultados** clicando em próximo (`id: "jab-1023"`) até que o botão esteja desativado.
+4. Extrair os dados da tabela (Carnê ID, Cliente, Parcelas, Recebimentos, Valor, Status, Vencimento).
+5. Salvar em formato JSON consolidado em `07_DADOS_TEMPORARIOS\WIDEPAY_CONSULTAS\`.
+
+---
+
+## 8. Segurança e Auditoria
+* **Somente Leitura:** O WidePay só pode ser usado para consultas passivas. Nunca mude cadastros, boletos ou cobranças.
+* **Proibição de Simulação:** Se o CDP falhar ou o WidePay estiver inacessível, não invente ou simule os dados financeiros. Deixe a auditoria marcada como `PENDENTE — AGUARDANDO LOGIN MANUAL`.
