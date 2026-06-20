@@ -1,0 +1,3 @@
+@echo off
+cd /d "%~dp0"
+start "" "..\RESUMO_FINANCEIRO_CLIENTE_TESTE_USO_REAL_CORRIGIDO_V3_PREVIA.html"
