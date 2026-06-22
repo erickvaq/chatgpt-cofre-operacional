@@ -498,4 +498,42 @@ Processo obrigatório:
 
 Esta checagem deve ser feita de forma automatizada e dinâmica, devendo ser executada mesmo sob comandos curtos.
 
+---
+
+## REGRA 27 — Login Manual no WidePay sem encerrar o processo
+
+Sempre que o Antigravity precisar acessar o WidePay e encontrar a tela de login, o processo não deve ser encerrado, cancelado nem reiniciado.
+
+### Comportamento obrigatório
+Quando aparecer a tela de login do WidePay, o Antigravity deve:
+1. Abrir ou manter visível a janela/navegador dedicado do WidePay.
+2. Informar claramente que o usuário precisa fazer login manualmente.
+3. Pausar a execução e aguardar confirmação do usuário.
+4. Aceitar como confirmação respostas como: "Logado", "Pode continuar", "Já entrei", "Pode seguir".
+5. Não encerrar a tarefa.
+6. Não reiniciar o levantamento do zero.
+7. Não exigir que o usuário repita o comando completo.
+8. Após a confirmação do login, continuar exatamente do ponto em que parou.
+
+### Resposta padrão ao encontrar login
+Quando o WidePay estiver na tela de login, responder:
+"O WidePay está na tela de login. Faça login manualmente na janela do navegador dedicada. Vou aguardar sua confirmação. Quando estiver logado, responda 'Logado' ou 'Pode continuar' para eu seguir exatamente do ponto atual."
+
+### Aplicação obrigatória
+Aplicar esta regra em todos os fluxos do WidePay, incluindo:
+- Levantamento preliminar;
+- Checagem de cobertura;
+- Conferência de cliente específico;
+- Geração de relatórios;
+- Consulta de carnês;
+- Consulta de cobranças/boletos;
+- Consulta de contatos.
+
+### Objetivo
+Esta regra deve evitar:
+- perda de tempo;
+- repetição de comandos;
+- reinício desnecessário do processo;
+- abandono da tarefa quando o login manual for necessário.
+
 

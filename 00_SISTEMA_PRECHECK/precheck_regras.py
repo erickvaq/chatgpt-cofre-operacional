@@ -148,7 +148,8 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         20: ("tratamento de multiplos resultados na busca de clientes", "buscar_cliente.bat"),
         21: ("consulta integrada de carnes e cobrancas/boletos", "proibido gerar conferencia final ou pdf considerando apenas carnes"),
         22: ("modo economico obrigatorio", "nao abrir navegador"),
-        26: ("checagem de cobertura obrigatoria no widepay", "garantir que nenhum cliente ativo")
+        26: ("checagem de cobertura obrigatoria no widepay", "garantir que nenhum cliente ativo"),
+        27: ("login manual no widepay sem encerrar o processo", "quando aparecer a tela de login do widepay")
     }
     
     conteudo_norm = normalizar_texto(conteudo)
