@@ -42,3 +42,8 @@ Não inventar link do GitHub.
 Não dizer que subiu sem push confirmado.
 Não deixar artefato importante apenas como caminho local.
 Não salvar tokens, senhas, credenciais ou chaves de API.
+
+## Regra contra timers repetidos e esperas infinitas (REGRA 28)
+
+Sempre que uma tarefa, script ou extração do WidePay demorar, a IA não deve criar timers repetidos de 30 ou 40 segundos nem enviar mensagens sucessivas de espera. Seguir estritamente o comportamento obrigatório e o padrão de resposta da REGRA 28 para garantir economia de tokens e controle operacional.
+

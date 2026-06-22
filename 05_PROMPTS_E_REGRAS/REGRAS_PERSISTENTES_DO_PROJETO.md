@@ -536,4 +536,63 @@ Esta regra deve evitar:
 - reinício desnecessário do processo;
 - abandono da tarefa quando o login manual for necessário.
 
+---
+
+## REGRA 28 — Não criar timers repetidos nem esperas infinitas
+
+Sempre que uma tarefa, script ou extração do WidePay demorar, o Antigravity não deve ficar criando timers repetidos de 30 ou 40 segundos nem enviando mensagens sucessivas de espera.
+
+### Comportamento proibido
+É proibido repetir ciclos como:
+- “vou aguardar 30 segundos”;
+- “timer expirou”;
+- “vou aguardar mais 40 segundos”;
+- “vou verificar de novo”;
+- “estou esperando a extração terminar”;
+- “vou agendar outro timer”.
+
+Esse comportamento consome tempo, contexto e tokens sem entregar resultado útil.
+
+### Comportamento obrigatório
+Quando um script, extração ou automação demorar, o Antigravity deve:
+1. Verificar o status real da tarefa uma única vez.
+2. Informar objetivamente:
+   - se está rodando;
+   - se travou;
+   - em qual etapa está;
+   - último log relevante;
+   - dados já extraídos, se houver.
+3. Se parecer travado, interromper com segurança ou pedir autorização para interromper.
+4. Não agendar novos timers repetidos.
+5. Não narrar esperas longas.
+6. Não continuar consumindo contexto com mensagens de espera.
+7. Se houver dados parciais, apresentar os dados já coletados.
+8. Se não houver avanço real, parar e pedir decisão do usuário.
+
+### Padrão correto de resposta
+Se a tarefa estiver demorando, responder apenas:
+"A extração está demorando. Verifiquei o status: [rodando/travado]. Última etapa: [etapa]. Último log relevante: [log]. Deseja que eu aguarde mais uma vez, interrompa com segurança ou apresente os dados parciais?"
+
+### Aplicação obrigatória
+Aplicar esta regra em todos os fluxos do WidePay:
+- levantamento preliminar;
+- checagem de cobertura;
+- consulta de carnês;
+- consulta de cobranças;
+- consulta de contatos;
+- geração de relatórios;
+- scripts CDP;
+- scripts em segundo plano;
+- qualquer extração automatizada.
+
+### Objetivo
+Evitar:
+- gasto desnecessário de tokens;
+- espera infinita;
+- repetição de mensagens;
+- travamento silencioso;
+- perda de tempo;
+- execução sem controle.
+
+
 
