@@ -43,7 +43,7 @@ Não dizer que subiu sem push confirmado.
 Não deixar artefato importante apenas como caminho local.
 Não salvar tokens, senhas, credenciais ou chaves de API.
 
-## Regra contra timers repetidos e esperas infinitas (REGRA 28)
+## Foco no resultado final: relatórios de todos os clientes com eficiência (REGRA 28)
 
-Sempre que uma tarefa, script ou extração do WidePay demorar, a IA não deve criar timers repetidos de 30 ou 40 segundos nem enviar mensagens sucessivas de espera. Seguir estritamente o comportamento obrigatório e o padrão de resposta da REGRA 28 para garantir economia de tokens e controle operacional.
+O objetivo principal dos fluxos do WidePay é gerar e entregar os relatórios financeiros de todos os clientes solicitados da forma mais automatizada, segura e eficiente possível. A IA deve agir de forma autônoma e decisiva, evitando timers repetidos, mensagens intermediárias sem valor e consumo de contexto desnecessário.
 

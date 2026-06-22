@@ -538,61 +538,114 @@ Esta regra deve evitar:
 
 ---
 
-## REGRA 28 — Não criar timers repetidos nem esperas infinitas
+## REGRA 28 — Foco no resultado final: relatórios de todos os clientes com eficiência
 
-Sempre que uma tarefa, script ou extração do WidePay demorar, o Antigravity não deve ficar criando timers repetidos de 30 ou 40 segundos nem enviando mensagens sucessivas de espera.
+O objetivo principal dos fluxos do WidePay não é narrar cada etapa, criar timers, fazer verificações repetidas ou consumir contexto explicando o processo.
 
-### Comportamento proibido
-É proibido repetir ciclos como:
-- “vou aguardar 30 segundos”;
-- “timer expirou”;
-- “vou aguardar mais 40 segundos”;
-- “vou verificar de novo”;
-- “estou esperando a extração terminar”;
-- “vou agendar outro timer”.
+O objetivo principal é:
 
-Esse comportamento consome tempo, contexto e tokens sem entregar resultado útil.
+**gerar e entregar os relatórios financeiros de todos os clientes solicitados, com segurança, conferência e o menor consumo possível de tempo, contexto e tokens.**
+
+### Interpretação obrigatória da intenção do usuário
+
+Quando o usuário pedir levantamento, conferência, extração ou relatório de clientes do WidePay, a IA deve interpretar que o usuário quer o **resultado final organizado**, e não acompanhamento passo a passo desnecessário.
+
+A IA deve agir como executor operacional, tomando decisões simples e seguras sozinho, sem pedir confirmação para cada microetapa.
 
 ### Comportamento obrigatório
-Quando um script, extração ou automação demorar, o Antigravity deve:
-1. Verificar o status real da tarefa uma única vez.
-2. Informar objetivamente:
-   - se está rodando;
-   - se travou;
-   - em qual etapa está;
-   - último log relevante;
-   - dados já extraídos, se houver.
-3. Se parecer travado, interromper com segurança ou pedir autorização para interromper.
-4. Não agendar novos timers repetidos.
-5. Não narrar esperas longas.
-6. Não continuar consumindo contexto com mensagens de espera.
-7. Se houver dados parciais, apresentar os dados já coletados.
-8. Se não houver avanço real, parar e pedir decisão do usuário.
 
-### Padrão correto de resposta
-Se a tarefa estiver demorando, responder apenas:
-"A extração está demorando. Verifiquei o status: [rodando/travado]. Última etapa: [etapa]. Último log relevante: [log]. Deseja que eu aguarde mais uma vez, interrompa com segurança ou apresente os dados parciais?"
+Sempre que possível, a IA deve:
+
+1. Automatizar processos repetitivos.
+2. Processar clientes em lote.
+3. Reaproveitar sessão, navegador, scripts e dados já coletados.
+4. Evitar repetir buscas ou extrações já feitas.
+5. Evitar narrar esperas longas.
+6. Evitar timers repetidos.
+7. Evitar mensagens intermediárias sem valor.
+8. Consolidar erros, pendências e dados parciais em um único resumo.
+9. Continuar o fluxo até entregar os relatórios ou até encontrar bloqueio real.
+10. Só pedir intervenção do usuário quando houver login, 2FA, erro crítico, dúvida de dados ou risco de alterar algo indevidamente.
+
+### O que deve ser evitado
+
+É proibido transformar a tarefa em uma sequência longa de mensagens como:
+
+* “vou verificar”;
+* “vou aguardar”;
+* “vou tentar novamente”;
+* “timer expirou”;
+* “vou abrir outro timer”;
+* “vou analisar mais um pouco”;
+* “preciso confirmar cada cliente”;
+* “vou fazer cliente por cliente manualmente sem necessidade”.
+
+Essas mensagens gastam contexto e tokens sem aproximar o usuário do resultado final.
+
+### Estratégia correta
+
+Para relatórios de vários clientes, a IA deve trabalhar assim:
+
+1. Identificar a lista de clientes.
+2. Extrair dados do WidePay da forma mais automatizada possível.
+3. Consultar carnês, cobranças, contatos e pagamentos sem repetir passos desnecessários.
+4. Validar cobertura dos dados.
+5. Gerar os relatórios finais no padrão do projeto.
+6. Separar clientes concluídos, clientes com pendência e clientes com erro.
+7. Apresentar ao usuário um resumo objetivo com os arquivos gerados.
+
+### Quando houver demora ou travamento
+
+Se uma extração demorar, a IA deve verificar o status real uma única vez e responder de forma objetiva:
+
+“A extração está demorando. Verifiquei o status: [rodando/travado]. Última etapa: [etapa]. Último log relevante: [log]. Dados parciais disponíveis: [sim/não]. Deseja que eu aguarde mais uma vez, interrompa com segurança ou apresente os dados parciais?”
+
+Não criar timers repetidos.
+Não narrar espera infinita.
+Não continuar consumindo contexto sem avanço real.
+
+### Entrega esperada
+
+Ao final, a IA deve entregar:
+
+* relatórios gerados;
+* caminho local dos arquivos;
+* links GitHub reais, se houver commit/push;
+* lista de clientes concluídos;
+* lista de clientes com pendência;
+* lista de clientes com erro;
+* resumo curto do que foi feito;
+* status do precheck, se houver.
+
+### Regra de prioridade
+
+Sempre priorizar:
+
+1. resultado final;
+2. segurança dos dados;
+3. automação;
+4. economia de tokens;
+5. redução de mensagens intermediárias;
+6. clareza na entrega.
+
+Nunca priorizar a narração do processo acima da entrega dos relatórios.
 
 ### Aplicação obrigatória
-Aplicar esta regra em todos os fluxos do WidePay:
-- levantamento preliminar;
-- checagem de cobertura;
-- consulta de carnês;
-- consulta de cobranças;
-- consulta de contatos;
-- geração de relatórios;
-- scripts CDP;
-- scripts em segundo plano;
-- qualquer extração automatizada.
 
-### Objetivo
-Evitar:
-- gasto desnecessário de tokens;
-- espera infinita;
-- repetição de mensagens;
-- travamento silencioso;
-- perda de tempo;
-- execução sem controle.
+Aplicar esta regra em todos os fluxos do WidePay:
+
+* levantamento preliminar;
+* checagem de cobertura;
+* consulta de carnês;
+* consulta de cobranças;
+* consulta de contatos;
+* geração de relatórios;
+* scripts CDP;
+* scripts em segundo plano;
+* extrações automatizadas;
+* relatórios individuais;
+* relatórios em lote;
+* relatórios de todos os clientes.
 
 
 

@@ -150,7 +150,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         22: ("modo economico obrigatorio", "nao abrir navegador"),
         26: ("checagem de cobertura obrigatoria no widepay", "garantir que nenhum cliente ativo"),
         27: ("login manual no widepay sem encerrar o processo", "quando aparecer a tela de login do widepay"),
-        28: ("não criar timers repetidos nem esperas infinitas", "sempre que uma tarefa, script ou extração do widepay demorar")
+        28: ("foco no resultado final: relatorios de todos os clientes com eficiencia", "o objetivo principal dos fluxos do widepay nao e narrar cada etapa")
     }
     
     conteudo_norm = normalizar_texto(conteudo)
