@@ -94,6 +94,47 @@ Contatos sem carnê, cobrança, boleto ou evidência financeira devem ser marcad
 
 ---
 
+# REGRA — CHECAGEM DE COBERTURA OBRIGATÓRIA NO WIDEPAY
+
+Sempre que eu pedir para conferir clientes, fazer levantamento preliminar, revisar clientes por letras ou gerar relatórios por grupo de clientes, execute automaticamente uma checagem de cobertura antes de concluir.
+
+Objetivo:
+Garantir que nenhum cliente ativo das iniciais solicitadas fique de fora.
+
+Processo obrigatório:
+
+1. Consultar primeiro o WidePay.
+2. Verificar clientes/contatos.
+3. Verificar carnês.
+4. Verificar cobranças/boletos.
+5. Cruzar nomes repetidos para evitar duplicidade.
+6. Consolidar todos os registros do mesmo cliente/lote.
+7. Classificar cada nome encontrado como:
+   * Ativo confirmado;
+   * Sem evidência financeira ativa;
+   * Pendente de conferência.
+8. Não excluir cliente apenas porque não encontrou contrato local.
+9. Usar a pasta de contratos somente como apoio complementar.
+10. Se o cliente aparecer no WidePay, mas não houver contrato local, manter na tabela com:
+    “Contrato local não encontrado — pendente de conferência.”
+
+Antes de finalizar qualquer levantamento preliminar, informar obrigatoriamente:
+* Total de nomes avaliados;
+* Total de clientes ativos confirmados;
+* Total de clientes sem evidência financeira ativa;
+* Total de clientes pendentes de conferência;
+* Se alguma página, filtro, busca, carnê ou cobrança do WidePay não pôde ser conferida completamente.
+
+Esta checagem deve ser feita automaticamente sempre que eu pedir para conferir clientes ou fazer preliminar por letras, mesmo que eu use comando curto, como:
+“Fazer preliminar A a E.”
+“Conferir clientes F a G.”
+“Revisar clientes da etapa anterior.”
+“Continuar próximas letras.”
+
+Esta regra deve ser incorporada ao método aprovado do WidePay para evitar que algum cliente fique de fora.
+
+---
+
 # 4. MODO 1 — LEVANTAMENTO PRELIMINAR
 
 O levantamento preliminar deve ser sempre a primeira etapa de cada grupo de letras ou clientes.

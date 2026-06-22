@@ -479,3 +479,23 @@ Regras operacionais de artefatos:
 4. **Arquivos do Antigravity:** Os arquivos auxiliares de planejamento, tarefas e execução (`implementation_plan.md`, `task.md`, `walkthrough.md`) gerados em pastas temporárias do Antigravity (ex: `.gemini/antigravity-ide/brain/...`) devem ser copiados obrigatoriamente para `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/` antes de cada commit, versionados e enviados ao GitHub.
 5. **Segurança de Dados:** Nunca registrar ou subir ao repositório senhas, tokens, cookies, credenciais ou chaves de API.
 
+---
+
+## REGRA 26 — Checagem de Cobertura Obrigatória no WidePay
+
+Sempre que o usuário pedir para conferir clientes, fazer levantamento preliminar, revisar clientes por letras ou gerar relatórios por grupo de clientes, execute automaticamente uma checagem de cobertura no WidePay antes de concluir.
+
+Objetivo:
+Garantir que nenhum cliente ativo das iniciais solicitadas fique de fora.
+
+Processo obrigatório:
+1. Consultar primeiro o WidePay (contatos, carnês, cobranças/boletos) para listar clientes ativos.
+2. Cruzar nomes repetidos para evitar duplicidade.
+3. Consolidar todos os registros do mesmo cliente/lote.
+4. Classificar cada nome encontrado como: "Ativo confirmado", "Sem evidência financeira ativa" ou "Pendente de conferência".
+5. Não excluir cliente apenas porque não encontrou contrato local. Manter na tabela com "Contrato local não encontrado — pendente de conferência."
+6. Informar obrigatoriamente no final: total de nomes avaliados, total de clientes ativos confirmados, total de inativos/sem evidência e total de pendentes, bem como eventuais limites de consultas.
+
+Esta checagem deve ser feita de forma automatizada e dinâmica, devendo ser executada mesmo sob comandos curtos.
+
+
