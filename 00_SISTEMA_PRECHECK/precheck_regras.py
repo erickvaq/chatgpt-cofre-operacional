@@ -149,8 +149,10 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         21: ("consulta integrada de carnes e cobrancas/boletos", "proibido gerar conferencia final ou pdf considerando apenas carnes"),
         22: ("modo economico obrigatorio", "nao abrir navegador"),
         26: ("checagem de cobertura obrigatoria no widepay", "garantir que nenhum cliente ativo"),
-        27: ("login manual no widepay sem encerrar o processo", "quando aparecer a tela de login do widepay"),
-        28: ("foco no resultado final: relatorios de todos os clientes com eficiencia", "o objetivo principal dos fluxos do widepay nao e narrar cada etapa")
+        27: ("login widepay com autopreenchimento seguro do navegador", "quando o widepay abrir na tela de login"),
+        28: ("foco no resultado final: relatorios de todos os clientes com eficiencia", "o objetivo principal dos fluxos do widepay nao e narrar cada etapa"),
+        29: ("nao acessar configuracoes/contatos do widepay para relatorios", "dados bancarios"),
+        30: ("resumo operacional leve e controle de execucao", "resumo_execucao_atual.md")
     }
     
     conteudo_norm = normalizar_texto(conteudo)

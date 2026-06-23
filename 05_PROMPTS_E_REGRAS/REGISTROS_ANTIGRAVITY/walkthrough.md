@@ -1,30 +1,14 @@
-# Passo a Passo da Execução — Validação da REGRA 25 e GitHub
+# Walkthrough - Implementação da Regra 30
 
-## 1. Precheck das Regras do Projeto
-*   **Comando:** `python 00_SISTEMA_PRECHECK\precheck_regras.py`
-*   **Resultado:** `REGRAS PERSISTENTES CARREGADAS COM SUCESSO - 25 regras encontradas.`
-*   **Confirmação:** A nova REGRA 25 foi carregada de forma ativa pela engine.
+Concluímos com sucesso a criação, registro e aplicação da **REGRA 30**, estabelecendo um controle de execução operacional leve.
 
-## 2. Geração dos Arquivos de Teste da REGRA 25
-Executado o script `03_SCRIPTS/gerar_teste_regra25.py` para gerar:
-*   HTML de teste: `02_RELATORIOS_GERADOS\TESTE_REGRA25_GITHUB_ARTEFATOS_2026-06-20_V1\TESTE_REGRA25_GITHUB_ARTEFATOS_2026-06-20_V1.html`
-*   PDF de teste: `02_RELATORIOS_GERADOS\TESTE_REGRA25_GITHUB_ARTEFATOS_2026-06-20_V1\TESTE_REGRA25_GITHUB_ARTEFATOS_2026-06-20_V1.pdf`
-*   Scripts Batch (`01_ABRIR_PDF_FINAL.bat` e `02_ABRIR_PREVIA_HTML.bat`) para abertura externa automática.
+## Alterações Realizadas
 
-## 3. Criação do Arquivo de Auditoria
-Criado o arquivo de auditoria `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/TESTE_REGRA25_GITHUB_ARTEFATOS_2026-06-20_V1.md` contendo as informações descritivas do teste de controle.
+### Documentação de Regras e Precheck
+1. **[REGRAS_PERSISTENTES_DO_PROJETO.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md):** Adicionada a REGRA 30 estabelecendo a criação dos arquivos de resumo operacional leve e controle de logs.
+2. **[REGRA-BASE...md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRA-BASE%20%E2%80%94%20RELAT%C3%93RIOS%20FINANCEIROS%20WIDEPAY%20%E2%80%94%20PROCESSO%20EFICIENTE%20E%20REPLIC%C3%81VEL.md):** Incorporada a Regra 30 ao final.
+3. **[precheck_regras.py](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/00_SISTEMA_PRECHECK/precheck_regras.py):** Atualizado dicionário de regras críticas para incluir a validação da Regra 30. Precheck validou com sucesso as **30 regras**.
 
-## 4. Validação e Abertura Externa do PDF
-*   Tamanhos e existências dos arquivos foram verificados localmente com sucesso.
-*   O PDF foi aberto e conferido externamente via `Start-Process`.
-
-## 5. Git Status, Commit e Push
-*   Executado `git status` para auditoria do stage.
-*   Arquivos criados adicionados (`git add`) e commitados com a mensagem: `teste: valida REGRA 25 artefatos com links GitHub 2026-06-20 V1` (SHA: `5691f6a`).
-*   Envio confirmado ao GitHub via `git push origin main` com sucesso.
-
-## 6. Correção Fina de Links Individuais
-*   O arquivo de auditoria foi atualizado para incluir a tabela detalhada de conferência de links individuais para todos os arquivos criados ou modificados.
-*   Todos os links de arquivos individuais foram conferidos e confirmados como ativos no GitHub.
-*   Novo commit e push foram efetuados para subir os arquivos atualizados de auditoria e registros do Antigravity.
-
+### Novos Arquivos de Resumo
+1. **[RESUMO_REGRAS_OPERACIONAIS_WIDEPAY.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/RESUMO_REGRAS_OPERACIONAIS_WIDEPAY.md):** Resumo compacto das regras operacionais do projeto para consulta rápida e economia de contexto.
+2. **[RESUMO_EXECUCAO_ATUAL.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md):** Log de checkpoint atual de execução documentando o login realizado, auditoria A a E, arquivos gerados e pendências.

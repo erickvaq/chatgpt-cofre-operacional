@@ -500,43 +500,80 @@ Esta checagem deve ser feita de forma automatizada e dinâmica, devendo ser exec
 
 ---
 
-## REGRA 27 — Login Manual no WidePay sem encerrar o processo
+## REGRA 27 — Login WidePay com Autopreenchimento Seguro do Navegador
 
-Sempre que o Antigravity precisar acessar o WidePay e encontrar a tela de login, o processo não deve ser encerrado, cancelado nem reiniciado.
+Quando o WidePay abrir na tela de login, o Antigravity/Codex não deve encerrar o processo, não deve reiniciar a tarefa e não deve pedir para eu repetir o comando completo.
 
-### Comportamento obrigatório
-Quando aparecer a tela de login do WidePay, o Antigravity deve:
-1. Abrir ou manter visível a janela/navegador dedicado do WidePay.
-2. Informar claramente que o usuário precisa fazer login manualmente.
-3. Pausar a execução e aguardar confirmação do usuário.
-4. Aceitar como confirmação respostas como: "Logado", "Pode continuar", "Já entrei", "Pode seguir".
-5. Não encerrar a tarefa.
-6. Não reiniciar o levantamento do zero.
-7. Não exigir que o usuário repita o comando completo.
-8. Após a confirmação do login, continuar exatamente do ponto em que parou.
+Antes de pedir minha intervenção manual, ele pode verificar apenas visualmente se o navegador dedicado já preencheu automaticamente os campos de login pelo próprio recurso de autofill/senha salva do navegador.
 
-### Resposta padrão ao encontrar login
-Quando o WidePay estiver na tela de login, responder:
-"O WidePay está na tela de login. Faça login manualmente na janela do navegador dedicada. Vou aguardar sua confirmação. Quando estiver logado, responda 'Logado' ou 'Pode continuar' para eu seguir exatamente do ponto atual."
+Essa verificação deve ser feita de forma segura, sem ler, copiar, exibir, extrair ou armazenar senha.
 
-### Aplicação obrigatória
-Aplicar esta regra em todos os fluxos do WidePay, incluindo:
-- Levantamento preliminar;
-- Checagem de cobertura;
-- Conferência de cliente específico;
-- Geração de relatórios;
-- Consulta de carnês;
-- Consulta de cobranças/boletos;
-- Consulta de contatos.
+### Comportamento permitido
 
-### Objetivo
-Esta regra deve evitar:
-- perda de tempo;
-- repetição de comandos;
-- reinício desnecessário do processo;
-- abandono da tarefa quando o login manual for necessário.
+Se a tela de login estiver aberta e os campos já estiverem preenchidos automaticamente pelo navegador, o Antigravity/Codex pode:
+
+1. Clicar no botão “Entrar”, “Acessar”, “Login” ou equivalente;
+2. Pressionar Enter, se isso apenas confirmar o login já preenchido;
+3. Aguardar o carregamento da área logada;
+4. Confirmar que saiu da tela de login;
+5. Continuar exatamente do ponto em que parou.
+
+O agente pode reconhecer visualmente que o campo de senha está preenchido quando aparecer mascarado, por exemplo com bolinhas ou pontos, mas não pode tentar ler o conteúdo do campo.
+
+### Restrições obrigatórias de segurança
+
+O Antigravity/Codex não deve, em hipótese alguma:
+
+1. Ler minha senha;
+2. Copiar minha senha;
+3. Exibir minha senha;
+4. Salvar minha senha em arquivo, log, print, cache, script ou variável;
+5. Digitar senha manualmente;
+6. Alterar senha;
+7. Acessar o gerenciador de senhas do navegador;
+8. Usar DevTools para ler campos sensíveis;
+9. Ler o atributo `value` de campo `password`;
+10. Exportar, consultar ou manipular credenciais salvas;
+11. Tentar burlar autenticação;
+12. Prosseguir sozinho se aparecer captcha, 2FA, código por SMS/e-mail, confirmação sensível ou bloqueio de segurança.
+
+### Se o navegador preencher automaticamente
+
+Se o navegador já tiver preenchido os campos e faltar apenas confirmar o acesso, o Antigravity/Codex pode clicar em “Entrar” ou pressionar Enter.
+
+Depois disso, deve aguardar a área logada carregar e continuar o processo exatamente do ponto atual, sem reiniciar a tarefa.
+
+### Se o navegador não preencher automaticamente
+
+Se os campos estiverem vazios, se o login salvo não aparecer, se houver captcha, 2FA, código por SMS/e-mail, confirmação sensível ou qualquer dúvida, o Antigravity/Codex deve parar e responder:
+
+“O WidePay está na tela de login. O navegador não preencheu automaticamente os dados ou há confirmação manual necessária. Faça login manualmente na janela dedicada. Vou aguardar sua confirmação e depois continuo exatamente do ponto atual.”
+
+### Respostas aceitas do usuário
+
+Após o login manual, aceitar como autorização para continuar respostas como:
+
+* “Logado”
+* “Pode continuar”
+* “Já entrei”
+* “Pode seguir”
+* “Continue”
+* “Pronto”
+
+### Objetivo da regra
+
+Reduzir intervenção manual desnecessária quando o navegador dedicado já possui sessão ou preenchimento automático seguro, mantendo a proteção total das credenciais.
+
+O Antigravity/Codex pode apenas confirmar o login já preenchido pelo navegador.
+
+Se exigir senha manual, captcha, 2FA, código externo ou qualquer confirmação sensível, deve aguardar minha intervenção.
+
+### Versão curta da regra
+
+Se o WidePay abrir na tela de login e o navegador já preencher os campos automaticamente, pode clicar em “Entrar” e continuar. Não leia, copie, extraia, salve, exiba nem digite minha senha. Não use DevTools nem gerenciador de senhas. Se os campos estiverem vazios, houver captcha, 2FA, código externo ou qualquer dúvida, pare e aguarde meu login manual.
 
 ---
+
 
 ## REGRA 28 — Foco no resultado final: relatórios de todos os clientes com eficiência
 
@@ -646,6 +683,200 @@ Aplicar esta regra em todos os fluxos do WidePay:
 * relatórios individuais;
 * relatórios em lote;
 * relatórios de todos os clientes.
+
+---
+
+## REGRA 29 — NÃO ACESSAR CONFIGURAÇÕES/CONTATOS DO WIDEPAY PARA RELATÓRIOS
+
+O Antigravity/Codex não deve acessar a área:
+
+`https://www.widepay.com/conta/configuracoes/contatos`
+
+nem a seção:
+
+`Configurações > Contatos`
+
+para fazer levantamento financeiro dos clientes do loteamento.
+
+Essa página contém contatos de transferências, dados bancários, favoritos, contatos seguros e outras informações sensíveis que não são necessárias para gerar relatórios financeiros dos lotes.
+
+### Fontes permitidas para relatórios financeiros
+
+Para relatórios WidePay, usar somente as áreas financeiras:
+
+1. Carnês:
+   `https://www.widepay.com/conta/recebimentos/carnes`
+
+2. Cobranças/boletos:
+   `https://www.widepay.com/conta/recebimentos`
+
+3. Dados visíveis dentro dos próprios carnês, parcelas, cobranças e boletos.
+
+### Comportamento obrigatório
+
+Quando o usuário pedir para verificar clientes, fazer preliminar, conferir A a E, gerar relatórios ou procurar clientes faltando:
+
+1. Não entrar em Configurações > Contatos.
+2. Não usar contatos de Transferências.
+3. Não usar contatos bancários como lista de clientes.
+4. Não acessar dados de transferência, favoritos ou contatos seguros.
+5. Buscar clientes pelos registros financeiros do WidePay:
+   * carnês;
+   * cobranças;
+   * boletos;
+   * parcelas;
+   * referências de pagamento.
+6. Usar contratos locais apenas como apoio complementar.
+7. Se precisar de algum dado da área de contatos, pedir autorização antes e explicar exatamente por que precisa.
+
+### Regra de segurança
+
+Não consultar, extrair, registrar, copiar, salvar ou usar dados de contatos bancários, transferências, favoritos ou contatos seguros.
+
+O objetivo do projeto é gerar relatórios financeiros dos clientes/lotes com base em carnês, cobranças e boletos do WidePay, não acessar áreas sensíveis de configuração da conta.
+
+---
+
+## REGRA 30 — RESUMO OPERACIONAL LEVE E CONTROLE DE EXECUÇÃO
+
+O Antigravity/Codex deve manter o processo controlado sem consumir tokens desnecessariamente.
+
+O objetivo não é ficar enviando arquivos grandes, logs extensos ou regras completas toda vez.
+O objetivo é manter um resumo claro, curto e atualizado do que foi feito, do que falta fazer e dos arquivos criados, para que o usuário consiga acompanhar o processo sem perder tempo.
+
+### Comportamento obrigatório
+
+Sempre que uma etapa importante for executada, criar ou atualizar um arquivo leve de controle:
+
+`07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md`
+
+Esse arquivo deve funcionar como um log resumido/checkpoint da execução atual.
+
+### O resumo deve conter somente o essencial
+
+Registrar de forma curta:
+
+1. Data e hora da execução;
+2. Comando recebido do usuário;
+3. Objetivo da etapa;
+4. O que foi feito;
+5. Fonte usada:
+   * WidePay;
+   * contrato local;
+   * cache temporário;
+   * arquivo já existente;
+6. Clientes/lotes processados;
+7. Arquivos criados ou alterados;
+8. Arquivos apenas consultados;
+9. Caminhos locais importantes;
+10. O que está pronto;
+11. O que está parcial;
+12. O que está pendente;
+13. Erros ou alertas importantes;
+14. Próxima ação recomendada.
+
+### Formato ideal do resumo
+
+Usar formato curto, como:
+
+```md
+# RESUMO DA EXECUÇÃO ATUAL
+
+Data/hora:
+Comando do usuário:
+Objetivo:
+
+## Feito
+- ...
+
+## Clientes processados
+| Cliente | Lote | Status | Arquivo |
+|---|---|---|---|
+
+## Arquivos criados/alterados
+| Arquivo | Tipo | Caminho | Status |
+|---|---|---|---|
+
+## Pendências
+- ...
+
+## Próximo passo recomendado
+- ...
+```
+
+### Evitar consumo desnecessário de tokens
+
+Não enviar arquivos inteiros no chat sem necessidade.
+Não colar logs extensos.
+Não repetir regra-base inteira.
+Não listar conteúdo completo de arquivos grandes.
+Não mandar código inteiro se o usuário não pediu.
+
+Quando precisar informar o andamento, mandar no chat apenas:
+* resumo do que foi feito;
+* caminhos dos arquivos;
+* status;
+* pendências;
+* próximo passo.
+
+### Regras resumidas
+
+Criar também um resumo curto das regras principais do projeto:
+
+`05_PROMPTS_E_REGRAS/RESUMO_REGRAS_OPERACIONAIS_WIDEPAY.md`
+
+Esse arquivo deve resumir as regras mais importantes para consulta rápida, sem substituir a regra-base completa.
+
+Deve conter, de forma curta:
+1. WidePay é fonte principal;
+2. Contratos locais são apenas apoio;
+3. Não acessar Configurações > Contatos;
+4. Não confundir iniciais de nomes com quadras;
+5. Login com autopreenchimento seguro;
+6. Não criar timers repetidos;
+7. Não gerar arquivos finais sem aprovação;
+8. Não alterar nada no WidePay;
+9. Não usar contratos como lista principal;
+10. Não inventar valores;
+11. Somar todos os carnês e boletos antes de informar total pago geral;
+12. Registrar arquivos locais x GitHub.
+
+### Quando o usuário pedir status
+
+Se o usuário perguntar “o que foi feito?”, “cadê os arquivos?”, “funcionou?”, “o que falta?” ou “me mostre o andamento”, responder com base no `RESUMO_EXECUCAO_ATUAL.md`, sem reler tudo desnecessariamente.
+
+### Quando criar arquivos finais
+
+Ao gerar relatórios, planilhas ou documentos finais, atualizar o resumo com:
+* nome do cliente;
+* lote;
+* tipo de arquivo;
+* caminho local;
+* se foi ou não enviado ao GitHub;
+* commit, se houver;
+* se está pronto, parcial ou pendente.
+
+### Controle GitHub
+
+Sempre separar:
+
+#### Arquivos apenas locais
+* caminho local;
+* motivo de ainda não terem commit/push.
+
+#### Arquivos enviados ao GitHub
+* caminho local;
+* link GitHub real;
+* commit;
+* branch;
+* status do push.
+
+### Objetivo final
+
+Manter o processo rápido, rastreável e eficiente.
+O Antigravity/Codex deve entregar os relatórios e resultados ao usuário, sem transformar cada etapa em leitura longa de arquivos, logs enormes ou explicações técnicas desnecessárias.
+
+
 
 
 

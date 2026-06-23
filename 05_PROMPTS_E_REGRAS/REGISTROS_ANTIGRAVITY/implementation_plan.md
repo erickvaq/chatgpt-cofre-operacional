@@ -1,41 +1,41 @@
-# Plano de Implementação — Configuração GitHub e Teste da REGRA 24
+# Implementation Plan - Comprehensive Execution Audit and GitHub Push
 
-Este plano descreve as etapas para configurar o repositório remoto do GitHub, testar a geração sincronizada de entregas visuais em HTML e PDF (REGRA 24) e documentar o aprendizado em arquivos persistentes de regras do projeto.
+We will generate a detailed audit file (`AUDITORIA_EXECUCAO_WIDEPAY_ATUAL_20260622.md`) and upload non-sensitive files (code, rules, summaries, and logs) to GitHub, while keeping financial reports and spreadsheets strictly local due to data privacy.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> A credencial/token do GitHub do usuário deve estar configurada localmente (ou o Windows Credential Manager deve gerenciar) para permitir que o comando `git push` ocorra com sucesso sem solicitar credenciais de forma interativa. Se for solicitada autenticação interativa, o agente irá parar e solicitar intervenção manual.
+> **Git Commit Strategy:** We will stage and commit rules files, code edits, rules summary, and execution/audit logs. We will **NOT** stage `02_RELATORIOS_GERADOS/TESTE_VALIDACAO_A_E/` or `03_PLANILHAS/PLANILHA_TESTE_VALIDACAO_A_E_20260622.xlsx` because they contain sensitive customer names and payment details.
+>
+> **Rule 25 Compliance:** We will copy `implementation_plan.md`, `task.md`, and `walkthrough.md` from the temporary Antigravity brain directory to `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/` before executing the commit.
 
 ## Proposed Changes
 
-### Configuração do Git e Entrega de Teste
+### Audit Document Creation
+#### [NEW] [AUDITORIA_EXECUCAO_WIDEPAY_ATUAL_20260622.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/AUDITORIA_EXECUCAO_WIDEPAY_ATUAL_20260622.md)
+* Create the execution audit document with sections 1-12 as requested, detailing the scopes, rules, processes, files, git logs, and recommendations.
 
-#### [NEW] [gerar_teste_regra24.py](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/03_SCRIPTS/gerar_teste_regra24.py)
-Criar um script Python para gerar programaticamente os arquivos HTML e PDF do teste de entrega visual no formato e pasta corretos, utilizando ReportLab para a conversão para PDF em conformidade com as bibliotecas locais.
+### Precheck and Validation
+* Execute `precheck_regras.py` standalone to confirm rules integrity.
 
-#### [NEW] [TESTE_ENTREGA_VISUAL_2026-06-20_V1.html](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_ENTREGA_VISUAL_2026-06-20_V1/TESTE_ENTREGA_VISUAL_2026-06-20_V1.html)
-Arquivo HTML contendo o conteúdo do teste visual (data de criação, versão, descrição da regra).
-
-#### [NEW] [TESTE_ENTREGA_VISUAL_2026-06-20_V1.pdf](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_ENTREGA_VISUAL_2026-06-20_V1/TESTE_ENTREGA_VISUAL_2026-06-20_V1.pdf)
-Arquivo PDF gerado a partir do conteúdo do teste visual.
-
-### Documentação de Regras e Histórico
-
-#### [MODIFY] [REGRAS_PERSISTENTES_DO_PROJETO.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md)
-Adicionar os novos aprendizados do teste de entrega à REGRA 24 (como a necessidade de manter a estrutura de subpastas dedicadas, verificação de Git remotes e tratamento de erros do push).
-
-#### [NEW] [HISTORICO_DE_PROCESSOS_VALIDOS.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/HISTORICO_DE_PROCESSOS_VALIDOS.md)
-Criar o arquivo de histórico registrando as etapas executadas, caminhos de arquivo, comandos, links do GitHub e o padrão `PADRAO_ENTREGA_VISUAL_HTML_PDF_GITHUB`.
-
-#### [NEW] [REGRAS_PERSISTENTES_DO_PROJETO.md.bak](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/backups/REGRAS_PERSISTENTES_DO_PROJETO.md.bak)
-Criar backup dos arquivos de regras antes de rodar o precheck final.
+### Git Staging and Push
+* Copy current Antigravity artifacts (`implementation_plan.md`, `task.md`, `walkthrough.md`) to `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/`.
+* Query `git status`, `git remote -v`, and current branch.
+* Stage:
+  - `00_SISTEMA_PRECHECK/precheck_regras.py`
+  - `05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md`
+  - `05_PROMPTS_E_REGRAS/REGRA-BASE — RELATÓRIOS FINANCEIROS WIDEPAY — PROCESSO EFICIENTE E REPLICÁVEL.md`
+  - `05_PROMPTS_E_REGRAS/RESUMO_REGRAS_OPERACIONAIS_WIDEPAY.md`
+  - `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/AUDITORIA_EXECUCAO_WIDEPAY_ATUAL_20260622.md`
+  - `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/implementation_plan.md`
+  - `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/task.md`
+  - `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/walkthrough.md`
+  - `07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md`
+  - `scratch/extrair_tudo_cobertura.py`
+* Execute `git commit -m "Audit: Rule 29, 30 and execution logs 2026-06-22"`
+* Execute `git push`
+* Capture git log info and remote URLs to fill into the final document if needed, or include in output.
 
 ## Verification Plan
-
-### Automated Tests
-- Executar `python 00_SISTEMA_PRECHECK\precheck_regras.py` para garantir que o arquivo de regras editado continua válido e contém as 24 regras esperadas.
-
-### Manual Verification
-- O agente usará o comando `Start-Process` no PowerShell para abrir o PDF gerado no leitor padrão do Windows ou navegador, garantindo que o arquivo não seja exibido em texto bruto no chat do Antigravity.
-- O agente confirmará a presença do repositório remoto no GitHub usando `git remote -v` e validará o sucesso do envio com `git push`.
+* Validate Git commit and push status.
+* Check precheck output status.
