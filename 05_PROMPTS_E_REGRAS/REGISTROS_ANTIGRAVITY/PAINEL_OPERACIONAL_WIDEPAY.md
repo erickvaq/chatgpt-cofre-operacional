@@ -1,8 +1,8 @@
 ﻿# PAINEL OPERACIONAL WIDEPAY — Relatorio_WidePay_Lotes
 
 ## Informações Gerais
-* **Último commit auditado no painel:** 520b4b8 (Geração Bloco 1 e índice sanitizado)
-* **Commit real da última atualização:** informado na resposta do Antigravity após o push
+* **Último commit auditado no painel:** 1eae6ce (Consolidacao das regras persistentes)
+* **Commit real da última atualização:** 1eae6ce
 * **Link do histórico de commits:** https://github.com/erickvaq/chatgpt-cofre-operacional/commits/main
 * **Branch atual:** main
 * **Link GitHub deste Painel:** [PAINEL_OPERACIONAL_WIDEPAY.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md)
@@ -28,6 +28,8 @@
 * **Regras consolidadas:** de 32 regras para 8 blocos operacionais curtos.
 * **Blocos fundidos:** visualizacao de PDF, entrega HTML+PDF, GitHub rastreavel, painel operacional, WidePay seguro/login, fluxo por cliente, lote/consolidado e economia/precheck.
 * **Conflitos resolvidos:** link clicavel de PDF passou a ser permitido quando o usuario pedir acesso direto; a abertura externa continua preferida quando houver risco de texto bruto; o precheck deixou de depender de contagem fixa antiga.
+* **Commit gerado:** 1eae6ce
+* **Link GitHub da regra consolidada:** [REGRAS_PERSISTENTES_DO_PROJETO.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md)
 * **Status da consolidacao:** concluida localmente e validada pelo precheck atualizado.
 
 ---
@@ -202,4 +204,6 @@
 
 1. Validar o **Bloco 1** (Adailton, Altamir, Ana Carolina) — aguardando aprovação visual e escrita explícita do usuário.
 2. **Proibido** avançar para o Bloco 2 ou qualquer outro cliente/processo sem autorização escrita expressa do usuário.
+
+
 
