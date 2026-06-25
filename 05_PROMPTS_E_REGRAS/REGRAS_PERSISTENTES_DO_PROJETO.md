@@ -982,6 +982,48 @@ Depois de concluir uma etapa importante:
 
 Não enviar ao GitHub dados financeiros ou pessoais de clientes sem autorização expressa. Se o arquivo for sensível, registrar como `Não enviado — arquivo sensível`.
 
+---
+
+## REGRA 32 — RASTREABILIDADE GITHUB OBRIGATORIA DE TUDO O QUE FOR FEITO
+
+### 1. Objetivo
+
+Todo arquivo criado, alterado, consultado como evidencia, copiado, gerado, usado em teste, relatorio, erro, auditoria ou conferencia deve ter rastreabilidade no GitHub por meio de um arquivo completo publicado ou de um registro sanitizado no painel operacional.
+
+### 2. Classificacao obrigatoria
+
+1. Arquivo completo enviado ao GitHub quando nao houver dado sensivel ou quando houver autorizacao expressa.
+2. Arquivo sensivel mantido localmente, mas registrado no painel ou indice sanitizado do GitHub.
+3. Versao sanitizada enviada ao GitHub quando for possivel remover os dados financeiros sensiveis sem perder a utilidade operacional.
+
+### 3. Painel obrigatorio
+
+Manter sempre atualizado:
+`05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md`
+
+O painel deve registrar:
+* nome do arquivo;
+* caminho local;
+* tipo;
+* cliente ou lote relacionado;
+* acao executada;
+* motivo de nao envio completo;
+* status;
+* data e hora;
+* proximo passo.
+
+### 4. Regra de bloqueio
+
+Se um arquivo foi criado, alterado ou usado e nao possui link GitHub completo ou registro sanitizado no painel ou indice, a etapa permanece incompleta.
+
+### 5. Regra de erro
+
+Todo erro de conferencia, cache antigo, JSON desatualizado, arquivo invalido ou consulta sem validacao atual deve ser registrado no painel com:
+* causa;
+* arquivos afetados;
+* decisao de contecao;
+* status final;
+* proximo passo seguro.
 
 
 

@@ -124,8 +124,19 @@
 | `RESUMO_FINANCEIRO_ELIEL_HORA_SANTANA_CORRIGIDO_V3_PREVIA.html` | Eliel Santana (E12) | `02_RELATORIOS_GERADOS/RESUMO_FINANCEIRO_ELIEL_HORA_SANTANA_CORRIGIDO_V3_PREVIA.html` | Sim | Não enviado — arquivo sensível | Prévia HTML local |
 | `CONFERENCIA_CALCULOS_ANA_CLEIDE_DOS_SANTOS_DIAS.md` | Ana Cleide Dias (E5) | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ANA_CLEIDE_DOS_SANTOS_DIAS.md` | Sim | Não enviado — arquivo sensível | Arquivo de conferência local |
 | `CONFERENCIA_CALCULOS_ELIEL_HORA_SANTANA.md` | Eliel Santana (E12) | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ELIEL_HORA_SANTANA.md` | Sim | Não enviado — arquivo sensível | Arquivo de conferência local |
+| `CONFERENCIA_CALCULOS_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.md` | Adalberto Oliveira (A3) | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.md` | Sim | Não enviado — arquivo sensível | Conferência inválida; gerada com cache/JSON antigo, pendente de consulta atual |
+| `WIDEPAY_ADALBERTO_OLIVEIRA.json` | Adalberto Oliveira | `07_DADOS_TEMPORARIOS/WIDEPAY_CONSULTAS/WIDEPAY_ADALBERTO_OLIVEIRA.json` | Sim | Não enviado — arquivo sensível | JSON local usado como evidência; mantido somente local |
+| `WIDEPAY_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.json` | Adalberto Oliveira (A3) | `07_DADOS_TEMPORARIOS/WIDEPAY_CONSULTAS/WIDEPAY_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.json` | Sim | Não enviado — arquivo sensível | JSON local usado como evidência; mantido somente local |
+| `cobertura_run.txt` | Execucao WidePay | `07_DADOS_TEMPORARIOS/cobertura_run.txt` | Sim | Não enviado — arquivo sensível | Log local de execução/consulta; manter apenas registro sanitizado |
 
 ---
+
+## REGISTRO DE INCIDENTE E CONTENCAO
+
+| Evento | Arquivos afetados | Classificacao | Contencao | GitHub |
+|---|---|---|---|---|
+| Tentativa de gerar conferencia usando cache/JSON antigo sem consulta atual ao WidePay | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.md`, `07_DADOS_TEMPORARIOS/WIDEPAY_CONSULTAS/WIDEPAY_ADALBERTO_OLIVEIRA.json`, `07_DADOS_TEMPORARIOS/WIDEPAY_CONSULTAS/WIDEPAY_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.json` | Nao aprovado / invalido / pendente | Arquivos completos mantidos localmente por conter dados sensiveis; aguardar consulta atual no WidePay | Painel sanitizado atualizado para publicacao controlada |
+| Conferencia do Adalberto considerada invalida | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.md` | Nao aprovado | Bloqueio da entrega final ate validacao atual no WidePay | Registro sanitizado no painel |
 
 ## Arquivos Enviados ao GitHub (Sem dados sensíveis)
 
@@ -182,4 +193,3 @@
 
 1. Validar o **Bloco 1** (Adailton, Altamir, Ana Carolina) — aguardando aprovação visual e escrita explícita do usuário.
 2. **Proibido** avançar para o Bloco 2 ou qualquer outro cliente/processo sem autorização escrita expressa do usuário.
-

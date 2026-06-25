@@ -58,3 +58,12 @@ Este índice rastreia os relatórios e auditorias financeiras gerados pelo proje
 * **Relatórios PDF/HTML gerados localmente:** 3 (100% concluídos)
 * **Precheck de Regras:** Aprovado em todos os testes locais.
 * **Próximo Bloco de Auditoria:** Bloco 2 (Aguardando liberação).
+
+---
+
+## 4. Registro de Incidente e Contencao
+
+| Evento | Arquivos afetados | Classificacao | Contencao | GitHub |
+|---|---|---|---|---|
+| Conferencia gerada com cache/JSON antigo sem consulta atual ao WidePay | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.md`, `07_DADOS_TEMPORARIOS/WIDEPAY_CONSULTAS/WIDEPAY_ADALBERTO_OLIVEIRA.json`, `07_DADOS_TEMPORARIOS/WIDEPAY_CONSULTAS/WIDEPAY_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.json` | Nao aprovado / invalido / pendente | Arquivos completos mantidos localmente por conter dados sensiveis | Painel sanitizado atualizado no GitHub |
+| Conferencia do Adalberto bloqueada ate consulta atual no WidePay | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ADALBERTO_OLIVEIRA_A3_AGUA_VIVA_LEANDRO_MEIRELLES.md` | Nao aprovado | Entrega final bloqueada ate validacao atual | Registro sanitizado no painel e no indice |
