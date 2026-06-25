@@ -115,6 +115,7 @@ async def auditar_cliente_unico(ws_url, cliente_nome, lote_opcao=None):
 async def main_async():
     parser = argparse.ArgumentParser(description="Auditoria Financeira WidePay Inteligente")
     parser.add_argument("--cliente", help="Nome do cliente especifico")
+    parser.add_argument("--clientes", help="Lista de clientes separados por virgula (ex: 'Edmilson,Ana,Jose')")
     parser.add_argument("--lote", help="Lote especifico para desambiguacao")
     parser.add_argument("--letra", help="Inicial do nome do cliente")
     parser.add_argument("--letra-fim", help="Letra final para intervalo (se --letra for usada)")
@@ -137,11 +138,17 @@ async def main_async():
     clientes_a_processar = []
     
     if args.cliente:
+        # Um único cliente (retrocompatível)
         clientes_a_processar.append((args.cliente, args.lote))
+    elif args.clientes:
+        # Lista CSV de clientes: "Edmilson,Ana,Jose"
+        for nome in args.clientes.split(","):
+            nome = nome.strip()
+            if nome:
+                clientes_a_processar.append((nome, None))
     elif args.letra:
         letra_ini = args.letra.lower()
         letra_fim = args.letra_fim.lower() if args.letra_fim else letra_ini
-        
         for nome, pasta in clientes_cadastrados:
             inicial = nome.lower()[0]
             if letra_ini <= inicial <= letra_fim:
@@ -155,7 +162,7 @@ async def main_async():
         for nome, pasta in clientes_cadastrados:
             clientes_a_processar.append((nome, None))
     else:
-        print("Erro: Especifique pelo menos um parametro de selecao (--cliente, --letra, --quadra ou --todos).")
+        print("Erro: Especifique pelo menos um parametro de selecao (--cliente, --clientes, --letra, --quadra ou --todos).")
         sys.exit(1)
         
     if not clientes_a_processar:
