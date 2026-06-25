@@ -288,32 +288,42 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         var searchInput = document.getElementById("jab-1036-field");
         for (var termIndex = 0; termIndex < queryTerms.length; termIndex++) {
             var termoAtual = queryTerms[termIndex];
-            if (searchInput && termoAtual) {
-                searchInput.value = termoAtual;
-                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-                
-                var searchBtn = document.getElementById("jab-1038");
-                if (searchBtn) {
-                    searchBtn.click();
-                } else {
-                    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+            var termoBuscar = termoAtual;
+            
+            // Loop de refinamento progressivo começando de 2 letras
+            for (var len = 2; len <= termoAtual.length; len++) {
+                var prefixo = termoAtual.substring(0, len);
+                if (searchInput) {
+                    searchInput.value = prefixo;
+                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    var searchBtn = document.getElementById("jab-1038");
+                    if (searchBtn) searchBtn.click();
+                    else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                    await new Promise(r => setTimeout(r, 4000));
                 }
-                await new Promise(r => setTimeout(r, 4000));
+                
+                var totalInfo = wideappInfoTotalTabela();
+                if (totalInfo && totalInfo.total !== null && totalInfo.total > 15) {
+                    termoBuscar = prefixo;
+                } else {
+                    termoBuscar = prefixo;
+                    break;
+                }
             }
             
             await wideappIrPrimeiraPagina();
             var page = 1;
             
             while (page <= 25) {
-                var marcador = marcadorPagina() + "|" + termoAtual;
+                var marcador = marcadorPagina() + "|" + termoBuscar;
                 if (visitadas.indexOf(marcador) !== -1) {
                     break;
                 }
                 visitadas.push(marcador);
 
                 var trs = Array.from(document.querySelectorAll('tr'));
-                var query = (termoAtual || "").toLowerCase();
+                var query = (termoBuscar || "").toLowerCase();
                 
                 var foundRows = trs.filter(tr => {
                     var text = tr.innerText.toLowerCase();
@@ -538,8 +548,9 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
             var termoAtual = queryTerms[termIndex];
             var termoBuscar = termoAtual;
             
-            if (termoAtual.length > 4) {
-                var prefixo = termoAtual.substring(0, 4);
+            // Loop de refinamento progressivo começando de 2 letras
+            for (var len = 2; len <= termoAtual.length; len++) {
+                var prefixo = termoAtual.substring(0, len);
                 if (searchInput) {
                     searchInput.value = prefixo;
                     searchInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -552,28 +563,10 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
                 
                 var totalInfo = wideappInfoTotalTabela();
                 if (totalInfo && totalInfo.total !== null && totalInfo.total > 15) {
-                    termoBuscar = termoAtual;
-                    if (searchInput) {
-                        searchInput.value = termoBuscar;
-                        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        var searchBtn = document.getElementById("jab-1045") || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes("Buscar") || btn.className.includes("search"));
-                        if (searchBtn) searchBtn.click();
-                        else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                        await new Promise(r => setTimeout(r, 4000));
-                    }
+                    termoBuscar = prefixo;
                 } else {
                     termoBuscar = prefixo;
-                }
-            } else {
-                if (searchInput && termoAtual) {
-                    searchInput.value = termoAtual;
-                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    var searchBtn = document.getElementById("jab-1045") || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes("Buscar") || btn.className.includes("search"));
-                    if (searchBtn) searchBtn.click();
-                    else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                    await new Promise(r => setTimeout(r, 4000));
+                    break;
                 }
             }
             
