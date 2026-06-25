@@ -1,4 +1,4 @@
-﻿---
+---
 name: widepay-core-operacional
 description: Usar sempre que o pedido envolver WidePay, cliente, contrato, lote, quadra, parcelas, carnes, cobranca, busca de cliente ou conferencia financeira.
 ---
@@ -105,7 +105,7 @@ ensure_widepay_logged_in(): iniciado
 * Parcelas restantes devem ser compativeis somente com o contrato confirmado.
 * Total pago do terreno/lote inclui carnÃªs pagos e cobrancas/boletos recebidos do mesmo cliente.
 * Cobertura A a E baseada estritamente nas iniciais reais dos nomes.
-* Tabela de pendencias atualizada sem dados financeiros sensiveis expostos no GitHub publico.
+* Tabela de pendencias atualizada incluindo a rastreabilidade do arquivo completo.
 
 ## 10. Painel operacional publico
 Quando o painel operacional publico for alterado, consolidado ou limpo, o fluxo deve seguir a versao publicada, rodar precheck, fazer commit, fazer push e conferir o GitHub normal e o raw antes de encerrar.

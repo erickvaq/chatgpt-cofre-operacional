@@ -19,7 +19,7 @@
 * Relatorio deve consultar Carnes e Cobrancas/Boletos no WidePay antes do apoio local.
 * Todo relatorio financeiro padrao deve priorizar XLS/XLSX.
 * Todo relatorio final deve conter `Pagamentos Recebidos Interpretados`.
-* Arquivos financeiros completos nao devem ser enviados ao GitHub publico.
+* O arquivo completo deve ser entregue no Google Drive e rastreado no GitHub.
 
 ## Registro Sanitizado da Rodada
 * **Cliente/lote:** Edmilson / Edimson - F05
@@ -27,9 +27,9 @@
 * **Arquivo principal local:** XLSX financeiro V2 gerado localmente
 * **PDF/HTML:** existem versoes locais anteriores; PDF so deve ser regenerado quando solicitado
 * **Status:** Gerado e atualizado; aguardando validacao manual do usuario
-* **Exposicao publica:** sem valores financeiros detalhados no painel
+* **Exposicao:** Arquivo completo disponibilizado via link publico do Google Drive
 
-## Arquivos Locais Sensiveis Registrados
+## Arquivos Gerados Registrados (Completos)
 * `02_RELATORIOS_GERADOS/RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_SILVA_DOS_SANTOS_LOTE_F05_20260625_1402.xlsx`
 * `02_RELATORIOS_GERADOS/RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_SILVA_DOS_SANTOS_LOTE_F05_20260625_1358.xlsx`
 * `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_CONTRATO_EDMILSON_F05_AGUA_VIVA_LEO.md`

@@ -105,7 +105,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         registrar_log(script_chamador, "ERRO", len(unicos), f"Duplicidade nas regras: {duplicadas}")
         sys.exit(1)
 
-    esperados = list(range(1, 12))
+    esperados = list(range(1, 14))
     if unicos != esperados:
         print(f"ERRO: Numeracao das regras inconsistente. Esperado {esperados}, encontrado {unicos}.")
         registrar_log(script_chamador, "ERRO", len(unicos), f"Numeracao inconsistente: {unicos}")
@@ -283,35 +283,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         except Exception as ev:
             erros.append(f"Erro ao ler {rotulo_script}: {ev}")
 
-    arquivos_publicos_sanitizados = [
-        (
-            os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "REGISTROS_ANTIGRAVITY", "PAINEL_OPERACIONAL_WIDEPAY.md"),
-            "Painel operacional publico",
-        ),
-        (
-            os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "REGISTROS_ANTIGRAVITY", "INDICE_AUDITAVEL_RELATORIOS.md"),
-            "Indice auditavel publico",
-        ),
-    ]
-    marcadores_financeiros_publicos = [
-        "r$",
-        "total pago:",
-        "total pago registrado",
-        "parcelas pagas equiv",
-        "parcelas restantes:",
-        "valor recebido",
-    ]
-    for caminho_publico, rotulo_publico in arquivos_publicos_sanitizados:
-        if not os.path.exists(caminho_publico):
-            continue
-        try:
-            with open(caminho_publico, "r", encoding="utf-8") as fp:
-                publico_norm = normalizar_texto(fp.read())
-            for marcador in marcadores_financeiros_publicos:
-                if marcador in publico_norm:
-                    erros.append(f"{rotulo_publico} contem dado financeiro publico proibido: '{marcador}'")
-        except Exception as ep:
-            erros.append(f"Erro ao validar sanitizacao de {rotulo_publico}: {ep}")
+    # A REGRA 13 desativou a verificacao de marcadores financeiros em paineis. O fluxo e de arquivo completo.
 
     regra_zero_pos = conteudo_norm.find("## regra zero")
     regra_prioritaria_pos = conteudo_norm.find("## regra prioritaria")

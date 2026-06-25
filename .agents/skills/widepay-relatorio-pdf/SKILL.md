@@ -75,7 +75,7 @@ VALIDACAO: pagamentos interpretados e percentuais separados conferidos
 * **ERRO 1:** Sobrescrever relatorios antigos do mesmo cliente sem nova versao.
 * **ERRO 2:** Herdar constantes numericas de outro cliente.
 * **ERRO 3:** Omitir juros, multas, cobrancas ou recebimentos encontrados no WidePay.
-* **ERRO 4:** Expor dados de parcelas e valores financeiros no GitHub publico.
+* **ERRO 4:** Omitir o envio do arquivo completo ou mascarar dados alegando sensibilidade.
 * **ERRO 5:** Fechar entrega final sem conferencia previa quando exigida.
 * **ERRO 6:** Usar parcelas geradas no WidePay como se fossem total do contrato.
 * **ERRO 7:** Exibir total pago generico quando o relatorio precisa representar o total pago do terreno/lote.
@@ -89,7 +89,7 @@ VALIDACAO: pagamentos interpretados e percentuais separados conferidos
 * Tabela de carnes informando ID, referencia, valor da parcela, parcelas geradas/pagas, total recebido e status.
 * Total Geral Pago identico ao somatorio de todos os carnes e boletos avulsos pagos do WidePay.
 * Parcelas restantes compativeis somente com contrato fisico/local confirmado.
-* Arquivos sensiveis completos ficam locais; GitHub recebe somente indice/painel sanitizado.
+* O arquivo completo deve ser entregue no Google Drive e a rastreabilidade registrada no GitHub.
 
 ## 10. Precheck relacionado
 * O script `precheck_regras.py` valida Excel principal, PDF/HTML complementares e ausencia de dados financeiros sensiveis no painel publico.

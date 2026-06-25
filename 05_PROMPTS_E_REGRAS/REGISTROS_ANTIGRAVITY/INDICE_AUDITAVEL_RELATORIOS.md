@@ -1,7 +1,7 @@
 # INDICE AUDITAVEL - Relatorios Financeiros Locais
 
 ## Finalidade
-Registrar arquivos sensiveis mantidos localmente sem publicar valores financeiros, IDs detalhados, datas de pagamento individualizadas ou dados pessoais completos no GitHub publico.
+Registrar a geração dos arquivos completos e a sua rastreabilidade, garantindo que o arquivo final foi para o Google Drive e as evidências estão acessíveis.
 
 ## Registro 001 - XLSX Edmilson / Edimson F05
 
@@ -12,8 +12,8 @@ Registrar arquivos sensiveis mantidos localmente sem publicar valores financeiro
 | Cliente/lote | Edmilson / Edimson - F05 |
 | Tipo | Relatorio financeiro principal em XLSX |
 | Status | Gerado localmente - consultado no WidePay em 25/06/2026 |
-| Conteudo sensivel | Sim |
-| Motivo de nao subir completo | Contem dados financeiros individualizados |
+| Arquivo Completo | Sim |
+| Upload Google Drive | Sim (Regra 13) |
 | Versao publica | `RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_F05_SANITIZADO_1312.md` (publicado no GitHub) |
 | Proximo passo | Validacao manual local |
 
@@ -26,8 +26,8 @@ Registrar arquivos sensiveis mantidos localmente sem publicar valores financeiro
 | Cliente/lote | Edmilson / Edimson - F05 |
 | Tipo | Conferencia financeira com pagamentos interpretados |
 | Status | Gerado localmente com base na consulta WidePay de 25/06/2026 |
-| Conteudo sensivel | Sim |
-| Motivo de nao subir completo | Contem tabela de pagamentos, IDs, valores e datas |
+| Arquivo Completo | Sim |
+| Upload Google Drive | Sim (Regra 13) |
 | Versao publica | Registro sanitizado no indice publico |
 
 ## Registro 003 - JSON WidePay Edmilson
@@ -39,11 +39,11 @@ Registrar arquivos sensiveis mantidos localmente sem publicar valores financeiro
 | Cliente/lote | Edmilson / Edimson - F05 |
 | Tipo | Extracao bruta do WidePay |
 | Status | Mantido localmente (gerado em 25/06/2026) |
-| Conteudo sensivel | Sim |
-| Motivo de nao subir completo | Contem dados financeiros brutos de carnes, cobrancas e boletos |
+| Arquivo Completo | Sim |
+| Upload Google Drive | N/A (Arquivo Temporario Bruto) |
 | Versao publica | Registro sanitizado no indice publico |
 
 ## Regra de Publicacao
 * XLS/XLSX e o formato principal de relatorio financeiro.
 * PDF somente deve ser gerado quando o usuario pedir explicitamente.
-* Este indice nao deve conter valores financeiros detalhados.
+* O arquivo completo original nao tem mais bloqueios de sensibilidade (Regra 13).
