@@ -594,3 +594,14 @@ Toda entrega precisa ter:
 1. rastreabilidade (GitHub, commit, índice ou painel);
 2. conferência real (acesso ao conteúdo do arquivo completo ou versão sanitizada conferível).
 Se o ChatGPT não consegue abrir ou conferir o conteúdo, a entrega ainda não está aprovada.
+
+---
+
+## REGRA 12 - Upload obrigatório para o Google Drive
+# Adicionada em: 2026-06-25 — regra permanente
+
+Sempre que gerar arquivos finais de qualquer tipo (Excel/XLSX, PDF, HTML, JSON, etc.), é OBRIGATÓRIO enviar uma cópia para o Google Drive e fornecer o link público aqui no chat.
+
+1. Independente do formato, além da cópia local, deve existir uma cópia no Google Drive.
+2. O link fornecido deve ter acesso livre (público) para que o ChatGPT (ou qualquer visualizador) possa acessar o conteúdo do arquivo se necessário.
+3. Esta regra se aplica a todos os relatórios e documentos entregues no projeto.

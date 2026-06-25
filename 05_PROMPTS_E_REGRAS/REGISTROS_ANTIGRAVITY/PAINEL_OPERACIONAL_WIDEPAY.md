@@ -42,7 +42,7 @@
 * **Painel raw:** https://raw.githubusercontent.com/erickvaq/chatgpt-cofre-operacional/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md
 * **Indice auditavel:** https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/INDICE_AUDITAVEL_RELATORIOS.md
 * **Relatorio Sanitizado:** https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/02_RELATORIOS_GERADOS/RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_F05_SANITIZADO_1402.md
-* **Google Drive (Acesso Prático):** PENDENTE_UPLOAD_MANUAL
+* **Google Drive (Acesso Prático):** https://drive.google.com/open?id=1O_lAtS4JGtThjtaz18AD5oAEWuBBsUfK
 * **Script Excel:** https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/03_SCRIPTS/gerar_relatorio_excel.py
 
 ## Proximo Passo
