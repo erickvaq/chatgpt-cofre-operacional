@@ -59,25 +59,25 @@
 
 ### 3. Pastas Locais Sem Correspondência Financeira no WidePay (Pendente de busca/validação individual)
 
-| Cliente (Normalizado) | Inicial | Lote/Quadra Local | Status de Busca | Pasta/Diretório Local | GitHub |
+| Cliente (Normalizado) | Inicial | Lote/Quadra Local | Status / Origem | Pasta/Diretório Local | GitHub |
 |---|---|---|---|---|---|
-| Adalberto Oliveira | A | A3 (Q.A) | Pendente | `Adalberto Oliveira A3 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
-| Alexandre | A | g14 (Q.G) | Pendente | `alexandre g14 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
-| Antonio Dias Mota | A | E15, E16, E17 (Q.E) | Pendente | `Antonio Dias Mota E15 E16 E17 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
-| Belmiro Santos Pires | B | F6 (Q.F) | Pendente | `Belmiro Santos Pires F6` | Não enviado — arquivo sensível |
-| Camila Carvalho Sazhyn | C | D7 (Q.D) | Pendente | `Camila Carvalho Sazhyn D7 - Agua Viva -Leandro Meirelles` | Não enviado — arquivo sensível |
-| Carlos Alberto | C | E14 (Q.E) | Pendente | `Carlos Alberto E14 Agua viva` | Não enviado — arquivo sensível |
-| Alex Santos de Azevedo | C | B2, B3 (Q.B) | Pendente | `Contrato Alex Santos de Azevedo B2 B3 Agua Viva LÉO` | Não enviado — arquivo sensível |
-| Edmilson | C | F05 (Q.F) | Pendente | `Contrato Edmilson F05 Agua Viva LÉO` | Não enviado — arquivo sensível |
-| Emanuel | C | F1, F18 (Q.F) | Pendente | `Contrato Emanuel F1 F18 Agua Viva LÉO` | Não enviado — arquivo sensível |
-| Heron Souza Dias | C | H5 (Q.H) | Pendente | `Contrato Heron Souza Dias H5 H6a Agua Viva LÉO` | Não enviado — arquivo sensível |
-| Heron Souza Dias | C | B4, B5, B6 (Q.B) | Pendente | `Contrato Heron Souza Dias B4 B5 B6 Agua Viva LÉO` | Não enviado — arquivo sensível |
-| Daniela Ramos | D | f7, F8 (Q.F) | Pendente | `Daniela Ramos f7 F8  Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
-| Debora Cristina Rei | D | e22b (Q.E) | Pendente | `Debora Cristina Rei e22B Agua Viva Leandro Meirelles - Cópia` | Não enviado — arquivo sensível |
-| Edelzuito (Desio) | E | A1 (Q.A) | Pendente | `Edelzuito (desio) A1 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
-| Edneia Souza | E | F16 (Q.F) | Pendente | `Edneia Souza F16 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
-| Emmanuel Felix | E | G2, G18 (Q.G) | Pendente | `Emmanuel Felix G2 G18 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
-| Evaniu Dias Macêdo | E | F9, F10 (Q.E) | Pendente | `Evaniu Dias Macêdo E22a F9 F10` | Não enviado — arquivo sensível |
+| Adalberto Oliveira | A | A3 (Q.A) | Pendente — contrato local sem confirmação financeira no WidePay | `Adalberto Oliveira A3 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
+| Alexandre | A | g14 (Q.G) | Pendente — contrato local sem confirmação financeira no WidePay | `alexandre g14 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
+| Antonio Dias Mota | A | E15, E16, E17 (Q.E) | Pendente — contrato local sem confirmação financeira no WidePay | `Antonio Dias Mota E15 E16 E17 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
+| Belmiro Santos Pires | B | F6 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Belmiro Santos Pires F6` | Não enviado — arquivo sensível |
+| Camila Carvalho Sazhyn | C | D7 (Q.D) | Pendente — contrato local sem confirmação financeira no WidePay | `Camila Carvalho Sazhyn D7 - Agua Viva -Leandro Meirelles` | Não enviado — arquivo sensível |
+| Carlos Alberto | C | E14 (Q.E) | Pendente — contrato local sem confirmação financeira no WidePay | `Carlos Alberto E14 Agua viva` | Não enviado — arquivo sensível |
+| Alex Santos de Azevedo | C | B2, B3 (Q.B) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Alex Santos de Azevedo B2 B3 Agua Viva LÉO` | Não enviado — arquivo sensível |
+| Edmilson | C | F05 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Edmilson F05 Agua Viva LÉO` | Não enviado — arquivo sensível |
+| Emanuel | C | F1, F18 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Emanuel F1 F18 Agua Viva LÉO` | Não enviado — arquivo sensível |
+| Heron Souza Dias | C | H5 (Q.H) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Heron Souza Dias H5 H6a Agua Viva LÉO` | Não enviado — arquivo sensível |
+| Heron Souza Dias | C | B4, B5, B6 (Q.B) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Heron Souza Dias B4 B5 B6 Agua Viva LÉO` | Não enviado — arquivo sensível |
+| Daniela Ramos | D | f7, F8 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Daniela Ramos f7 F8  Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
+| Debora Cristina Rei | D | e22b (Q.E) | Pendente — contrato local sem confirmação financeira no WidePay | `Debora Cristina Rei e22B Agua Viva Leandro Meirelles - Cópia` | Não enviado — arquivo sensível |
+| Edelzuito (Desio) | E | A1 (Q.A) | Pendente — contrato local sem confirmação financeira no WidePay | `Edelzuito (desio) A1 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
+| Edneia Souza | E | F16 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Edneia Souza F16 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
+| Emmanuel Felix | E | G2, G18 (Q.G) | Pendente — contrato local sem confirmação financeira no WidePay | `Emmanuel Felix G2 G18 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
+| Evaniu Dias Macêdo | E | F9, F10 (Q.E) | Pendente — contrato local sem confirmação financeira no WidePay | `Evaniu Dias Macêdo E22a F9 F10` | Não enviado — arquivo sensível |
 
 ---
 
