@@ -7,14 +7,14 @@ Registrar arquivos sensiveis mantidos localmente sem publicar valores financeiro
 
 | Campo | Valor |
 |---|---|
-| Arquivo | `RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_SILVA_DOS_SANTOS_LOTE_F05_20260625_V2.xlsx` |
+| Arquivo | `RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_SILVA_DOS_SANTOS_LOTE_F05_20260625_1312.xlsx` |
 | Caminho local | `02_RELATORIOS_GERADOS/` |
 | Cliente/lote | Edmilson / Edimson - F05 |
 | Tipo | Relatorio financeiro principal em XLSX |
 | Status | Gerado localmente - consultado no WidePay em 25/06/2026 |
 | Conteudo sensivel | Sim |
 | Motivo de nao subir completo | Contem dados financeiros individualizados |
-| Versao publica | `RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_F05_SANITIZADO_V2.md` (publicado no GitHub) |
+| Versao publica | `RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_F05_SANITIZADO_1312.md` (publicado no GitHub) |
 | Proximo passo | Validacao manual local |
 
 ## Registro 002 - Conferencia MD Edmilson / Edimson F05

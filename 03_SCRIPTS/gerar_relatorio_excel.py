@@ -698,6 +698,18 @@ def main():
 
     caminho_saida.parent.mkdir(parents=True, exist_ok=True)
 
+    # Se o arquivo de saída já existir, gera automaticamente um novo nome com data/hora
+    if caminho_saida.exists():
+        stem = caminho_saida.stem
+        suffix = caminho_saida.suffix
+        hora_str = datetime.now().strftime("%H%M")
+        
+        # Evitar loop infinito ou duplicados se rodar no mesmo minuto
+        if stem.endswith(f"_{hora_str}"):
+            hora_str = datetime.now().strftime("%H%M%S")
+            
+        caminho_saida = caminho_saida.parent / f"{stem}_{hora_str}{suffix}"
+
     sucesso = gerar_relatorio_excel(
         dados_wp,
         dados_cliente,
