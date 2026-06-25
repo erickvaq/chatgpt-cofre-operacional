@@ -173,9 +173,9 @@ def executar_precheck(script_chamador="Script Desconhecido"):
     if "nunca usar o caso edmilson" not in conteudo_norm:
         erros.append("Bloqueio contra regra fixa baseada no caso Edmilson nao foi encontrado")
 
-    caminho_procedimento = os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "PROCEDIMENTO_WIDEPAY_OPERA_CDP_WMI.md")
+    caminho_procedimento = os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "PROCEDIMENTO_WIDEPAY_CHROME_CDP_WMI.md")
     if not os.path.exists(caminho_procedimento):
-        erros.append("Arquivo PROCEDIMENTO_WIDEPAY_OPERA_CDP_WMI.md nao foi encontrado")
+        erros.append("Arquivo PROCEDIMENTO_WIDEPAY_CHROME_CDP_WMI.md nao foi encontrado")
 
     caminho_config = os.path.join(PROJETO_ROOT, "00_SISTEMA_PRECHECK", "config_widepay_cdp.py")
     if not os.path.exists(caminho_config):
@@ -187,8 +187,8 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                 cfg_norm = normalizar_texto(cfg_content)
                 if "localhost" not in cfg_norm:
                     erros.append("config_widepay_cdp.py deve conter o endpoint 'localhost'")
-                if "9444" not in cfg_content:
-                    erros.append("config_widepay_cdp.py deve conter a porta '9444'")
+                if "9333" not in cfg_content:
+                    erros.append("config_widepay_cdp.py deve conter a porta '9333'")
         except Exception as ec:
             erros.append(f"Erro ao ler config_widepay_cdp.py: {ec}")
 

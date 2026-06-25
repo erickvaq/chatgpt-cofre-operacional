@@ -14,10 +14,10 @@ Esta ordem tem prioridade acima de qualquer outro fluxo desta skill.
 Esta skill vale para qualquer cliente especifico, letra unica, intervalo de letras, grupo de clientes, lote, todos os clientes, relatorio individual, relatorio consolidado, levantamento, auditoria, conferencia, lista de pendencias, pagamentos, parcelas, carnes, cobrancas ou boletos.
 
 ## 0.6 Abertura obrigatoria do WidePay real
-Antes de qualquer busca, relatorio, auditoria, letra, lote, pendencia, pagamento, parcela, carne, cobranca, PDF, HTML ou XLSX, a primeira acao pratica e abrir o Opera dedicado e carregar o WidePay real.
-Se o Opera/CDP nao estiver aberto, o fluxo deve tentar abrir automaticamente o navegador dedicado.
-Se o CDP ja tiver aba WidePay logada, nunca fechar nem reiniciar o Opera.
-Antes de declarar login necessario, conferir `localhost:9444/json` e validar as abas reais do WidePay.
+Antes de qualquer busca, relatorio, auditoria, letra, lote, pendencia, pagamento, parcela, carne, cobranca, PDF, HTML ou XLSX, a primeira acao pratica e abrir o Google Chrome dedicado e carregar o WidePay real.
+Se o Chrome/CDP nao estiver aberto, o fluxo deve tentar abrir automaticamente o navegador dedicado.
+Se o CDP ja tiver aba WidePay logada, nunca fechar nem reiniciar o Chrome.
+Antes de declarar login necessario, conferir `localhost:9333/json` e validar as abas reais do WidePay.
 Somente depois de entrar no WidePay real pode consultar Carnes e Cobrancas/Boletos.
 Somente depois disso pode usar contratos locais como apoio.
 Se o WidePay real nao abrir, bloquear o fluxo com `ERRO CRITICO: WidePay real nao foi aberto. Fluxo bloqueado antes de consultar arquivos locais.`
@@ -43,7 +43,7 @@ Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`
 1. **WidePay primeiro:** consultar Carnes, Cobrancas/Boletos, identificar clientes com evidencia financeira, localizar carnes ativos, finalizados, pagos, pendentes e cancelados, e consolidar registros repetidos do mesmo cliente/lote.
 2. **Contratos locais depois:** usar contratos locais apenas como apoio, confirmar lote, confirmar nome completo, conferir contrato fisico e complementar dados ausentes.
 3. **Lista preliminar quando faltar WidePay:** se o WidePay ainda nao foi consultado, qualquer lista baseada em arquivos locais deve receber a marca `LISTA LOCAL PRELIMINAR - PENDENTE DE VALIDACAO WIDEPAY`.
-4. **Consulta segura:** chamar `ensure_widepay_logged_in()` para conectar ao Opera dedicado (`localhost:9444`) e acessar apenas `Recebimentos > Carnes` e `Recebimentos > Cobrancas/Boletos`.
+4. **Consulta segura:** chamar `ensure_widepay_logged_in()` para conectar ao Google Chrome dedicado (`localhost:9333`) e acessar apenas `Recebimentos > Carnes` e `Recebimentos > Cobrancas/Boletos`.
 5. **Arquivo de conferencia:** salvar o log detalhado em `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_[CLIENTE].md`.
 6. **Base estruturada e consolidado:** quando houver mais de um cliente, manter a base local em `07_DADOS_TEMPORARIOS` e garantir que o fluxo consolidado nasÃ§a do WidePay antes de qualquer apoio local.
 
@@ -80,7 +80,7 @@ Ao iniciar a execucao, imprimir no console:
 SKILL CARREGADA: widepay-core-operacional
 REGRA ZERO: WIDEPAY PRIMEIRO
 PRECHECK SKILLS: aprovado
-PRECHECK LOGIN WIDEPAY: perfil persistente Opera/CDP obrigatorio
+PRECHECK LOGIN WIDEPAY: perfil persistente Chrome/CDP obrigatorio
 ensure_widepay_logged_in(): iniciado
 ```
 

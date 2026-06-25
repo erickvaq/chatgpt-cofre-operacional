@@ -8,7 +8,7 @@
 * **Formato principal:** XLS/XLSX para relatorios financeiros
 * **PDF:** gerar somente quando o usuario pedir explicitamente
 * **HTML:** gerar somente quando o usuario pedir previa/painel/conferencia visual
-* **Abertura real:** navegador dedicado via CDP; Opera `9444` ou Chrome `9333`
+* **Abertura real:** navegador dedicado via CDP; Google Chrome 9333
 * **Seguranca:** WidePay somente leitura; nao acessar `Configuracoes > Contatos`
 
 ## Regras Ativas
