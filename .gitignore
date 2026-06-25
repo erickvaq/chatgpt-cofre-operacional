@@ -35,3 +35,10 @@ node_modules/
 _temp/
 _backup/
 _*/
+__pycache__/
+*.pyc
+
+# WideAPP_EXTRA - dados locais gerados pela aplicacao
+WideAPP_EXTRA/data/
+WideAPP_EXTRA/logs/
+WideAPP_EXTRA/LINKS_GOOGLE_DRIVE.md

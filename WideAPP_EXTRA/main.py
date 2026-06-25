@@ -3,7 +3,6 @@
 
 import argparse
 import importlib
-import os
 import subprocess
 import sys
 from datetime import datetime
@@ -182,6 +181,41 @@ class WideApp:
                 if not self._aguardar_enter("\nPressione Enter para tentar novamente..."):
                     return 1
 
+    def abrir_interface_visual(self):
+        from app.interface import abrir_interface
+
+        if not self.validar_ambiente(exigir_widepay=False):
+            self.log("INTERFACE: validacao basica falhou")
+            return 1
+        self.log("INTERFACE: abrindo interface visual")
+        abrir_interface()
+        return 0
+
+    def atualizar_clientes(self, validar_widepay=True):
+        from app.indexador_clientes import indexar_clientes
+
+        result = indexar_clientes(validar_widepay=validar_widepay, log_callback=self.log)
+        self.log(f"INDEXACAO: {len(result['registros'])} cliente/lote")
+        self.log(f"INDEXACAO_LOG: {result['log']}")
+        return 0
+
+    def pesquisar_clientes(self, termo):
+        from app.indexador_clientes import carregar_cache
+        from app.pesquisa_clientes import filtrar
+
+        resultados = filtrar(carregar_cache(), termo)
+        self.log(f"PESQUISA: {len(resultados)} resultado(s) para {termo!r}")
+        for item in resultados[:30]:
+            print(f"{item.get('cliente')} | Lote {item.get('lote')} | {item.get('status')} | {item.get('contrato')}")
+        return 0
+
+    def smoke_test_interface(self):
+        from app.interface import smoke_test
+
+        qtd = smoke_test()
+        self.log(f"SMOKE_INTERFACE: ok; cache atual com {qtd} registro(s)")
+        return 0
+
     def _menu_consolidado(self):
         print()
         print("Escopo do consolidado:")
@@ -229,6 +263,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description="WideAPP_EXTRA - aplicacao independente")
     parser.add_argument("--validar-ambiente", action="store_true", help="valida .venv, dependencias, precheck e WidePay")
     parser.add_argument("--executar", nargs=argparse.REMAINDER, help="encaminha argumentos para executar_auditoria.py")
+    parser.add_argument("--terminal", action="store_true", help="abre o menu antigo em terminal")
+    parser.add_argument("--atualizar-clientes", action="store_true", help="atualiza cache local de clientes/contratos")
+    parser.add_argument("--sem-widepay", action="store_true", help="na atualizacao, nao valida WidePay/CDP")
+    parser.add_argument("--pesquisar", help="pesquisa no cache local de clientes")
+    parser.add_argument("--smoke-test-interface", action="store_true", help="testa criacao da interface sem manter janela aberta")
     return parser.parse_args()
 
 
@@ -242,7 +281,15 @@ def main():
             app.log("ERRO: use --executar seguido dos argumentos de auditoria")
             return 1
         return app.executar_auditoria(args.executar)
-    return app.menu()
+    if args.atualizar_clientes:
+        return app.atualizar_clientes(validar_widepay=not args.sem_widepay)
+    if args.pesquisar:
+        return app.pesquisar_clientes(args.pesquisar)
+    if args.smoke_test_interface:
+        return app.smoke_test_interface()
+    if args.terminal:
+        return app.menu()
+    return app.abrir_interface_visual()
 
 
 if __name__ == "__main__":
