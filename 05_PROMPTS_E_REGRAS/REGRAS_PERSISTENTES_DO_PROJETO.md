@@ -1,4 +1,4 @@
-# REGRAS PERSISTENTES DO PROJETO - Relatorio_WidePay_Lotes
+﻿# REGRAS PERSISTENTES DO PROJETO - Relatorio_WidePay_Lotes
 # Atualizado em: 2026-06-25
 ---
 
@@ -53,11 +53,11 @@ Erro critico:
 - nunca usar pasta local como fonte principal da lista oficial.
 
 3. Parcelas restantes somente pelo contrato
-- o WidePay confirma pagamentos, cobranças, carnês e status financeiro;
-- o total de parcelas do contrato deve vir somente do contrato físico/local confirmado;
+- o WidePay confirma pagamentos, cobranÃ§as, carnÃªs e status financeiro;
+- o total de parcelas do contrato deve vir somente do contrato fÃ­sico/local confirmado;
 - parcelas restantes = total de parcelas do contrato confirmado menos parcelas pagas confirmadas;
 - nunca usar parcelas geradas no WidePay como substituto do total do contrato;
-- se o contrato não confirmar o total de parcelas, marcar `CONTRATO NAO CONFIRMADO - PARCELAS RESTANTES BLOQUEADAS` e não gerar PDF/HTML final com número de parcelas restantes.
+- se o contrato nÃ£o confirmar o total de parcelas, marcar `CONTRATO NAO CONFIRMADO - PARCELAS RESTANTES BLOQUEADAS` e nÃ£o gerar PDF/HTML final com nÃºmero de parcelas restantes.
 
 Bloqueio obrigatorio:
 - proibido fechar lista oficial de clientes, pendentes, ativos ou relatorios comecando por arquivos locais.
@@ -67,7 +67,7 @@ Erro critico:
 - ERRO CRITICO: fluxo local-first bloqueado. A fonte principal e WidePay. Consulte Carnes e Cobrancas/Boletos antes de usar contratos locais.
 
 Excecao permitida:
-- so pode comecar por arquivos locais se o usuario pedir explicitamente algo como "procure so nos contratos", "faça uma busca local", "nao acesse o WidePay agora" ou "levante apenas o que existe no disco".
+- so pode comecar por arquivos locais se o usuario pedir explicitamente algo como "procure so nos contratos", "faÃ§a uma busca local", "nao acesse o WidePay agora" ou "levante apenas o que existe no disco".
 - mesmo nesses casos, o resultado deve sair marcado como `PRELIMINAR - NAO VALIDADO NO WIDEPAY`.
 
 ---
@@ -104,7 +104,7 @@ Fluxo obrigatorio:
 - consultar Cobrancas/Boletos;
 - identificar clientes com evidencia financeira;
 - consolidar registros repetidos do mesmo cliente/lote;
-- nunca começar por contratos locais;
+- nunca comeÃ§ar por contratos locais;
 - nunca fechar lista oficial por arquivos locais;
 - nunca acessar `Configuracoes > Contatos`.
 
@@ -215,9 +215,9 @@ Para cada cliente:
 7. gerar PDF/HTML final somente apos validacao do usuario, quando exigida.
 
 Parcelas restantes:
-- devem ser compatíveis somente com o contrato confirmado;
-- se o contrato não confirmar o total de parcelas, bloquear o número de restantes no PDF/HTML final;
-- o total de parcelas geradas no WidePay serve para auditoria de carnês, mas não define o total do contrato.
+- devem ser compatÃ­veis somente com o contrato confirmado;
+- se o contrato nÃ£o confirmar o total de parcelas, bloquear o nÃºmero de restantes no PDF/HTML final;
+- o total de parcelas geradas no WidePay serve para auditoria de carnÃªs, mas nÃ£o define o total do contrato.
 
 Para pedidos como `A a E`, interpretar como iniciais reais dos nomes dos clientes, nao como quadras.
 Consolidar nomes repetidos.
@@ -229,12 +229,16 @@ Nao excluir cliente apenas por falta de contrato local.
 ## REGRA 4 - Relatorios em lote e consolidado
 
 Quando o usuario pedir lista geral, todos os clientes, atrasos de todos ou relatorio consolidado:
-- gerar conferência consolidada em modo somente leitura;
+- gerar conferÃªncia consolidada em modo somente leitura;
 - preferir JSONs locais recentes em `07_DADOS_TEMPORARIOS\WIDEPAY_CONSULTAS` para economizar tempo e creditos;
 - consultar o WidePay real novamente somente quando o usuario pedir atualizacao real, quando nao houver JSON confiavel ou quando houver divergencia relevante;
 - nunca alterar WidePay;
 - registrar boletos avulsos como possivel regularizacao de parcelas atrasadas quando a descricao informal permitir inferencia;
 - marcar toda inferencia de data como inferencia e preservar a descricao original.
+- contar no total pago do terreno/lote todos os boletos pagos ligados ao cliente, incluindo carnÃªs e cobranÃ§as/boletos recebidos;
+- aceitar aliases e erros de digitacao comuns do nome do cliente quando a evidencia financeira e o contrato apontarem para o mesmo lote (ex.: `Edmilson` e `Edimson`).
+- sempre consultar e listar no relatorio do cliente todos os carnes e todas as cobrancas/boletos pagos ou em aberto localizados no WidePay.
+- quando o navegador dedicado ja tiver usuario ou senha salvos, aproveitar o autopreenchimento e tentar login automatico antes de pedir intervencao manual.
 
 O consolidado deve listar por cliente/lote:
 - carne;
@@ -374,7 +378,7 @@ Marcadores proibidos quando o painel estiver em modo limpo:
 - `19 x 21`;
 - `Heron Souza Dias`;
 - `cb8c5c8`;
-- `RESUMO DA EXTRAÇÃO WIDEPAY`;
+- `RESUMO DA EXTRAÃ‡ÃƒO WIDEPAY`;
 - tabelas antigas de clientes A a E;
 - auditoria antiga;
 - pendencias antigas ja substituidas;
@@ -389,4 +393,4 @@ Pos-push obrigatorio:
 Se o painel local estiver correto, mas o painel publico ainda mostrar conteudo antigo, cache, branch errada ou versao divergente, nao responder `concluido`.
 
 Resposta obrigatoria nesse caso:
-`O painel local foi atualizado, mas o painel público ainda não reflete a versão limpa. Vou corrigir sincronização, branch, commit ou push antes de declarar concluído.`
+`O painel local foi atualizado, mas o painel pÃºblico ainda nÃ£o reflete a versÃ£o limpa. Vou corrigir sincronizaÃ§Ã£o, branch, commit ou push antes de declarar concluÃ­do.`

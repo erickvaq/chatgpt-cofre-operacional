@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import os
 import sys
 import json
@@ -10,6 +10,8 @@ import asyncio
 import time
 import websockets
 import argparse
+import re
+import unicodedata
 from pathlib import Path
 
 # Ajustar sys.path para carregar o precheck
@@ -42,6 +44,33 @@ CDP_HOST_PORT = f"{CDP_HOST}:{CDP_PORT}"
 JSON_OUTPUT_DIR = ROOT_DIR / "07_DADOS_TEMPORARIOS" / "WIDEPAY_CONSULTAS"
 os.makedirs(JSON_OUTPUT_DIR, exist_ok=True)
 JSON_OUTPUT_FILE = JSON_OUTPUT_DIR / f"WIDEPAY_{CLIENTE_ALVO.replace(' ', '_').upper()}.json"
+
+
+def normalizar_busca(texto):
+    if not texto:
+        return ""
+    texto = unicodedata.normalize("NFD", texto)
+    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    texto = re.sub(r"[^a-zA-Z0-9]+", " ", texto).lower().strip()
+    return texto
+
+
+def gerar_termos_busca_cliente(cliente):
+    base = normalizar_busca(cliente)
+    if not base:
+        return ["edmilson"]
+
+    termos = {base}
+    tokens = base.split()
+    if "edmilson" in tokens:
+        termos.add("edimson")
+    if "edimson" in tokens:
+        termos.add("edmilson")
+    if base == "edmilson":
+        termos.add("edimson")
+    if base == "edimson":
+        termos.add("edmilson")
+    return sorted(termos, key=len, reverse=True)
 
 async def cdp_command(ws_url, method, params=None):
     if params is None:
@@ -128,7 +157,7 @@ async def main_async():
         sys.exit(1)
         
     ws_url = wp_aba["webSocketDebuggerUrl"]
-    print(f"Conectado com sucesso à aba: {wp_aba.get('title')} ({wp_aba.get('url')})")
+    print(f"Conectado com sucesso Ã  aba: {wp_aba.get('title')} ({wp_aba.get('url')})")
     
     # 1. Verificar se esta na tela de login e tentar usar preenchimento automatico do Opera
     eval_location = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "window.location.href", "returnByValue": True})
@@ -174,6 +203,55 @@ async def main_async():
         
         # Pequeno delay para garantir que o autofill seja aplicado
         await asyncio.sleep(1.5)
+
+        js_checar_autofill = """
+        (function() {
+            var emailField = document.querySelector('input[type="text"], input[type="email"], input[name*="login"], input[name*="email"], input[name*="autenticacao"]');
+            var passwordField = document.querySelector('input[type="password"], input[name*="senha"]');
+            var botoes = Array.from(document.querySelectorAll('button, input[type="submit"], [role="button"], a'));
+            var submitBtn = botoes.find(function(btn) {
+                var txt = (btn.innerText || btn.value || btn.textContent || '').toLowerCase();
+                return txt.includes('entrar') || txt.includes('acessar') || txt.includes('login');
+            }) || document.querySelector('button[type="submit"], input[type="submit"], button:not([type]), [role="button"]');
+            return {
+                email: emailField ? (emailField.value || "") : "",
+                password: passwordField ? (passwordField.value || "") : "",
+                hasSubmit: !!submitBtn
+            };
+        })()
+        """
+        eval_checar = await cdp_command(ws_url, "Runtime.evaluate", {
+            "expression": js_checar_autofill,
+            "returnByValue": True
+        })
+        dados_autofill = eval_checar.get("result", {}).get("result", {}).get("value", {}) or {}
+        senha_salva = bool(dados_autofill.get("password"))
+        usuario_preenchido = bool(dados_autofill.get("email"))
+        if senha_salva or usuario_preenchido:
+            print("Credenciais salvas detectadas no navegador. Tentando submissao automatica...")
+            js_submit = """
+            (function() {
+                var botoes = Array.from(document.querySelectorAll('button, input[type="submit"], [role="button"], a'));
+                var submitBtn = botoes.find(function(btn) {
+                    var txt = (btn.innerText || btn.value || btn.textContent || '').toLowerCase();
+                    return txt.includes('entrar') || txt.includes('acessar') || txt.includes('login');
+                }) || document.querySelector('button[type="submit"], input[type="submit"], button:not([type]), [role="button"]');
+                if (submitBtn) {
+                    submitBtn.click();
+                    return "submit_click";
+                }
+                var form = document.querySelector('form');
+                if (form) {
+                    form.submit();
+                    return "form_submit";
+                }
+                return "no_submit";
+            })()
+            """
+            await cdp_command(ws_url, "Runtime.evaluate", {
+                "expression": js_submit,
+                "returnByValue": True
+            })
         
         # Enviar comandos de teclado virtuais para simular o pressionamento do Enter
         print("Enviando evento Enter (KeyDown/KeyUp) via CDP Input...")
@@ -200,25 +278,26 @@ async def main_async():
             eval_body2 = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "document.body.innerText", "returnByValue": True})
             body_text2 = eval_body2.get("result", {}).get("result", {}).get("value", "")
             
-            if "Erro na" in body_text2 or "incorreta" in body_text2 or "inválido" in body_text2:
+            if "Erro na" in body_text2 or "incorreta" in body_text2 or "invÃ¡lido" in body_text2:
                 print("\n[FALHA DE AUTOFILL] O Opera nao preencheu automaticamente os dados ou a senha esta invalida.")
+            elif senha_salva or usuario_preenchido:
+                print("\n[LOGIN SALVO NAO CONFIRMADO] O navegador tinha credenciais preenchidas, mas a navegacao nao saiu da tela de acesso.")
             
-            print("\n[LOGIN REQUERIDO] LOGIN MANUAL NECESSÁRIO — faça login no Opera dedicado e responda 'Logado'.")
+            print("\n[LOGIN REQUERIDO] Login manual necessario no Opera dedicado.")
             sys.exit(2)
         else:
             print("Login automatico realizado com sucesso via preenchimento do Opera!")
-            current_url = current_url2    # 2. Extração de Carnês
+            current_url = current_url2    # 2. ExtraÃ§Ã£o de CarnÃªs
     if "recebimentos/carnes" not in current_url:
         print("Navegando para a pagina de carnes...")
         await cdp_command(ws_url, "Page.navigate", {"url": "https://www.widepay.com/conta/recebimentos/carnes"})
         await asyncio.sleep(4)
         
-    print(f"Executando pesquisa e extração de Carnês para '{CLIENTE_ALVO}'...")
+    print(f"Executando pesquisa e extraÃ§Ã£o de CarnÃªs para '{CLIENTE_ALVO}'...")
     
     # Simplificar o nome para busca no WidePay (remover lixo do nome da pasta)
     palavras = CLIENTE_ALVO.split()
     filtro = []
-    import re
     for p in palavras:
         p_lower = p.lower()
         if p_lower in ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8", "agua", "viva", "leandro", "meirelles", "lote", "quadra", "par"]:
@@ -228,6 +307,8 @@ async def main_async():
             continue
         filtro.append(p)
     busca_simplificada = " ".join(filtro) if filtro else "Ana Carolina"
+    termo_busca_carnes_js = json.dumps(busca_simplificada, ensure_ascii=False)
+    termos_busca_cobrancas_js = json.dumps(gerar_termos_busca_cliente(busca_simplificada), ensure_ascii=False)
     
     js_extract_carnes = """
     async function() {
@@ -252,7 +333,7 @@ async def main_async():
         // 2. Pesquisar o cliente
         var searchInput = document.getElementById("jab-1036-field");
         if (searchInput) {
-            searchInput.value = "%s";
+            searchInput.value = %s;
             searchInput.dispatchEvent(new Event('input', { bubbles: true }));
             searchInput.dispatchEvent(new Event('change', { bubbles: true }));
             
@@ -265,14 +346,14 @@ async def main_async():
             await new Promise(r => setTimeout(r, 4000));
         }
         
-        // 3. Loop de extração de todas as páginas
+        // 3. Loop de extraÃ§Ã£o de todas as pÃ¡ginas
         var carnes = [];
         var nomeEncontrado = "%s";
         var page = 1;
         
         while (page <= 10) {
             var trs = Array.from(document.querySelectorAll('tr'));
-            var query = "%s".toLowerCase();
+            var query = %s.toLowerCase();
             
             var foundRows = trs.filter(tr => {
                 var text = tr.innerText.toLowerCase();
@@ -352,7 +433,7 @@ async def main_async():
             carnes: carnes
         };
     }
-    """ % (busca_simplificada, CLIENTE_ALVO, busca_simplificada)
+    """ % (termo_busca_carnes_js, CLIENTE_ALVO, termo_busca_carnes_js)
     
     eval_extract_carnes = await cdp_command(ws_url, "Runtime.evaluate", {
         "expression": f"({js_extract_carnes})()",
@@ -362,15 +443,15 @@ async def main_async():
     
     raw_data_carnes = eval_extract_carnes.get("result", {}).get("result", {}).get("value", {})
     if not raw_data_carnes:
-        print("Erro: A extração de carnês via JS retornou vazia.")
+        print("Erro: A extraÃ§Ã£o de carnÃªs via JS retornou vazia.")
         raw_data_carnes = {"nome_encontrado": CLIENTE_ALVO, "carnes": []}
         
-    # 3. Navegar para a página de Cobranças
+    # 3. Navegar para a pÃ¡gina de CobranÃ§as
     print("Navegando para a pagina de cobrancas...")
     await cdp_command(ws_url, "Page.navigate", {"url": "https://www.widepay.com/conta/recebimentos"})
     await asyncio.sleep(4)
     
-    print(f"Executando pesquisa e extração de Cobranças/Boletos para '{CLIENTE_ALVO}'...")
+    print(f"Executando pesquisa e extraÃ§Ã£o de CobranÃ§as/Boletos para '{CLIENTE_ALVO}'...")
     
     js_extract_cobrancas = """
     async function() {
@@ -405,10 +486,16 @@ async def main_async():
             await new Promise(r => setTimeout(r, 4000));
         }
         
-        // 2. Pesquisar o cliente
+        // 2. Pesquisar cada alias do cliente separadamente
+        var queryTerms = %s;
+        var cobrancas = [];
         var searchInput = document.getElementById("jab-1043-field") || document.querySelector('input[placeholder*="Pesquisar"], input[type="text"], input[type="search"]');
-        if (searchInput) {
-            searchInput.value = "%s";
+        for (var termIndex = 0; termIndex < queryTerms.length; termIndex++) {
+            var termoAtual = queryTerms[termIndex];
+            if (!searchInput || !termoAtual) {
+                continue;
+            }
+            searchInput.value = termoAtual;
             searchInput.dispatchEvent(new Event('input', { bubbles: true }));
             searchInput.dispatchEvent(new Event('change', { bubbles: true }));
             
@@ -419,80 +506,76 @@ async def main_async():
                 searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
             }
             await new Promise(r => setTimeout(r, 4000));
-        }
-        
-        // 3. Loop de extração das cobranças
-        var cobrancas = [];
-        var page = 1;
-        
-        while (page <= 10) {
-            var trs = Array.from(document.querySelectorAll('tr'));
-            var query = "%s".toLowerCase();
             
-            var foundRows = trs.filter(tr => {
-                var text = tr.innerText.toLowerCase();
-                return text.includes(query);
-            });
-            
-            foundRows.forEach(tr => {
-                var tds = tr.querySelectorAll('td');
-                if (tds.length >= 21) {
-                    var col_id = tds[1].innerText.trim();
-                    var col_forma = tds[3].innerText.trim();
-                    var col_cliente = tds[4].innerText.trim();
-                    var col_referencia = tds[10].innerText.trim();
-                    var col_valor = tds[11].innerText.trim();
-                    var col_recebido = tds[12].innerText.trim();
-                    var col_vencimento = tds[14].innerText.trim();
-                    var col_pagamento = tds[15].innerText.trim();
-                    var col_status = tds[20].innerText.trim();
-                    
-                    var valor_original = parseFloat(col_valor.replace(/\\./g, '').replace(',', '.')) || 0.0;
-                    var valor_recebido = 0.0;
-                    if (col_recebido && col_recebido !== "-") {
-                        valor_recebido = parseFloat(col_recebido.replace(/\\./g, '').replace(',', '.')) || 0.0;
+            // 3. Loop de extracao das cobrancas do termo atual
+            var page = 1;
+            while (page <= 10) {
+                var trs = Array.from(document.querySelectorAll('tr'));
+                var foundRows = trs.filter(tr => {
+                    var text = tr.innerText.toLowerCase();
+                    return text.includes((termoAtual || '').toLowerCase());
+                });
+                
+                foundRows.forEach(tr => {
+                    var tds = tr.querySelectorAll('td');
+                    if (tds.length >= 21) {
+                        var col_id = tds[1].innerText.trim();
+                        var col_forma = tds[3].innerText.trim();
+                        var col_cliente = tds[4].innerText.trim();
+                        var col_referencia = tds[10].innerText.trim();
+                        var col_valor = tds[11].innerText.trim();
+                        var col_recebido = tds[12].innerText.trim();
+                        var col_vencimento = tds[14].innerText.trim();
+                        var col_pagamento = tds[15].innerText.trim();
+                        var col_status = tds[20].innerText.trim();
+                        
+                        var valor_original = parseFloat(col_valor.replace(/\\./g, '').replace(',', '.')) || 0.0;
+                        var valor_recebido = 0.0;
+                        if (col_recebido && col_recebido !== "-") {
+                            valor_recebido = parseFloat(col_recebido.replace(/\\./g, '').replace(',', '.')) || 0.0;
+                        }
+                        
+                        var desc_lower = col_referencia.toLowerCase();
+                        var pertence_a_carne = desc_lower.includes("carne") || desc_lower.includes("carn");
+                        var avulsa = !pertence_a_carne;
+                        
+                        if (!cobrancas.some(c => c.id === col_id)) {
+                            cobrancas.push({
+                                id: col_id,
+                                forma: col_forma,
+                                cliente: col_cliente,
+                                descricao: col_referencia,
+                                valor_original: valor_original,
+                                valor_recebido: valor_recebido,
+                                vencimento: col_vencimento,
+                                pagamento: col_pagamento,
+                                status: col_status,
+                                pertence_a_carne: pertence_a_carne,
+                                avulsa: avulsa
+                            });
+                        }
                     }
-                    
-                    var desc_lower = col_referencia.toLowerCase();
-                    var pertence_a_carne = desc_lower.includes("carne") || desc_lower.includes("carnê");
-                    var avulsa = !pertence_a_carne;
-                    
-                    if (!cobrancas.some(c => c.id === col_id)) {
-                        cobrancas.push({
-                            id: col_id,
-                            forma: col_forma,
-                            cliente: col_cliente,
-                            descricao: col_referencia,
-                            valor_original: valor_original,
-                            valor_recebido: valor_recebido,
-                            vencimento: col_vencimento,
-                            pagamento: col_pagamento,
-                            status: col_status,
-                            pertence_a_carne: pertence_a_carne,
-                            avulsa: avulsa
-                        });
-                    }
+                });
+                
+                var nextBtn = Array.from(document.querySelectorAll('button, a')).find(el => {
+                    var txt = el.innerText || '';
+                    var cls = el.className || '';
+                    var id = el.id || '';
+                    return (id.includes('next') || cls.includes('next') || txt.includes('Pr') || txt.includes('>') || el.querySelector('i.fa-angle-right') || el.querySelector('i.fa-chevron-right'));
+                });
+                
+                if (nextBtn && !nextBtn.disabled && !nextBtn.className.includes("disabled")) {
+                    nextBtn.click();
+                    page++;
+                    await new Promise(r => setTimeout(r, 4000));
+                } else {
+                    break;
                 }
-            });
-            
-            var nextBtn = Array.from(document.querySelectorAll('button, a')).find(el => {
-                var txt = el.innerText || '';
-                var cls = el.className || '';
-                var id = el.id || '';
-                return (id.includes('next') || cls.includes('next') || txt.includes('Próximo') || txt.includes('>') || el.querySelector('i.fa-angle-right') || el.querySelector('i.fa-chevron-right'));
-            });
-            
-            if (nextBtn && !nextBtn.disabled && !nextBtn.className.includes("disabled")) {
-                nextBtn.click();
-                page++;
-                await new Promise(r => setTimeout(r, 4000));
-            } else {
-                break;
             }
         }
         return cobrancas;
     }
-    """ % (busca_simplificada, busca_simplificada)
+    """ % (termos_busca_cobrancas_js)
     
     eval_extract_cobrancas = await cdp_command(ws_url, "Runtime.evaluate", {
         "expression": f"({js_extract_cobrancas})()",
@@ -502,10 +585,10 @@ async def main_async():
     
     raw_data_cobrancas = eval_extract_cobrancas.get("result", {}).get("result", {}).get("value", [])
     if not raw_data_cobrancas:
-        print("Erro: A extração de cobranças via JS retornou vazia.")
+        print("Erro: A extraÃ§Ã£o de cobranÃ§as via JS retornou vazia.")
         raw_data_cobrancas = []
         
-    # 4. Classificação, De-duplicidade e Consolidação
+    # 4. ClassificaÃ§Ã£o, De-duplicidade e ConsolidaÃ§Ã£o
     carnes_lista = raw_data_carnes.get("carnes") or []
     cobrancas_lista = []
     boletos_avulsos = []
@@ -529,7 +612,7 @@ async def main_async():
         
         # Apply Python classification heuristic to prevent false avulsas
         desc_lower = cob["descricao"].lower()
-        pertence_a_carne = "carne" in desc_lower or "carnê" in desc_lower
+        pertence_a_carne = "carne" in desc_lower or "carnÃª" in desc_lower
         
         if not pertence_a_carne:
             for c in carnes_lista:
@@ -537,7 +620,7 @@ async def main_async():
                     if abs(cob["valor_original"] - float(c["valor_parcela"])) < 0.01:
                         ref_lower = c["referencia"].lower()
                         if not cob["descricao"].strip() or (ref_lower and ref_lower in desc_lower):
-                            if not any(word in desc_lower for word in ["atraso", "atrazos", "ref atraso", "atr", "mês", "mes"]):
+                            if not any(word in desc_lower for word in ["atraso", "atrazos", "ref atraso", "atr", "mÃªs", "mes"]):
                                 pertence_a_carne = True
                                 break
                                 
@@ -615,10 +698,10 @@ async def main_async():
         json.dump(resultado_json, f, indent=4, ensure_ascii=False)
         
     print(f"JSON de consulta salvo em: {JSON_OUTPUT_FILE}")
-    print(f"Total de carnês extraídos: {len(carnes_lista)}")
-    print(f"Total de cobranças extraídas: {len(cobrancas_lista)}")
-    print(f"Total de cobranças avulsas: {len(boletos_avulsos)}")
-    print(f"Total de possíveis duplicidades: {len(possiveis_duplicidades)}")
+    print(f"Total de carnÃªs extraÃ­dos: {len(carnes_lista)}")
+    print(f"Total de cobranÃ§as extraÃ­das: {len(cobrancas_lista)}")
+    print(f"Total de cobranÃ§as avulsas: {len(boletos_avulsos)}")
+    print(f"Total de possÃ­veis duplicidades: {len(possiveis_duplicidades)}")
     
     if status_final == "CONECTADO":
         print(f"\nSTATUS FINAL: CLIENTE ENCONTRADO E DADOS EXTRAIDOS")

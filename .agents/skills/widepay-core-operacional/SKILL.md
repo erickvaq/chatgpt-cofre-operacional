@@ -1,4 +1,4 @@
----
+﻿---
 name: widepay-core-operacional
 description: Usar sempre que o pedido envolver WidePay, cliente, contrato, lote, quadra, parcelas, carnes, cobranca, busca de cliente ou conferencia financeira.
 ---
@@ -45,7 +45,7 @@ Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`
 3. **Lista preliminar quando faltar WidePay:** se o WidePay ainda nao foi consultado, qualquer lista baseada em arquivos locais deve receber a marca `LISTA LOCAL PRELIMINAR - PENDENTE DE VALIDACAO WIDEPAY`.
 4. **Consulta segura:** chamar `ensure_widepay_logged_in()` para conectar ao Opera dedicado (`localhost:9444`) e acessar apenas `Recebimentos > Carnes` e `Recebimentos > Cobrancas/Boletos`.
 5. **Arquivo de conferencia:** salvar o log detalhado em `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_[CLIENTE].md`.
-6. **Base estruturada e consolidado:** quando houver mais de um cliente, manter a base local em `07_DADOS_TEMPORARIOS` e garantir que o fluxo consolidado nasça do WidePay antes de qualquer apoio local.
+6. **Base estruturada e consolidado:** quando houver mais de um cliente, manter a base local em `07_DADOS_TEMPORARIOS` e garantir que o fluxo consolidado nasÃ§a do WidePay antes de qualquer apoio local.
 
 ## 5.1 Parcelas restantes somente pelo contrato
 * WidePay confirma pagamentos, cobrancas, carnes e status financeiro.
@@ -53,6 +53,10 @@ Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`
 * Parcelas restantes = total de parcelas do contrato confirmado menos parcelas pagas confirmadas.
 * Nunca usar parcelas geradas no WidePay como substituto do total do contrato.
 * Se o contrato nao confirmar o total de parcelas, marcar `CONTRATO NAO CONFIRMADO - PARCELAS RESTANTES BLOQUEADAS` e bloquear PDF/HTML final com numero de restantes.
+* O total pago do terreno/lote deve somar carnÃªs pagos e cobranÃ§as/boletos recebidos do mesmo cliente.
+* Alias e erros de digitacao comuns do nome do cliente podem ser aceitos quando a evidencia financeira e o contrato apontarem para o mesmo lote (ex.: `Edmilson` e `Edimson`).
+* Todo relatorio de cliente deve consultar e listar todos os carnes e todas as cobrancas/boletos pagos ou em aberto localizados no WidePay.
+* Se o navegador dedicado ja tiver usuario ou senha salvos, usar o autopreenchimento e tentar login automatico antes de pedir intervencao manual.
 
 ## 6. Rotinas e scripts relacionados
 * `python 03_SCRIPTS\buscar_cliente.py <nome>`
@@ -78,11 +82,15 @@ ensure_widepay_logged_in(): iniciado
 * **ERRO 6:** fluxo local-first bloqueado.
 * **ERRO 7:** WidePay real nao foi aberto.
 * **ERRO 8:** Calcular parcelas restantes usando parcelas geradas no WidePay em vez do total do contrato confirmado.
+* **ERRO 9:** Ignorar alias ou erro de digitacao comum do cliente e deixar de contabilizar boletos pagos do mesmo lote.
+* **ERRO 10:** Gerar relatorio de cliente omitindo cobrancas/boletos pagos ou em aberto encontrados no WidePay.
+* **ERRO 11:** Pedir login manual sem antes tentar usar usuario/senha ja salvos no navegador dedicado.
 
-## 9. Critérios de validação
+## 9. CritÃ©rios de validaÃ§Ã£o
 * Normalizacao rigorosa de nomes (remover termos como "Contrato", "Copia", "Leo/Leo").
 * WidePay define quem existe financeiramente; contratos locais apenas complementam depois da consulta.
 * Parcelas restantes devem ser compativeis somente com o contrato confirmado.
+* Total pago do terreno/lote inclui carnÃªs pagos e cobrancas/boletos recebidos do mesmo cliente.
 * Cobertura A a E baseada estritamente nas iniciais reais dos nomes.
 * Tabela de pendencias atualizada sem dados financeiros sensiveis expostos no GitHub publico.
 

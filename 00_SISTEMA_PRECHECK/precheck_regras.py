@@ -156,6 +156,14 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         erros.append("Regra de parcelas restantes somente pelo contrato nao foi encontrada")
     elif "nunca usar parcelas geradas no widepay como substituto do total do contrato" not in conteudo_norm:
         erros.append("Regra de parcelas restantes esta incompleta: WidePay nao pode substituir o total do contrato")
+    if "contar no total pago do terreno/lote todos os boletos pagos ligados ao cliente" not in conteudo_norm:
+        erros.append("Regra do total pago do terreno/lote nao foi encontrada")
+    if "aceitar aliases e erros de digitacao comuns do nome do cliente" not in conteudo_norm:
+        erros.append("Regra de aliases/erro de digitacao do cliente nao foi encontrada")
+    if "sempre consultar e listar no relatorio do cliente todos os carnes e todas as cobrancas/boletos pagos ou em aberto localizados no widepay" not in conteudo_norm:
+        erros.append("Regra de listagem completa de carnes e cobrancas/boletos no relatorio nao foi encontrada")
+    if "aproveitar o autopreenchimento e tentar login automatico antes de pedir intervencao manual" not in conteudo_norm:
+        erros.append("Regra de login automatico com senha salva no navegador nao foi encontrada")
 
     caminho_procedimento = os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "PROCEDIMENTO_WIDEPAY_OPERA_CDP_WMI.md")
     if not os.path.exists(caminho_procedimento):
@@ -190,6 +198,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                 ("fluxo local-first bloqueado", "A skill nao bloqueia o fluxo local-first"),
                 ("widepay real nao foi aberto", "A skill nao bloqueia quando o WidePay real nao abre"),
                 ("parcelas restantes somente pelo contrato", "A skill nao bloqueia parcelas restantes fora do contrato"),
+                ("alias e erros de digitacao comuns", "A skill nao aceita aliases comuns do cliente"),
             ],
         ),
         (
@@ -202,6 +211,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                 ("planilha consolidada", "A skill de PDF nao reforca a planilha consolidada"),
                 ("par de entrega", "A skill de PDF nao reforca o par de entrega"),
                 ("parcelas restantes pelo contrato", "A skill de PDF nao reforca parcelas restantes pelo contrato"),
+                ("total pago do terreno/lote", "A skill de PDF nao reforca o total pago do terreno/lote"),
             ],
         ),
     ]

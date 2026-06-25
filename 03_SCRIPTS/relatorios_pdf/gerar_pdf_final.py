@@ -4,10 +4,11 @@ Gerador de PDFs finais do projeto usando ReportLab estruturado.
 """
 import os
 import sys
+from xml.sax.saxutils import escape as xml_escape
 from .modelo_visual_relatorio import CORES, criar_estilos, TITULO_RELATORIO, LOCALIDADE
 from .calculos_financeiros import formatar_moeda
 
-def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
+def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, cobrancas_widepay, caminho_saida):
     os.makedirs(os.path.dirname(caminho_saida), exist_ok=True)
     
     try:
@@ -31,6 +32,46 @@ def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
     )
     
     elementos = []
+    cobrancas_widepay = cobrancas_widepay or {}
+    cobrancas_encontradas = cobrancas_widepay.get("cobrancas_encontradas") or []
+    boletos_avulsos_recebidos = cobrancas_widepay.get("boletos_avulsos_recebidos") or []
+    boletos_avulsos_abertos = cobrancas_widepay.get("boletos_avulsos_abertos") or []
+    boletos_avulsos_abertos_texto = cobrancas_widepay.get("boletos_avulsos_abertos_texto") or []
+
+    cab_col = ParagraphStyle('hcol', parent=estilos['normal'], fontSize=9, textColor=CORES['BRANCO'], fontName='Helvetica-Bold', alignment=TA_CENTER)
+    cel_s   = ParagraphStyle('cel',  parent=estilos['normal'], fontSize=9, textColor=CORES['CINZA_ESCURO'], fontName='Helvetica', alignment=TA_CENTER)
+    tot_s   = ParagraphStyle('tot',  parent=estilos['normal'], fontSize=10, textColor=CORES['BRANCO'], fontName='Helvetica-Bold', alignment=TA_CENTER)
+
+    def par(txt, st=None):
+        return Paragraph(xml_escape(str(txt)), st or cel_s)
+
+    def montar_tabela_dados(titulo, colunas, registros, campos, larguras, vazio="Nenhum registro encontrado."):
+        elementos.append(Paragraph(titulo, estilos['secao']))
+        if not registros:
+            elementos.append(Paragraph(vazio, estilos['normal']))
+            elementos.append(Spacer(1, 0.2*cm))
+            return
+        linhas = [[Paragraph(f"<b>{col}</b>", cab_col) for col in colunas]]
+        for registro in registros:
+            linha = []
+            for campo in campos:
+                valor = registro.get(campo, "-")
+                if isinstance(valor, (int, float)) and "valor" in campo:
+                    valor = formatar_moeda(float(valor))
+                linha.append(par(valor))
+            linhas.append(linha)
+        tabela_local = Table(linhas, colWidths=larguras)
+        tabela_local.setStyle(TableStyle([
+            ('BACKGROUND',    (0,0), (-1,0),  CORES['VERDE_ESCURO']),
+            ('ROWBACKGROUNDS',(0,1), (-1,-1), [CORES['BRANCO'], CORES['CINZA_CLARO']]),
+            ('GRID',          (0,0), (-1,-1), 0.5, CORES['VERDE_LINHA']),
+            ('TOPPADDING',    (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+        ]))
+        elementos.append(tabela_local)
+        elementos.append(Spacer(1, 0.3*cm))
+
     parcelas_geradas_widepay = 0
     for c in carnes_widepay:
         try:
@@ -40,6 +81,17 @@ def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
             pass
     parcelas_pendentes_geradas = max(0, parcelas_geradas_widepay - resumo_financeiro['parcelas_pagas'])
     parcelas_nao_geradas = max(0, resumo_financeiro['total_contrato'] - parcelas_geradas_widepay)
+    faixas_parcelas = []
+    if resumo_financeiro['parcelas_pagas'] > 0:
+        faixas_parcelas.append((f"1 - {resumo_financeiro['parcelas_pagas']}", resumo_financeiro['parcelas_pagas'], "Pagas no contrato"))
+    if parcelas_pendentes_geradas > 0:
+        inicio = resumo_financeiro['parcelas_pagas'] + 1
+        fim = parcelas_geradas_widepay
+        faixas_parcelas.append((f"{inicio} - {fim}", parcelas_pendentes_geradas, "Em cobrança no WidePay"))
+    if parcelas_nao_geradas > 0:
+        inicio = parcelas_geradas_widepay + 1
+        fim = resumo_financeiro['total_contrato']
+        faixas_parcelas.append((f"{inicio} - {fim}", parcelas_nao_geradas, "Ainda nao geradas no WidePay"))
     
     # 1. Cabecalho (REGRA 17)
     cab = Table([
@@ -69,7 +121,7 @@ def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
         ]))
         return t
         
-    c1 = make_card("TOTAL PAGO", formatar_moeda(resumo_financeiro['valor_pago']), CORES['VERDE_MEDIO'])
+    c1 = make_card("TOTAL PAGO DO TERRENO/LOTE", formatar_moeda(resumo_financeiro['valor_pago']), CORES['VERDE_MEDIO'])
     c2 = make_card("PARCELAS PAGAS", f"{resumo_financeiro['parcelas_pagas']} de {resumo_financeiro['total_contrato']}", CORES['AZUL'])
     c3 = make_card("FALTA PAGAR", formatar_moeda(resumo_financeiro['valor_restante']), CORES['AMARELO'])
     
@@ -92,7 +144,9 @@ def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
         [Paragraph("<b>Situacao Atual</b>", estilos['normal']),       Paragraph("<b>EM DIA</b>", estilos['bold_verde']),
          Paragraph("<b>Parcelas Restantes</b>", estilos['normal']),   Paragraph(f"{resumo_financeiro['parcelas_restantes']} parcelas", estilos['normal'])],
         [Paragraph("<b>Parcelas geradas no WidePay</b>", estilos['normal']), Paragraph(f"{parcelas_geradas_widepay} parcelas", estilos['normal']),
-         Paragraph("<b>Ainda nao geradas no WidePay</b>", estilos['normal']), Paragraph(f"{parcelas_nao_geradas} parcelas", estilos['normal'])],
+         Paragraph("<b>Parcelas em cobranca no WidePay</b>", estilos['normal']), Paragraph(f"{parcelas_pendentes_geradas} parcelas", estilos['normal'])],
+        [Paragraph("<b>Ainda nao geradas no WidePay</b>", estilos['normal']), Paragraph(f"{parcelas_nao_geradas} parcelas", estilos['normal']),
+         Paragraph("<b>Boletos avulsos recebidos</b>", estilos['normal']), Paragraph(f"{len(boletos_avulsos_recebidos)} registros", estilos['normal'])],
     ], colWidths=[4.5*cm, 4*cm, 4.5*cm, 4*cm])
     
     info.setStyle(TableStyle([
@@ -105,18 +159,58 @@ def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
     ]))
     elementos.append(info)
     elementos.append(Spacer(1, 0.3*cm))
+
+    # 3. Mapa das parcelas do contrato
+    elementos.append(Paragraph("Mapa de Parcelas do Contrato", estilos['secao']))
+    mapa = [[Paragraph("<b>Faixa</b>", cab_col), Paragraph("<b>Quantidade</b>", cab_col), Paragraph("<b>Status</b>", cab_col)]]
+    for faixa, qtd, status in faixas_parcelas:
+        mapa.append([par(faixa), par(qtd), par(status)])
+    mapa_tbl = Table(mapa, colWidths=[6*cm, 3*cm, 8*cm])
+    mapa_tbl.setStyle(TableStyle([
+        ('BACKGROUND',    (0,0), (-1,0),  CORES['VERDE_ESCURO']),
+        ('ROWBACKGROUNDS',(0,1), (-1,-1), [CORES['BRANCO'], CORES['CINZA_CLARO']]),
+        ('GRID',          (0,0), (-1,-1), 0.5, CORES['VERDE_LINHA']),
+        ('TOPPADDING',    (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    elementos.append(mapa_tbl)
+    elementos.append(Spacer(1, 0.3*cm))
+
+    # 4. Cobranças e Boletos em Cobrança no WidePay
+    montar_tabela_dados(
+        "Cobranças/Boletos Encontrados no WidePay",
+        ["ID", "Forma", "Descricao", "Valor Original", "Valor Recebido", "Vencimento", "Status", "Tipo"],
+        cobrancas_encontradas,
+        ["id", "forma", "descricao", "valor_original", "valor_recebido", "vencimento", "status", "tipo"],
+        [1.5*cm, 2*cm, 4.5*cm, 2.2*cm, 2.2*cm, 2.5*cm, 2.2*cm, 1.8*cm],
+    )
+    montar_tabela_dados(
+        "Boletos Avulsos Recebidos",
+        ["ID", "Descricao", "Valor Recebido", "Vencimento", "Pagamento", "Status"],
+        boletos_avulsos_recebidos,
+        ["id", "descricao", "valor_recebido", "vencimento", "pagamento", "status"],
+        [1.5*cm, 6*cm, 2.6*cm, 2.5*cm, 2.6*cm, 2.2*cm],
+        vazio="Nenhum boleto avulso recebido."
+    )
+    if boletos_avulsos_abertos:
+        montar_tabela_dados(
+            "Boletos Avulsos em Aberto",
+            ["ID", "Descricao", "Valor Original", "Vencimento", "Status"],
+            boletos_avulsos_abertos,
+            ["id", "descricao", "valor_original", "vencimento", "status"],
+            [1.5*cm, 8*cm, 3*cm, 2.7*cm, 2.0*cm],
+            vazio="Nenhum boleto avulso em aberto/vencido."
+        )
+    elif boletos_avulsos_abertos_texto:
+        elementos.append(Paragraph("Boletos Avulsos em Aberto", estilos['secao']))
+        for linha_txt in boletos_avulsos_abertos_texto:
+            elementos.append(Paragraph(xml_escape(linha_txt), estilos['normal']))
+        elementos.append(Spacer(1, 0.2*cm))
     
-    # 4. Historico de Carnes
+    # 5. Historico de Carnes
     elementos.append(Paragraph("Historico de Carnes no WidePay", estilos['secao']))
     
-    cab_col = ParagraphStyle('hcol', parent=estilos['normal'], fontSize=9, textColor=CORES['BRANCO'], fontName='Helvetica-Bold', alignment=TA_CENTER)
-    cel_s   = ParagraphStyle('cel',  parent=estilos['normal'], fontSize=9, textColor=CORES['CINZA_ESCURO'], fontName='Helvetica', alignment=TA_CENTER)
-    tot_s   = ParagraphStyle('tot',  parent=estilos['normal'], fontSize=10, textColor=CORES['BRANCO'], fontName='Helvetica-Bold', alignment=TA_CENTER)
-    
     colunas = ["Carne", "Valor/Parcela", "Geradas", "Pagas", "Total Recebido", "Ult. Vencimento", "Status"]
-    
-    def par(txt, st=None):
-        return Paragraph(str(txt), st or cel_s)
         
     linhas = [[par(col, cab_col) for col in colunas]]
     for c in carnes_widepay:
@@ -197,6 +291,7 @@ def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
     elementos.append(Paragraph(
         f"<b>{resumo_financeiro['parcelas_pagas']} de {resumo_financeiro['total_contrato']} parcelas pagas  ({int(resumo_financeiro['percentual_pago']*100)}% do contrato)   |   "
         f"{resumo_financeiro['parcelas_restantes']} restantes do contrato ({int(resumo_financeiro['percentual_restante']*100)}%)   |   "
+        f"Total pago do terreno/lote: {formatar_moeda(resumo_financeiro['valor_pago'])}   |   "
         f"{parcelas_geradas_widepay} geradas no WidePay | {parcelas_pendentes_geradas} geradas e ainda em aberto | {parcelas_nao_geradas} ainda nao geradas | Quitacao prevista: {dados_cliente['previsao_quitacao']}</b>",
         estilos['pct']
     ))

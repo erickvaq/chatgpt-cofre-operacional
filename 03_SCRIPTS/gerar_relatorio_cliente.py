@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import os
 import sys
 import re
 from pathlib import Path
 
-# Ajustar sys.path para carregar os módulos de relatorio e precheck
+# Ajustar sys.path para carregar os mÃ³dulos de relatorio e precheck
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT_DIR / "00_SISTEMA_PRECHECK"))
 sys.path.append(str(ROOT_DIR / "03_SCRIPTS"))
@@ -30,6 +30,12 @@ def extrair_valor_numerico(texto):
         return float(limpo)
     except ValueError:
         return 0.0
+
+def dividir_linha_md_tabela(linha):
+    conteudo = linha.strip().strip("|")
+    if not conteudo:
+        return []
+    return [p.strip() for p in conteudo.split("|")]
 
 def proximo_arquivo_disponivel(caminho_inicial):
     caminho = Path(caminho_inicial)
@@ -82,28 +88,47 @@ def ler_md_conferencia(caminho_md):
     }
     
     carnes_widepay = []
+    cobrancas_widepay = {
+        'cobrancas_encontradas': [],
+        'boletos_avulsos_recebidos': [],
+        'boletos_avulsos_abertos': [],
+        'duplicidades': [],
+        'boletos_avulsos_abertos_texto': [],
+    }
     
     with open(caminho_md, "r", encoding="utf-8") as f:
         linhas = f.readlines()
         
-    secao_atual = 0  # 1 = dados contrato, 2 = dados widepay, 3 = calculo parcelas, 7 = total carnes, 9 = total pago consolidado, 10 = total pendente consolidado, 0 = outros
+    secao_atual = 0  # 1 contrato, 2 carnes, 3 cobrancas, 4 avulsos pagos, 5 avulsos abertos, 6 duplicidades, 30 calculos
     
     for linha in linhas:
         linha_limpa = linha.strip()
         if not linha_limpa:
             continue
             
-        # Identificar seções para evitar falsos positivos de tabelas de erro ou auditoria
+        # Identificar seÃ§Ãµes para evitar falsos positivos de tabelas de erro ou auditoria
         if "## 1. DADOS DO CONTRATO" in linha:
             secao_atual = 1
             continue
-        elif "## 2. DADOS DO WIDEPAY" in linha or "## 2. CARNÊS ENCONTRADOS" in linha or "## 2. CARNES ENCONTRADOS" in linha:
+        elif "## 2. CARN" in linha or "## 2. DADOS DO WIDEPAY" in linha:
             secao_atual = 2
             continue
-        elif "## 3. CÁLCULO" in linha or "## 3. CALCULO" in linha:
+        elif "## 3. CÃLCULO" in linha or "## 3. CALCULO" in linha:
             secao_atual = 3
             continue
-        elif "## 7. TOTAL PAGO EM CARNÊS" in linha or "## 7. TOTAL PAGO EM CARNES" in linha:
+        elif "## 3. COBRAN" in linha:
+            secao_atual = 3
+            continue
+        elif "## 4. BOLETOS AVULSOS RECEBIDOS" in linha:
+            secao_atual = 4
+            continue
+        elif "## 5. BOLETOS AVULSOS EM ABERTO" in linha:
+            secao_atual = 5
+            continue
+        elif "## 6. POSS" in linha:
+            secao_atual = 6
+            continue
+        elif "## 7. TOTAL PAGO EM CARN" in linha:
             secao_atual = 7
             continue
         elif "## 9. TOTAL PAGO CONSOLIDADO" in linha:
@@ -116,7 +141,7 @@ def ler_md_conferencia(caminho_md):
             secao_atual = 0
             continue
             
-        # Processar valores fora de tabelas nas novas seções de totais
+        # Processar valores fora de tabelas nas novas seÃ§Ãµes de totais
         if secao_atual == 7 and (linha_limpa.startswith("R$") or "R$" in linha_limpa):
             match = re.search(r'baseado em (\d+) parcelas', linha_limpa, re.IGNORECASE)
             if match:
@@ -129,24 +154,24 @@ def ler_md_conferencia(caminho_md):
             resumo_financeiro['valor_restante'] = extrair_valor_numerico(linha_limpa)
             continue
             
-        if "|" in linha and secao_atual in (1, 2, 3):
-            partes = [p.strip() for p in linha.split("|")]
-            # Filtrar cabeçalhos ou divisores
-            if len(partes) < 3 or all(c == '-' for c in partes[1]) or partes[1].lower() == "carne":
+        if "|" in linha and secao_atual in (1, 2, 3, 4, 5, 6):
+            partes = dividir_linha_md_tabela(linha)
+            # Filtrar cabeÃ§alhos ou divisores
+            if len(partes) < 2 or all(c == '-' for c in partes[0]) or partes[0].lower() in {"carne", "carne", "id", "campo"} or partes[0].lower().startswith("carn"):
                 continue
                 
-            if secao_atual == 2 and len(partes) >= 8:
+            if secao_atual == 2 and len(partes) >= 7:
                 try:
-                    carne_id = partes[1]
-                    val_p = extrair_valor_numerico(partes[2])
-                    geradas = partes[3]
-                    pagas = int(partes[4])
-                    recebido = extrair_valor_numerico(partes[5])
-                    ult_venc = partes[6]
-                    status = partes[7]
+                    carne_id = partes[0]
+                    val_p = extrair_valor_numerico(partes[1])
+                    geradas = partes[2]
+                    pagas = int(re.sub(r'[^\d]', '', partes[3]) or 0)
+                    recebido = extrair_valor_numerico(partes[4])
+                    ult_venc = partes[5]
+                    status = partes[6]
                     
                     carnes_widepay.append({
-                        'carne': f"Carnê {carne_id}",
+                        'carne': f"CarnÃª {carne_id}",
                         'valor_parcela': val_p,
                         'parcelas_geradas': geradas,
                         'parcelas_pagas': str(pagas),
@@ -157,11 +182,61 @@ def ler_md_conferencia(caminho_md):
                 except Exception as e:
                     print(f"[Aviso] Erro ao parsear linha de carne: {linha_limpa} -> {e}")
                 continue
+            if secao_atual == 3 and len(partes) >= 8:
+                try:
+                    if partes[0].lower() == "id" or partes[0].startswith("---"):
+                        continue
+                    tipo = partes[7] if len(partes) > 7 else ""
+                    cobrancas_widepay['cobrancas_encontradas'].append({
+                        'id': partes[0],
+                        'forma': partes[1],
+                        'descricao': partes[2],
+                        'valor_original': extrair_valor_numerico(partes[3]),
+                        'valor_recebido': extrair_valor_numerico(partes[4]),
+                        'vencimento': partes[5],
+                        'status': partes[6],
+                        'tipo': tipo,
+                    })
+                except Exception as e:
+                    print(f"[Aviso] Erro ao parsear linha de cobranca: {linha_limpa} -> {e}")
+                continue
+            if secao_atual == 4 and len(partes) >= 6:
+                try:
+                    if partes[0].lower() == "id" or partes[0].startswith("---"):
+                        continue
+                    cobrancas_widepay['boletos_avulsos_recebidos'].append({
+                        'id': partes[0],
+                        'descricao': partes[1],
+                        'valor_recebido': extrair_valor_numerico(partes[2]),
+                        'vencimento': partes[3],
+                        'pagamento': partes[4],
+                        'status': partes[5],
+                    })
+                except Exception as e:
+                    print(f"[Aviso] Erro ao parsear linha de boleto avulso recebido: {linha_limpa} -> {e}")
+                continue
+            if secao_atual == 5:
+                if len(partes) >= 5:
+                    try:
+                        if partes[0].lower() == "id" or partes[0].startswith("---"):
+                            continue
+                        cobrancas_widepay['boletos_avulsos_abertos'].append({
+                            'id': partes[0],
+                            'descricao': partes[1],
+                            'valor_original': extrair_valor_numerico(partes[2]),
+                            'vencimento': partes[3],
+                            'status': partes[4],
+                        })
+                    except Exception as e:
+                        print(f"[Aviso] Erro ao parsear linha de boleto avulso em aberto: {linha_limpa} -> {e}")
+                elif linha_limpa and "Nenhum boleto avulso" not in linha_limpa:
+                    cobrancas_widepay['boletos_avulsos_abertos_texto'].append(linha_limpa)
+                continue
                 
-            col1 = normalizar_texto(partes[1])
-            col2 = partes[2].replace("**", "").replace("*", "").strip()
+            col1 = normalizar_texto(partes[0])
+            col2 = partes[1].replace("**", "").replace("*", "").strip()
             
-            # Dados do Contrato (Seção 1)
+            # Dados do Contrato (SeÃ§Ã£o 1)
             if secao_atual == 1:
                 if "cliente" in col1 and not dados_cliente['nome'] != 'Desconhecido':
                     dados_cliente['nome'] = col2
@@ -185,7 +260,7 @@ def ler_md_conferencia(caminho_md):
                     except ValueError:
                         pass
                     
-            # Dados Financeiros / Resumo (Seção 3)
+            # Dados Financeiros / Resumo (SeÃ§Ã£o 3)
             elif secao_atual == 3:
                 if "total do contrato" in col1:
                     try:
@@ -221,7 +296,7 @@ def ler_md_conferencia(caminho_md):
         resumo_financeiro['percentual_pago'] = 0.0
         resumo_financeiro['percentual_restante'] = 0.0
         
-    return dados_cliente, resumo_financeiro, carnes_widepay
+    return dados_cliente, resumo_financeiro, carnes_widepay, cobrancas_widepay
 
 def main():
     if len(sys.argv) > 1:
@@ -234,7 +309,7 @@ def main():
         sys.exit(1)
 
     print(f"Lendo dados de conferencia em: {md_path}...")
-    dados_cliente, resumo, carnes = ler_md_conferencia(md_path)
+    dados_cliente, resumo, carnes, cobrancas = ler_md_conferencia(md_path)
     
     if not dados_cliente or not dados_cliente['nome']:
         print("Erro ao ler dados do relatorio.")
@@ -247,6 +322,9 @@ def main():
     print(f"Total Contrato: {resumo['total_contrato']}")
     print(f"Parcelas Pagas: {resumo['parcelas_pagas']}")
     print(f"WidePay Carnes: {len(carnes)} encontrado(s)")
+    print(f"WidePay Cobrancas: {len(cobrancas.get('cobrancas_encontradas', []))} encontrado(s)")
+    print(f"Boletos avulsos recebidos: {len(cobrancas.get('boletos_avulsos_recebidos', []))}")
+    print(f"Boletos avulsos em aberto: {len(cobrancas.get('boletos_avulsos_abertos', []))}")
 
     if not resumo.get('contrato_total_confirmado'):
         print("\n[ERRO CRITICO] Contrato nao confirmou o total de parcelas.")
@@ -254,12 +332,12 @@ def main():
         print("PDF/HTML final bloqueados para evitar relatorio com restantes derivados do WidePay.")
         sys.exit(1)
     
-    # Gerar caminhos de saída
+    # Gerar caminhos de saÃ­da
     nome_limpo = re.sub(r'[^a-zA-Z0-9]', '_', normalizar_texto(dados_cliente['nome']).upper())
     is_camila = "camila" in normalizar_texto(dados_cliente['nome'])
     
     if is_camila:
-        # Padrão específico da Camila V4 para Etapa 5
+        # PadrÃ£o especÃ­fico da Camila V4 para Etapa 5
         pasta_entrega = ROOT_DIR / "02_RELATORIOS_GERADOS" / "CAMILA_FERROLHO_V4_FINAL"
         os.makedirs(pasta_entrega, exist_ok=True)
         pdf_saida = proximo_arquivo_disponivel(ROOT_DIR / "02_RELATORIOS_GERADOS" / "RESUMO_FINANCEIRO_CAMILA_FERROLHO_CORRIGIDO_V4.pdf")
@@ -272,11 +350,11 @@ def main():
         
     # Gerar PDF
     print("\nGerando PDF...")
-    ok_pdf = gerar_pdf(dados_cliente, resumo, carnes, str(pdf_saida))
+    ok_pdf = gerar_pdf(dados_cliente, resumo, carnes, cobrancas, str(pdf_saida))
     
-    # Gerar prévia HTML
+    # Gerar prÃ©via HTML
     print("Gerando Previa HTML...")
-    gerar_html(dados_cliente, resumo, carnes, str(html_saida_previa))
+    gerar_html(dados_cliente, resumo, carnes, cobrancas, str(html_saida_previa))
     
     # Criar atalho BAT de abertura relativa (REGRA 16)
     bat_saida = pasta_entrega / "01_ABRIR_PDF_FINAL.bat"

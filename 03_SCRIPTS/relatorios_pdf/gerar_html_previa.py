@@ -3,13 +3,19 @@
 Gerador de prévia HTML estilizada para o relatório de conferência do cliente.
 """
 import os
+from html import escape as html_escape
 from .calculos_financeiros import formatar_moeda
 
-def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
+def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, cobrancas_widepay, caminho_saida):
     os.makedirs(os.path.dirname(caminho_saida), exist_ok=True)
     
     pct_pago_pct = int(resumo_financeiro['percentual_pago'] * 100)
     pct_rest_pct = 100 - pct_pago_pct
+    cobrancas_widepay = cobrancas_widepay or {}
+    cobrancas_encontradas = cobrancas_widepay.get("cobrancas_encontradas") or []
+    boletos_avulsos_recebidos = cobrancas_widepay.get("boletos_avulsos_recebidos") or []
+    boletos_avulsos_abertos = cobrancas_widepay.get("boletos_avulsos_abertos") or []
+    boletos_avulsos_abertos_texto = cobrancas_widepay.get("boletos_avulsos_abertos_texto") or []
     parcelas_geradas_widepay = 0
     for c in carnes_widepay:
         try:
@@ -19,6 +25,23 @@ def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
             pass
     parcelas_pendentes_geradas = max(0, parcelas_geradas_widepay - resumo_financeiro['parcelas_pagas'])
     parcelas_nao_geradas = max(0, resumo_financeiro['total_contrato'] - parcelas_geradas_widepay)
+
+    def linhas_html_tabela(registros, campos, vazio, colunas):
+        if not registros:
+            return f'<tr><td colspan="{len(colunas)}" style="text-align:left;">{html_escape(vazio)}</td></tr>'
+        linhas = []
+        for item in registros:
+            celulas = []
+            for campo in campos:
+                valor = item.get(campo, "-")
+                if isinstance(valor, float):
+                    if "valor" in campo or "recebido" in campo or "original" in campo:
+                        valor = formatar_moeda(valor)
+                    else:
+                        valor = f"{valor:.2f}"
+                celulas.append(f"<td>{html_escape(str(valor))}</td>")
+            linhas.append("<tr>" + "".join(celulas) + "</tr>")
+        return "".join(linhas)
     
     # Gerar linhas da tabela de carnês
     linhas_carnes = ""
@@ -26,16 +49,39 @@ def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
         status_color = "#2E7D32" if c['status'].upper() == "ATIVO" else ("#C62828" if "CANCELADO" in c['status'].upper() else "#37474F")
         linhas_carnes += f"""
         <tr>
-            <td>{c['carne']}</td>
-            <td>{formatar_moeda(c['valor_parcela'])}</td>
-            <td>{c['parcelas_geradas']}</td>
-            <td>{c['parcelas_pagas']}</td>
-            <td>{formatar_moeda(c['total_recebido'])}</td>
-            <td>{c['ultimo_vencimento']}</td>
-            <td style="color: {status_color}; font-weight: bold;">{c['status']}</td>
+            <td>{html_escape(str(c['carne']))}</td>
+            <td>{html_escape(formatar_moeda(c['valor_parcela']))}</td>
+            <td>{html_escape(str(c['parcelas_geradas']))}</td>
+            <td>{html_escape(str(c['parcelas_pagas']))}</td>
+            <td>{html_escape(formatar_moeda(c['total_recebido']))}</td>
+            <td>{html_escape(str(c['ultimo_vencimento']))}</td>
+            <td style="color: {status_color}; font-weight: bold;">{html_escape(str(c['status']))}</td>
         </tr>
         """
-        
+
+    linhas_cobrancas = linhas_html_tabela(
+        cobrancas_encontradas,
+        ["id", "forma", "descricao", "valor_original", "valor_recebido", "vencimento", "status", "tipo"],
+        "Nenhuma cobrança encontrada.",
+        ["ID", "Forma", "Descricao", "Valor Original", "Valor Recebido", "Vencimento", "Status", "Tipo"]
+    )
+    linhas_avulsos_recebidos = linhas_html_tabela(
+        boletos_avulsos_recebidos,
+        ["id", "descricao", "valor_recebido", "vencimento", "pagamento", "status"],
+        "Nenhum boleto avulso recebido.",
+        ["ID", "Descricao", "Valor Recebido", "Vencimento", "Pagamento", "Status"]
+    )
+    linhas_avulsos_abertos = linhas_html_tabela(
+        boletos_avulsos_abertos,
+        ["id", "descricao", "valor_original", "vencimento", "status"],
+        "Nenhum boleto avulso em aberto/vencido.",
+        ["ID", "Descricao", "Valor Original", "Vencimento", "Status"]
+    )
+    linhas_avulsos_abertos_texto = "".join(
+        f'<tr><td colspan="5" style="text-align:left;">{html_escape(linha)}</td></tr>'
+        for linha in boletos_avulsos_abertos_texto
+    )
+    
     html_content = f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -172,7 +218,7 @@ def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
         
         <div class="cards">
             <div class="card pago">
-                <div class="card-label">Total Pago</div>
+                <div class="card-label">Total Pago do Terreno/Lote</div>
                 <div class="card-value">{formatar_moeda(resumo_financeiro['valor_pago'])}</div>
             </div>
             <div class="card parcelas">
@@ -208,9 +254,67 @@ def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
             <tr>
                 <td style="text-align: left; font-weight: bold;">Geradas no WidePay</td>
                 <td style="text-align: left;">{parcelas_geradas_widepay} parcelas</td>
+                <td style="text-align: left; font-weight: bold;">Em cobrança no WidePay</td>
+                <td style="text-align: left;">{parcelas_pendentes_geradas} parcelas</td>
+            </tr>
+            <tr>
                 <td style="text-align: left; font-weight: bold;">Ainda não geradas</td>
                 <td style="text-align: left;">{parcelas_nao_geradas} parcelas</td>
+                <td style="text-align: left; font-weight: bold;">Avulsos recebidos</td>
+                <td style="text-align: left;">{len(boletos_avulsos_recebidos)} registros</td>
             </tr>
+        </table>
+
+        <div class="section-title">Cobranças/Boletos Encontrados no WidePay</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Forma</th>
+                    <th>Descricao</th>
+                    <th>Valor Original</th>
+                    <th>Valor Recebido</th>
+                    <th>Vencimento</th>
+                    <th>Status</th>
+                    <th>Tipo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {linhas_cobrancas}
+            </tbody>
+        </table>
+
+        <div class="section-title">Boletos Avulsos Recebidos</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Descricao</th>
+                    <th>Valor Recebido</th>
+                    <th>Vencimento</th>
+                    <th>Pagamento</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {linhas_avulsos_recebidos}
+            </tbody>
+        </table>
+
+        <div class="section-title">Boletos Avulsos em Aberto</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Descricao</th>
+                    <th>Valor Original</th>
+                    <th>Vencimento</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {linhas_avulsos_abertos if boletos_avulsos_abertos else linhas_avulsos_abertos_texto}
+            </tbody>
         </table>
         
         <div class="section-title">Histórico de Carnês no WidePay</div>
@@ -247,7 +351,7 @@ def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, caminho_saida):
                 <div class="progress-rest" style="width: {pct_rest_pct}%;">Restantes: {resumo_financeiro['parcelas_restantes']} ({pct_rest_pct}%)</div>
             </div>
             <p style="text-align: center; font-size: 12px; font-weight: bold; margin-top: 10px; color: #2E7D32;">
-                {resumo_financeiro['parcelas_pagas']} de {resumo_financeiro['total_contrato']} parcelas pagas ({pct_pago_pct}% do contrato) | {parcelas_geradas_widepay} geradas no WidePay | {parcelas_pendentes_geradas} geradas e ainda em aberto | {parcelas_nao_geradas} ainda não geradas | Quitação prevista: {dados_cliente['previsao_quitacao']}
+                {resumo_financeiro['parcelas_pagas']} de {resumo_financeiro['total_contrato']} parcelas pagas ({pct_pago_pct}% do contrato) | Total pago do terreno/lote: {formatar_moeda(resumo_financeiro['valor_pago'])} | {parcelas_geradas_widepay} geradas no WidePay | {parcelas_pendentes_geradas} em cobrança no WidePay | {parcelas_nao_geradas} ainda não geradas | Quitação prevista: {dados_cliente['previsao_quitacao']}
             </p>
         </div>
         

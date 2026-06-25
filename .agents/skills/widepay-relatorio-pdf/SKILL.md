@@ -1,4 +1,4 @@
----
+﻿---
 name: widepay-relatorio-pdf
 description: Usar sempre que o pedido envolver relatorio financeiro, PDF, HTML, tabela, resumo financeiro, padrao visual ou conferencia antes de PDF.
 ---
@@ -36,6 +36,8 @@ Palavras-chave: `gerar PDF`, `relatorio final`, `layout visual`, `cards de resum
 6. **Par de entrega:** sempre gerar os arquivos em par (PDF + Previa HTML) no mesmo diretorio de destino.
 7. **Consolidado multi-cliente:** quando o pedido envolver mais de um cliente, exigir que a base consolidada e a planilha `.xlsx` ja existam antes do fechamento do PDF final.
 8. **Parcelas restantes pelo contrato:** calcular restantes somente por total de parcelas do contrato confirmado menos parcelas pagas; se o contrato nao confirmar o total, bloquear PDF/HTML final.
+9. **Total pago do terreno/lote:** o valor pago no card principal e no resumo final deve representar o total pago do terreno/lote, somando carnÃªs pagos e cobranÃ§as/boletos recebidos do mesmo cliente.
+10. **Cobrancas/boletos visiveis:** o PDF e o HTML devem listar as cobrancas/boletos pagos ou em aberto encontrados no WidePay, alem dos carnes.
 
 ## 6. Rotinas e scripts relacionados
 * `python 03_SCRIPTS\gerar_pdf_camila_v2.py`
@@ -57,8 +59,10 @@ VALIDACAO VISUAL: cards de tres colunas e barra de progresso aplicados
 * **ERRO 4:** Expor dados de parcelas e valores financeiros no GitHub publico (dados sensiveis devem ficar apenas locais).
 * **ERRO 5:** Fechar PDF final sem conferencia previa e sem base consolidada quando o pedido envolver mais de um cliente.
 * **ERRO 6:** Usar parcelas geradas no WidePay como se fossem total do contrato para calcular restantes.
+* **ERRO 7:** Exibir um total pago genÃ©rico quando o relatÃ³rio precisa representar o total pago do terreno/lote.
+* **ERRO 8:** Omitir cobrancas/boletos pagos ou em aberto do PDF/HTML quando eles existem na conferencia WidePay.
 
-## 9. Critérios de validação
+## 9. CritÃ©rios de validaÃ§Ã£o
 * Tabela de carnes informando ID, referencia, valor da parcela, parcelas geradas/pagas, total recebido e status.
 * Total Geral Pago identico ao somatorio de todos os carnes e boletos avulsos pagos do WidePay.
 * Parcelas restantes compativeis somente com contrato fisico/local confirmado.
