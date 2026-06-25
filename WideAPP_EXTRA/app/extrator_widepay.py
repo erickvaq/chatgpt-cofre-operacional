@@ -536,27 +536,53 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         var searchInput = document.getElementById("jab-1043-field") || document.querySelector('input[placeholder*="Pesquisar"], input[type="text"], input[type="search"]');
         for (var termIndex = 0; termIndex < queryTerms.length; termIndex++) {
             var termoAtual = queryTerms[termIndex];
-            if (!searchInput || !termoAtual) {
-                continue;
-            }
-            searchInput.value = termoAtual;
-            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            var termoBuscar = termoAtual;
             
-            var searchBtn = document.getElementById("jab-1045") || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes("Buscar") || btn.className.includes("search"));
-            if (searchBtn) {
-                searchBtn.click();
+            if (termoAtual.length > 4) {
+                var prefixo = termoAtual.substring(0, 4);
+                if (searchInput) {
+                    searchInput.value = prefixo;
+                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    var searchBtn = document.getElementById("jab-1045") || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes("Buscar") || btn.className.includes("search"));
+                    if (searchBtn) searchBtn.click();
+                    else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                    await new Promise(r => setTimeout(r, 4000));
+                }
+                
+                var totalInfo = wideappInfoTotalTabela();
+                if (totalInfo && totalInfo.total !== null && totalInfo.total > 15) {
+                    termoBuscar = termoAtual;
+                    if (searchInput) {
+                        searchInput.value = termoBuscar;
+                        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        var searchBtn = document.getElementById("jab-1045") || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes("Buscar") || btn.className.includes("search"));
+                        if (searchBtn) searchBtn.click();
+                        else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                        await new Promise(r => setTimeout(r, 4000));
+                    }
+                } else {
+                    termoBuscar = prefixo;
+                }
             } else {
-                searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                if (searchInput && termoAtual) {
+                    searchInput.value = termoAtual;
+                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    var searchBtn = document.getElementById("jab-1045") || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes("Buscar") || btn.className.includes("search"));
+                    if (searchBtn) searchBtn.click();
+                    else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                    await new Promise(r => setTimeout(r, 4000));
+                }
             }
-            await new Promise(r => setTimeout(r, 4000));
             
             await wideappIrPrimeiraPagina();
 
             var page = 1;
             var visitadas = [];
             while (page <= 10) {
-                var marcador = marcadorPagina();
+                var marcador = marcadorPagina() + "|" + termoBuscar;
                 if (visitadas.indexOf(marcador) !== -1) {
                     break;
                 }
@@ -565,7 +591,7 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
                 var trs = Array.from(document.querySelectorAll('tr'));
                 var foundRows = trs.filter(tr => {
                     var text = tr.innerText.toLowerCase();
-                    return text.includes((termoAtual || '').toLowerCase());
+                    return text.includes((termoBuscar || '').toLowerCase());
                 });
                 
                 foundRows.forEach(tr => {
