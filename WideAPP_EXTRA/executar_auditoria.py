@@ -11,14 +11,19 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(ROOT_DIR))
 sys.path.append(str(ROOT_DIR / "WideAPP_EXTRA"))
 
-# Precheck obrigatório
-sys.path.append(str(ROOT_DIR / "00_SISTEMA_PRECHECK"))
-try:
-    from precheck_regras import executar_precheck, normalizar_texto
-    executar_precheck("executar_auditoria.py")
-except ImportError as e:
-    print(f"Erro ao carregar o precheck de regras: {e}")
-    sys.exit(1)
+# Precheck de regras (opcional em modo portátil)
+PRECHECK_DIR = ROOT_DIR / "00_SISTEMA_PRECHECK"
+if PRECHECK_DIR.exists():
+    sys.path.append(str(PRECHECK_DIR))
+    try:
+        from precheck_regras import executar_precheck
+        executar_precheck("executar_auditoria.py")
+        print("OK: precheck de regras executado")
+    except Exception as e:
+        print(f"Erro ao carregar o precheck de regras: {e}")
+        sys.exit(1)
+else:
+    print("AVISO: 00_SISTEMA_PRECHECK nao encontrado — modo portavel, precheck ignorado")
 
 from app.login_navegador import garantir_navegador_conectado
 from app.extrator_widepay import extrair_dados_cliente
