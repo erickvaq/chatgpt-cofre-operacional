@@ -36,7 +36,9 @@
 * **Arquivos financeiros:** PDF/HTML/JSON/MD ficaram locais por conter dados sensiveis; somente painel e scripts sanitizados podem ir ao GitHub.
 * **Correcao aplicada:** launcher nao fecha/reinicia Opera quando ja existe aba WidePay logada.
 * **Correcao adicional:** gerador e validador bloqueiam PDF/HTML final quando o contrato nao confirma total de parcelas.
+* **Correcao visual recente:** relatorios agora mostram parcelas geradas no WidePay, parcelas em aberto e parcelas ainda nao geradas para evitar leitura incompleta.
 * **Versoes locais aprovadas:** `RESUMO_FINANCEIRO_CAMILA_FERROLHO_CORRIGIDO_V6.pdf` e `RESUMO_FINANCEIRO_CAMILA_FERROLHO_CORRIGIDO_V4_PREVIA_V3.html`.
+* **Edmilson atualizado:** `RESUMO_FINANCEIRO_CONTRATO_EDMILSON_F05_AGUA_VIVA_LEO_CORRIGIDO_V4.pdf` e `RESUMO_FINANCEIRO_CONTRATO_EDMILSON_F05_AGUA_VIVA_LEO_CORRIGIDO_V3_PREVIA_V2.html` com `36` parcelas geradas no WidePay e `64` ainda nao geradas.
 * **Nao mantido neste painel:** explicacoes antigas, tabelas antigas de clientes, resumo antigo da extracao WidePay e pendencias legadas.
 
 ## Proximo Passo

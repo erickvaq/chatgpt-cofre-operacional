@@ -267,8 +267,8 @@ def main():
     else:
         pasta_entrega = ROOT_DIR / "02_RELATORIOS_GERADOS" / f"{nome_limpo}_V3_FINAL"
         os.makedirs(pasta_entrega, exist_ok=True)
-        pdf_saida = pasta_entrega / f"RESUMO_FINANCEIRO_{nome_limpo}_CORRIGIDO_V3.pdf"
-        html_saida_previa = ROOT_DIR / "02_RELATORIOS_GERADOS" / f"RESUMO_FINANCEIRO_{nome_limpo}_CORRIGIDO_V3_PREVIA.html"
+        pdf_saida = proximo_arquivo_disponivel(pasta_entrega / f"RESUMO_FINANCEIRO_{nome_limpo}_CORRIGIDO_V3.pdf")
+        html_saida_previa = proximo_arquivo_disponivel(ROOT_DIR / "02_RELATORIOS_GERADOS" / f"RESUMO_FINANCEIRO_{nome_limpo}_CORRIGIDO_V3_PREVIA.html")
         
     # Gerar PDF
     print("\nGerando PDF...")
