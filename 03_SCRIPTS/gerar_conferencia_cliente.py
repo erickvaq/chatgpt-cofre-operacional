@@ -204,6 +204,7 @@ def gerar_markdown_conferencia(dados, dados_wp, caminho_md):
 | Área                     | {dados['area']} |
 | Entrada                  | R$ {dados['entrada']:.2f} |
 | Total de parcelas        | **{dados['total_parcelas']} parcelas** |
+| Status do contrato       | {'CONTRATO CONFIRMADO' if dados['total_parcelas'] > 0 else 'CONTRATO NAO CONFIRMADO - parcelas restantes bloqueadas'} |
 | Valor de cada parcela    | R$ {dados['valor_parcela']:.2f} (nominal) |
 | Valor total do contrato  | R$ {dados['valor_total_contrato']:.2f} |
 | Vencimento               | {dados['vencimento']} |
@@ -326,7 +327,9 @@ Acesso ao WidePay pendente.
     # Divergências
     notas = []
     total_geradas = totais_carnes.get("parcelas_geradas", 0)
-    if total_geradas > dados['total_parcelas']:
+    if dados['total_parcelas'] <= 0:
+        notas.append("Contrato local nao confirmou o total de parcelas; parcelas restantes ficam bloqueadas e nao podem ser calculadas pelas parcelas geradas no WidePay.")
+    elif total_geradas > dados['total_parcelas']:
         notas.append(f"O total de parcelas geradas nos carnês do WidePay ({total_geradas}) excede o total pactuado no contrato ({dados['total_parcelas']}).")
     elif total_geradas < dados['total_parcelas'] and total_geradas > 0:
         notas.append(f"Ainda há parcelas a serem geradas nos carnês do WidePay ({dados['total_parcelas'] - total_geradas} restantes no contrato).")
@@ -357,6 +360,7 @@ Acesso ao WidePay pendente.
 | Área                     | {dados['area']} |
 | Entrada                  | R$ {dados['entrada']:.2f} |
 | Total de parcelas        | **{dados['total_parcelas']} parcelas** |
+| Status do contrato       | {'CONTRATO CONFIRMADO' if dados['total_parcelas'] > 0 else 'CONTRATO NAO CONFIRMADO - parcelas restantes bloqueadas'} |
 | Valor de cada parcela    | R$ {dados['valor_parcela']:.2f} (nominal) |
 | Valor total do contrato  | R$ {dados['valor_total_contrato']:.2f} |
 | Vencimento               | {dados['vencimento']} |

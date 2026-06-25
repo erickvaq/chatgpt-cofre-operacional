@@ -48,14 +48,34 @@ def termos_atuais_widepay():
         dados = json.load(f)
     totais = dados.get("totais_carnes") or {}
     pagas = int(totais.get("parcelas_pagas", 0))
-    geradas = int(totais.get("parcelas_geradas", 0))
-    restantes = max(0, geradas - pagas)
-    percentual = int((pagas / geradas) * 100) if geradas else 0
+    total_contrato = total_contrato_confirmado()
+    if total_contrato <= 0:
+        raise ValueError(
+            "contrato nao confirmou total de parcelas; nao validar restantes por parcelas geradas no WidePay"
+        )
+    restantes = max(0, total_contrato - pagas)
+    percentual = int((pagas / total_contrato) * 100) if total_contrato else 0
     return [
-        f"{pagas} de {geradas}",
+        f"{pagas} de {total_contrato}",
         f"{restantes} parcelas",
         f"{percentual}%",
     ]
+
+
+def total_contrato_confirmado():
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    md_path = os.path.join(
+        root_dir,
+        "07_DADOS_TEMPORARIOS",
+        "CONFERENCIA_CALCULOS_CAMILA_DE_OLIVEIRA_FERROLHO.md",
+    )
+    if not os.path.exists(md_path):
+        raise FileNotFoundError(md_path)
+    conteudo = ler_arquivo(md_path)
+    match = re.search(r"Total de parcelas\s*\|\s*\*\*(\d+)\s+parcelas\*\*", conteudo, re.IGNORECASE)
+    if not match:
+        raise ValueError("total de parcelas do contrato nao encontrado na conferencia")
+    return int(match.group(1))
 
 
 def validar(caminho_arquivo):
@@ -67,7 +87,7 @@ def validar(caminho_arquivo):
     try:
         termos_obrigatorios = termos_atuais_widepay()
     except Exception as e:
-        print(f"ERRO: nao foi possivel carregar JSON atual do WidePay: {e}")
+        print(f"ERRO: validacao bloqueada: {e}")
         return False
 
     erros = [termo for termo in termos_obrigatorios if termo.lower() not in conteudo_norm]

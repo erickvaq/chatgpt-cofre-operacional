@@ -47,6 +47,13 @@ Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`
 5. **Arquivo de conferencia:** salvar o log detalhado em `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_[CLIENTE].md`.
 6. **Base estruturada e consolidado:** quando houver mais de um cliente, manter a base local em `07_DADOS_TEMPORARIOS` e garantir que o fluxo consolidado nasça do WidePay antes de qualquer apoio local.
 
+## 5.1 Parcelas restantes somente pelo contrato
+* WidePay confirma pagamentos, cobrancas, carnes e status financeiro.
+* O total de parcelas do contrato vem somente do contrato fisico/local confirmado.
+* Parcelas restantes = total de parcelas do contrato confirmado menos parcelas pagas confirmadas.
+* Nunca usar parcelas geradas no WidePay como substituto do total do contrato.
+* Se o contrato nao confirmar o total de parcelas, marcar `CONTRATO NAO CONFIRMADO - PARCELAS RESTANTES BLOQUEADAS` e bloquear PDF/HTML final com numero de restantes.
+
 ## 6. Rotinas e scripts relacionados
 * `python 03_SCRIPTS\buscar_cliente.py <nome>`
 * `python 03_SCRIPTS\consultar_widepay_cdp.py --cliente <nome>`
@@ -70,10 +77,12 @@ ensure_widepay_logged_in(): iniciado
 * **ERRO 5:** Tentar fechar lista oficial por arquivos locais antes da consulta WidePay.
 * **ERRO 6:** fluxo local-first bloqueado.
 * **ERRO 7:** WidePay real nao foi aberto.
+* **ERRO 8:** Calcular parcelas restantes usando parcelas geradas no WidePay em vez do total do contrato confirmado.
 
 ## 9. Critérios de validação
 * Normalizacao rigorosa de nomes (remover termos como "Contrato", "Copia", "Leo/Leo").
 * WidePay define quem existe financeiramente; contratos locais apenas complementam depois da consulta.
+* Parcelas restantes devem ser compativeis somente com o contrato confirmado.
 * Cobertura A a E baseada estritamente nas iniciais reais dos nomes.
 * Tabela de pendencias atualizada sem dados financeiros sensiveis expostos no GitHub publico.
 

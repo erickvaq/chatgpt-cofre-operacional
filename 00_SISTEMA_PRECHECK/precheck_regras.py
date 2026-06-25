@@ -152,6 +152,11 @@ def executar_precheck(script_chamador="Script Desconhecido"):
     elif "painel publico oficial" not in conteudo_norm:
         erros.append("REGRA 9 esta incompleta (esperado termo: 'painel publico oficial')")
 
+    if "parcelas restantes somente pelo contrato" not in conteudo_norm:
+        erros.append("Regra de parcelas restantes somente pelo contrato nao foi encontrada")
+    elif "nunca usar parcelas geradas no widepay como substituto do total do contrato" not in conteudo_norm:
+        erros.append("Regra de parcelas restantes esta incompleta: WidePay nao pode substituir o total do contrato")
+
     caminho_procedimento = os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "PROCEDIMENTO_WIDEPAY_OPERA_CDP_WMI.md")
     if not os.path.exists(caminho_procedimento):
         erros.append("Arquivo PROCEDIMENTO_WIDEPAY_OPERA_CDP_WMI.md nao foi encontrado")
@@ -184,6 +189,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                 ("lista local preliminar", "A skill nao marca a lista local como preliminar quando falta WidePay"),
                 ("fluxo local-first bloqueado", "A skill nao bloqueia o fluxo local-first"),
                 ("widepay real nao foi aberto", "A skill nao bloqueia quando o WidePay real nao abre"),
+                ("parcelas restantes somente pelo contrato", "A skill nao bloqueia parcelas restantes fora do contrato"),
             ],
         ),
         (
@@ -195,6 +201,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                 ("conferencia em markdown", "A skill de PDF nao reforca a conferencia em Markdown"),
                 ("planilha consolidada", "A skill de PDF nao reforca a planilha consolidada"),
                 ("par de entrega", "A skill de PDF nao reforca o par de entrega"),
+                ("parcelas restantes pelo contrato", "A skill de PDF nao reforca parcelas restantes pelo contrato"),
             ],
         ),
     ]

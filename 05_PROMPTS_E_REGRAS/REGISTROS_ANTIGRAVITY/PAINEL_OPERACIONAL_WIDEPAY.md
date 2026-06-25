@@ -30,9 +30,13 @@
 * **Solicitacao atual:** relatorios/PDFs dos clientes com inicial C.
 * **WidePay real:** Opera dedicado aberto e logado via CDP `9444`.
 * **Cobertura C no WidePay:** 1 cliente com inicial C encontrado na varredura oficial.
-* **PDFs da letra C:** Camila de Oliveira Ferrolho gerado localmente; arquivos financeiros nao enviados ao GitHub.
+* **PDFs da letra C:** Camila de Oliveira Ferrolho gerado anteriormente, mas marcado como `NAO APROVADO / REVISAR`.
+* **Motivo do bloqueio:** parcelas restantes devem ser compativeis somente com contrato confirmado; contrato local da Camila Ferrolho nao confirmou total de parcelas.
+* **Regra aplicada:** WidePay confirma pagamentos/cobrancas; total do contrato e parcelas restantes nao podem ser derivados de parcelas geradas no WidePay.
+* **Arquivos financeiros:** PDF/HTML/JSON/MD ficaram locais por conter dados sensiveis; somente painel e scripts sanitizados podem ir ao GitHub.
 * **Correcao aplicada:** launcher nao fecha/reinicia Opera quando ja existe aba WidePay logada.
+* **Correcao adicional:** gerador e validador bloqueiam PDF/HTML final quando o contrato nao confirma total de parcelas.
 * **Nao mantido neste painel:** explicacoes antigas, tabelas antigas de clientes, resumo antigo da extracao WidePay e pendencias legadas.
 
 ## Proximo Passo
-* Conferir o PDF local da Camila e seguir para outra inicial quando solicitado.
+* Localizar/confirmar contrato correto da Camila Ferrolho antes de gerar PDF final aprovado.

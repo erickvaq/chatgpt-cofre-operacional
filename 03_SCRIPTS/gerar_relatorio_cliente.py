@@ -47,11 +47,11 @@ def ler_md_conferencia(caminho_md):
     }
     
     resumo_financeiro = {
-        'total_contrato': 100,
+        'total_contrato': 0,
         'parcelas_pagas': 0,
-        'parcelas_restantes': 100,
+        'parcelas_restantes': 0,
         'percentual_pago': 0.0,
-        'percentual_restante': 1.0,
+        'percentual_restante': 0.0,
         'valor_pago': 0.0,
         'valor_restante': 0.0
     }
@@ -182,28 +182,19 @@ def ler_md_conferencia(caminho_md):
                 elif "total ainda a pagar" in col1 or "valor restante" in col1 or "total ainda a pagar (nominal)" in col1:
                     resumo_financeiro['valor_restante'] = extrair_valor_numerico(col2)
                 
-    # Quando nao ha contrato local, o total operacional vem dos carnes WidePay.
-    if resumo_financeiro['total_contrato'] <= 0 and carnes_widepay:
-        total_wp = 0
-        for carne in carnes_widepay:
-            if "cancelado" not in str(carne.get("status", "")).lower():
-                try:
-                    total_wp += int(carne.get("parcelas_geradas", 0))
-                except Exception:
-                    pass
-        if total_wp > 0:
-            resumo_financeiro['total_contrato'] = total_wp
-        if dados_cliente['valor_parcela'] <= 0:
-            for carne in carnes_widepay:
-                if "cancelado" not in str(carne.get("status", "")).lower():
-                    dados_cliente['valor_parcela'] = float(carne.get("valor_parcela", 0.0))
-                    break
+    # Regra operacional: parcelas restantes so podem nascer do contrato confirmado.
+    # O WidePay informa pagamentos/cobrancas; ele nao substitui o total contratado.
+    resumo_financeiro['contrato_total_confirmado'] = resumo_financeiro['total_contrato'] > 0
 
     # Reajustar parcelas restantes e percentuais
-    resumo_financeiro['parcelas_restantes'] = max(0, resumo_financeiro['total_contrato'] - resumo_financeiro['parcelas_pagas'])
-    if resumo_financeiro['total_contrato'] > 0:
+    if resumo_financeiro['contrato_total_confirmado']:
+        resumo_financeiro['parcelas_restantes'] = max(0, resumo_financeiro['total_contrato'] - resumo_financeiro['parcelas_pagas'])
         resumo_financeiro['percentual_pago'] = resumo_financeiro['parcelas_pagas'] / resumo_financeiro['total_contrato']
         resumo_financeiro['percentual_restante'] = resumo_financeiro['parcelas_restantes'] / resumo_financeiro['total_contrato']
+    else:
+        resumo_financeiro['parcelas_restantes'] = 0
+        resumo_financeiro['percentual_pago'] = 0.0
+        resumo_financeiro['percentual_restante'] = 0.0
         
     return dados_cliente, resumo_financeiro, carnes_widepay
 
@@ -231,6 +222,12 @@ def main():
     print(f"Total Contrato: {resumo['total_contrato']}")
     print(f"Parcelas Pagas: {resumo['parcelas_pagas']}")
     print(f"WidePay Carnes: {len(carnes)} encontrado(s)")
+
+    if not resumo.get('contrato_total_confirmado'):
+        print("\n[ERRO CRITICO] Contrato nao confirmou o total de parcelas.")
+        print("Parcelas restantes devem ser calculadas somente pelo contrato.")
+        print("PDF/HTML final bloqueados para evitar relatorio com restantes derivados do WidePay.")
+        sys.exit(1)
     
     # Gerar caminhos de saída
     nome_limpo = re.sub(r'[^a-zA-Z0-9]', '_', normalizar_texto(dados_cliente['nome']).upper())

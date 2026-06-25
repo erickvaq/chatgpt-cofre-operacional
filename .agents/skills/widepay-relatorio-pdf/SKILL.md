@@ -35,6 +35,7 @@ Palavras-chave: `gerar PDF`, `relatorio final`, `layout visual`, `cards de resum
 5. **Diferenca de boletos avulsos:** identificar boletos avulsos pagos e vincular as parcelas vencidas indevidamente em atraso para amortizacao.
 6. **Par de entrega:** sempre gerar os arquivos em par (PDF + Previa HTML) no mesmo diretorio de destino.
 7. **Consolidado multi-cliente:** quando o pedido envolver mais de um cliente, exigir que a base consolidada e a planilha `.xlsx` ja existam antes do fechamento do PDF final.
+8. **Parcelas restantes pelo contrato:** calcular restantes somente por total de parcelas do contrato confirmado menos parcelas pagas; se o contrato nao confirmar o total, bloquear PDF/HTML final.
 
 ## 6. Rotinas e scripts relacionados
 * `python 03_SCRIPTS\gerar_pdf_camila_v2.py`
@@ -55,10 +56,12 @@ VALIDACAO VISUAL: cards de tres colunas e barra de progresso aplicados
 * **ERRO 3:** Omitir juros e multas nos recebimentos ou gerar o PDF sem a aprovacao do relatorio de conferencia Markdown.
 * **ERRO 4:** Expor dados de parcelas e valores financeiros no GitHub publico (dados sensiveis devem ficar apenas locais).
 * **ERRO 5:** Fechar PDF final sem conferencia previa e sem base consolidada quando o pedido envolver mais de um cliente.
+* **ERRO 6:** Usar parcelas geradas no WidePay como se fossem total do contrato para calcular restantes.
 
 ## 9. Critérios de validação
 * Tabela de carnes informando ID, referencia, valor da parcela, parcelas geradas/pagas, total recebido e status.
 * Total Geral Pago identico ao somatorio de todos os carnes e boletos avulsos pagos do WidePay.
+* Parcelas restantes compativeis somente com contrato fisico/local confirmado.
 
 ## 10. Precheck relacionado
 * O script `precheck_regras.py` valida as restricoes visuais, de versionamento e a Regra Universal.

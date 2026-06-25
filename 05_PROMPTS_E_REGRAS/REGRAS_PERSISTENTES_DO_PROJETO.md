@@ -52,6 +52,13 @@ Erro critico:
 - complementar dados ausentes;
 - nunca usar pasta local como fonte principal da lista oficial.
 
+3. Parcelas restantes somente pelo contrato
+- o WidePay confirma pagamentos, cobranças, carnês e status financeiro;
+- o total de parcelas do contrato deve vir somente do contrato físico/local confirmado;
+- parcelas restantes = total de parcelas do contrato confirmado menos parcelas pagas confirmadas;
+- nunca usar parcelas geradas no WidePay como substituto do total do contrato;
+- se o contrato não confirmar o total de parcelas, marcar `CONTRATO NAO CONFIRMADO - PARCELAS RESTANTES BLOQUEADAS` e não gerar PDF/HTML final com número de parcelas restantes.
+
 Bloqueio obrigatorio:
 - proibido fechar lista oficial de clientes, pendentes, ativos ou relatorios comecando por arquivos locais.
 - se o WidePay ainda nao foi consultado, qualquer resultado baseado em arquivos locais deve ser marcado obrigatoriamente como `LISTA LOCAL PRELIMINAR - PENDENTE DE VALIDACAO WIDEPAY`.
@@ -206,6 +213,11 @@ Para cada cliente:
 5. nunca copiar numeros de um cliente para outro;
 6. gerar conferencia em Markdown (`.md`) antes do PDF final;
 7. gerar PDF/HTML final somente apos validacao do usuario, quando exigida.
+
+Parcelas restantes:
+- devem ser compatíveis somente com o contrato confirmado;
+- se o contrato não confirmar o total de parcelas, bloquear o número de restantes no PDF/HTML final;
+- o total de parcelas geradas no WidePay serve para auditoria de carnês, mas não define o total do contrato.
 
 Para pedidos como `A a E`, interpretar como iniciais reais dos nomes dos clientes, nao como quadras.
 Consolidar nomes repetidos.
