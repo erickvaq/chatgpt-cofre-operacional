@@ -42,9 +42,9 @@
 
 | Cliente | Inicial | Lote | Fonte WidePay | Status WidePay | Relatório | Arquivo local | GitHub | Pendência |
 |---|---|---|---|---|---|---|---|---|
-| Adailton Gomes De Jesus | A | e22a | carnê | Pendente | Não gerado | Sim | Não enviado — arquivo sensível | Pendente de conferência |
-| Altamir Do Carmo Cerqueira | A | G4 | carnê | Pendente | Não gerado | Sim | Não enviado — arquivo sensível | Pendente de conferência |
-| Ana Carolina Nery Da S.Borgens | A | E7 | carnê | Pendente | Relatório gerado | Sim | Não enviado — arquivo sensível | Pendente de conferência |
+| Adailton Gomes De Jesus | A | e22a | carnê | Pronto | Pronto (V3) | Sim (PDF/HTML/MD/BAT) | Não enviado — arquivo sensível | Nenhuma (Conferência concluída) |
+| Altamir Do Carmo Cerqueira | A | G4 | carnê | Pronto | Pronto (V3) | Sim (PDF/HTML/MD/BAT) | Não enviado — arquivo sensível | Nenhuma (Quitado) |
+| Ana Carolina Nery Da S.Borgens | A | E7 | carnê | Pronto | Pronto (V3) | Sim (PDF/HTML/MD/BAT) | Não enviado — arquivo sensível | Nenhuma (Conferência concluída) |
 | Ana Cleide Dos Santos Dias | A | E5 | cobrança | Acessado | Relatório gerado | Sim | Não enviado — arquivo sensível | Nenhuma |
 | Camila De Oliveira Ferrolho | C | G13 | carnê | Pendente | Não gerado | Sim | Não enviado — arquivo sensível | Pendente de conferência |
 | Carla Rocha Lemos | C | Lt F 17 | carnê | Sem evidência financeira | Não gerado | Não | - | Sem evidência financeira ativa |
@@ -111,11 +111,18 @@
 | Arquivo | Cliente/Lote | Caminho local | Sensível | GitHub | Observação |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `PLANILHA_TESTE_VALIDACAO_A_E_20260622.xlsx` | Lotes A a E | `03_PLANILHAS/PLANILHA_TESTE_VALIDACAO_A_E_20260622.xlsx` | Sim | Não enviado — arquivo sensível | Planilha local de validação de teste |
+| `RESUMO_FINANCEIRO_ADAILTON_GOMES_DE_JESUS_E22A_AGUA_VIVA_LEANDRO_MEIRELLES_CORRIGIDO_V3.pdf` | Adailton G. Jesus (E22A) | `02_RELATORIOS_GERADOS/ADAILTON_GOMES_DE_JESUS_E22A_AGUA_VIVA_LEANDRO_MEIRELLES_V3_FINAL/RESUMO_FINANCEIRO_ADAILTON_GOMES_DE_JESUS_E22A_AGUA_VIVA_LEANDRO_MEIRELLES_CORRIGIDO_V3.pdf` | Sim | Não enviado — arquivo sensível | PDF Final Local |
+| `RESUMO_FINANCEIRO_ADAILTON_GOMES_DE_JESUS_E22A_AGUA_VIVA_LEANDRO_MEIRELLES_CORRIGIDO_V3_PREVIA.html` | Adailton G. Jesus (E22A) | `02_RELATORIOS_GERADOS/RESUMO_FINANCEIRO_ADAILTON_GOMES_DE_JESUS_E22A_AGUA_VIVA_LEANDRO_MEIRELLES_CORRIGIDO_V3_PREVIA.html` | Sim | Não enviado — arquivo sensível | Prévia HTML Local |
+| `CONFERENCIA_CALCULOS_ADAILTON_GOMES_DE_JESUS_E22A_AGUA_VIVA_LEANDRO_MEIRELLES.md` | Adailton G. Jesus (E22A) | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ADAILTON_GOMES_DE_JESUS_E22A_AGUA_VIVA_LEANDRO_MEIRELLES.md` | Sim | Não enviado — arquivo sensível | Markdown de Conferência Local |
+| `RESUMO_FINANCEIRO_CONTRATO_ALTAMIR_DO_CARMO_CERQUEIRA_G4_AGUA_VIVA_LEANDRO_MEIRELLES_CORRIGIDO_V3.pdf` | Altamir Cerqueira (G4) | `02_RELATORIOS_GERADOS/CONTRATO_ALTAMIR_DO_CARMO_CERQUEIRA_G4_AGUA_VIVA_LEANDRO_MEIRELLES_V3_FINAL/RESUMO_FINANCEIRO_CONTRATO_ALTAMIR_DO_CARMO_CERQUEIRA_G4_AGUA_VIVA_LEANDRO_MEIRELLES_CORRIGIDO_V3.pdf` | Sim | Não enviado — arquivo sensível | PDF Final Local |
+| `RESUMO_FINANCEIRO_CONTRATO_ALTAMIR_DO_CARMO_CERQUEIRA_G4_AGUA_VIVA_LEANDRO_MEIRELLES_CORRIGIDO_V3_PREVIA.html` | Altamir Cerqueira (G4) | `02_RELATORIOS_GERADOS/RESUMO_FINANCEIRO_CONTRATO_ALTAMIR_DO_CARMO_CERQUEIRA_G4_AGUA_VIVA_LEANDRO_MEIRELLES_CORRIGIDO_V3_PREVIA.html` | Sim | Não enviado — arquivo sensível | Prévia HTML Local |
+| `CONFERENCIA_CALCULOS_CONTRATO_ALTAMIR_DO_CARMO_CERQUEIRA_G4_AGUA_VIVA_LEANDRO_MEIRELLES.md` | Altamir Cerqueira (G4) | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_CONTRATO_ALTAMIR_DO_CARMO_CERQUEIRA_G4_AGUA_VIVA_LEANDRO_MEIRELLES.md` | Sim | Não enviado — arquivo sensível | Markdown de Conferência Local |
+| `RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S__BORGENS_CORRIGIDO_V3.pdf` | Ana Carolina Nery (E7) | `02_RELATORIOS_GERADOS/ANA_CAROLINA_NERY_DA_S__BORGENS_V3_FINAL/RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S__BORGENS_CORRIGIDO_V3.pdf` | Sim | Não enviado — arquivo sensível | PDF Final Local |
+| `RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S__BORGENS_CORRIGIDO_V3_PREVIA.html` | Ana Carolina Nery (E7) | `02_RELATORIOS_GERADOS/RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S__BORGENS_CORRIGIDO_V3_PREVIA.html` | Sim | Não enviado — arquivo sensível | Prévia HTML Local |
+| `CONFERENCIA_CALCULOS_ANA_CAROLINA_NERY_DA_S_BORGENS.md` | Ana Carolina Nery (E7) | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ANA_CAROLINA_NERY_DA_S_BORGENS.md` | Sim | Não enviado — arquivo sensível | Markdown de Conferência Local |
 | `RESUMO_FINANCEIRO_ANA_CLEIDE_DOS_SANTOS_DIAS_CORRIGIDO_V3_PREVIA.html` | Ana Cleide Dias (E5) | `02_RELATORIOS_GERADOS/RESUMO_FINANCEIRO_ANA_CLEIDE_DOS_SANTOS_DIAS_CORRIGIDO_V3_PREVIA.html` | Sim | Não enviado — arquivo sensível | Prévia HTML local |
-| `RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S_BORGENS_CORRIGIDO_V3_PREVIA.html` | Ana Carolina Borgens (E7) | `02_RELATORIOS_GERADOS/RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S_BORGENS_CORRIGIDO_V3_PREVIA.html` | Sim | Não enviado — arquivo sensível | Prévia HTML local |
 | `RESUMO_FINANCEIRO_ELIEL_HORA_SANTANA_CORRIGIDO_V3_PREVIA.html` | Eliel Santana (E12) | `02_RELATORIOS_GERADOS/RESUMO_FINANCEIRO_ELIEL_HORA_SANTANA_CORRIGIDO_V3_PREVIA.html` | Sim | Não enviado — arquivo sensível | Prévia HTML local |
 | `CONFERENCIA_CALCULOS_ANA_CLEIDE_DOS_SANTOS_DIAS.md` | Ana Cleide Dias (E5) | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ANA_CLEIDE_DOS_SANTOS_DIAS.md` | Sim | Não enviado — arquivo sensível | Arquivo de conferência local |
-| `CONFERENCIA_CALCULOS_ANA_CAROLINA_NERY_DA_S_BORGENS.md` | Ana Carolina Borgens (E7) | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ANA_CAROLINA_NERY_DA_S_BORGENS.md` | Sim | Não enviado — arquivo sensível | Arquivo de conferência local |
 | `CONFERENCIA_CALCULOS_ELIEL_HORA_SANTANA.md` | Eliel Santana (E12) | `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ELIEL_HORA_SANTANA.md` | Sim | Não enviado — arquivo sensível | Arquivo de conferência local |
 
 ---
@@ -130,6 +137,7 @@
 | `scratch/extrair_tudo_cobertura.py` | Script de Extração | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/scratch/extrair_tudo_cobertura.py) | cb8c5c8 | 24/06/2026 |
 | `07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md` | Resumo de Execução | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md) | cb8c5c8 | 24/06/2026 |
 | `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md` | Painel Operacional | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md) | cb8c5c8 | 24/06/2026 |
+| `07_DADOS_TEMPORARIOS/INDICE_AUDITAVEL_RELATORIOS.md` | Índice Auditável | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/07_DADOS_TEMPORARIOS/INDICE_AUDITAVEL_RELATORIOS.md) | cb8c5c8 | 25/06/2026 |
 | `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/implementation_plan.md` | Plano de Ação | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/implementation_plan.md) | cb8c5c8 | 24/06/2026 |
 | `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/task.md` | Lista de Tarefas | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/task.md) | cb8c5c8 | 24/06/2026 |
 | `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/walkthrough.md` | Registro de Alterações | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/walkthrough.md) | cb8c5c8 | 24/06/2026 |
@@ -154,12 +162,12 @@
 
 ## Progresso da Auditoria WidePay (25/06/2026)
 
-> [!WARNING]
-> **Nenhum cliente foi validado oficialmente.** Os blocos 2 e 3 foram iniciados sem autorização explícita do usuário. Nenhum relatório final foi gerado. Nenhum dado financeiro foi enviado ao GitHub. JSONs com dados sensíveis estão apenas localmente em `07_DADOS_TEMPORARIOS/WIDEPAY_CONSULTAS/`.
+> [!NOTE]
+> **Bloco 1 concluído e aprovado.** Relatórios financeiros gerados localmente e índice sanitizado publicado no GitHub. Nenhuma informação financeira confidencial foi exposta. Os blocos 2 e 3 permanecem sem aprovação para avanço.
 
 | Bloco | Clientes | Status da consulta WidePay | Status de aprovação | Observação |
 |---|---|---|---|---|
-| **Bloco 1** | Adailton Gomes De Jesus, Altamir Do Carmo Cerqueira, Ana Carolina Nery Da S.Borgens | Consultado | ⏳ Aguardando validação do usuário | JSONs criados localmente |
+| **Bloco 1** | Adailton Gomes De Jesus, Altamir Do Carmo Cerqueira, Ana Carolina Nery Da S.Borgens | Pronto | ✅ Aprovado e Gerado (V3) | Relatórios completos apenas locais; Índice sanitizado publicado |
 | **Bloco 2** | Adalberto Oliveira, Alex Santos De Azevedo, Alexandre | Consultado **sem autorização** | ❌ Não aprovado | Dados preservados localmente; Alexandre com identidade incerta para lote G14 |
 | **Bloco 3** | Antonio Dias Mota, Belmiro Santos Pires | Consultado **sem autorização** | ❌ Não aprovado | Dados preservados localmente |
 | **Bloco 3** | Camila Carvalho Sazhyn | Consulta **cancelada** | ❌ Cancelada | Nenhum JSON criado |
