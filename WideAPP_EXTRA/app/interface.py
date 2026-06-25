@@ -68,8 +68,10 @@ class WideAppInterface:
         botoes.pack(fill="x")
         ttk.Button(botoes, text="Selecionar todos", command=self.selecionar_todos).pack(side="left")
         ttk.Button(botoes, text="Limpar selecao", command=self.limpar_selecao).pack(side="left", padx=4)
-        ttk.Button(botoes, text="Gerar relatorio dos selecionados", command=self.gerar_selecionados).pack(side="left", padx=12)
-        ttk.Button(botoes, text="Gerar relatorio de todos os clientes ativos", command=self.gerar_todos_ativos).pack(side="left")
+        self.btn_gerar_sel = ttk.Button(botoes, text="Gerar relatorio dos selecionados", command=self.gerar_selecionados)
+        self.btn_gerar_sel.pack(side="left", padx=12)
+        self.btn_gerar_todos = ttk.Button(botoes, text="Gerar relatorio de todos os clientes ativos", command=self.gerar_todos_ativos)
+        self.btn_gerar_todos.pack(side="left")
         ttk.Button(botoes, text="Abrir pasta local", command=self.abrir_pasta_execucao).pack(side="right")
         ttk.Button(botoes, text="Abrir pasta no Drive", command=self.abrir_drive).pack(side="right", padx=4)
         ttk.Button(botoes, text="Abrir XLSX", command=self.abrir_ultimo).pack(side="right", padx=4)
@@ -172,16 +174,77 @@ class WideAppInterface:
         threading.Thread(target=self._gerar_thread, args=(registros, grupo), daemon=True).start()
 
     def _gerar_thread(self, registros, grupo):
+        self.root.after(0, lambda: self.btn_gerar_sel.configure(state="disabled"))
+        self.root.after(0, lambda: self.btn_gerar_todos.configure(state="disabled"))
+        self.log("Processando cliente...")
+        self.log("Pipeline em execucao...")
         try:
             resultado = pipeline_runner.executar_lote(registros, grupo=grupo, log_callback=self.log)
+            self.log("CODIGO SAIDA: 0")
+            self.log("Relatorio gerado com sucesso.")
         except Exception as exc:
             self.log(f"ERRO_PIPELINE: {exc}")
-            messagebox.showerror("WideAPP_EXTRA", str(exc))
+            self.root.after(0, lambda: self.btn_gerar_sel.configure(state="normal"))
+            self.root.after(0, lambda: self.btn_gerar_todos.configure(state="normal"))
+            messagebox.showerror("WideAPP_EXTRA", f"Erro na pipeline:\n{exc}")
             return
+
         self.ultimos = {"xlsx": [], "pdf": [], "html": [], "md": [], "json": [], "log": []}
         for res in resultado["resultados"]:
             for tipo, paths in res["arquivos"].items():
                 self.ultimos.setdefault(tipo, []).extend(paths)
+
+            # Atualiza registro em memoria com os resultados da pipeline
+            c_name = res.get("cliente")
+            c_lote = res.get("lote")
+            for r in self.registros:
+                if r.get("cliente") == c_name and r.get("lote") == c_lote:
+                    r["status"] = "APROVADO"
+                    r["observacoes"] = "Relatorio gerado"
+                    json_paths = res["arquivos"].get("json", [])
+                    if json_paths:
+                        try:
+                            import json
+                            from datetime import datetime as dt_parser
+                            with open(json_paths[0], "r", encoding="utf-8") as jf:
+                                metrics = json.load(jf)
+                            
+                            parcelas = metrics.get("calculos", {}).get("parcelas_pagas_equivalentes", "")
+                            if parcelas != "":
+                                r["parcelas_pagas_identificadas"] = str(parcelas)
+                            
+                            pagamentos = metrics.get("calculos", {}).get("pagamentos_interpretados", [])
+                            ultimo_pgto = None
+                            latest_date = None
+                            for p in pagamentos:
+                                p_date_str = p.get("pagamento") or p.get("vencimento")
+                                if p_date_str:
+                                    try:
+                                        dt = dt_parser.strptime(p_date_str, "%d/%m/%Y")
+                                        if latest_date is None or dt > latest_date:
+                                            latest_date = dt
+                                            ultimo_pgto = p
+                                    except Exception:
+                                        pass
+                            
+                            if ultimo_pgto:
+                                r["ultimo_vencimento_pago"] = ultimo_pgto.get("vencimento", "")
+                                val = ultimo_pgto.get("valor_recebido")
+                                if val is not None:
+                                    r["valor_ultimo_pagamento"] = f"R$ {float(val):.2f}"
+                        except Exception as je:
+                            self.log(f"Erro ao ler JSON de metricas: {je}")
+
+        # Salvar cache local atualizado
+        try:
+            indexador_clientes.salvar_cache(self.registros)
+            self.log("Cache local atualizado com sucesso.")
+        except Exception as se:
+            self.log(f"Erro ao salvar cache local: {se}")
+
+        # Atualiza a tabela na UI
+        self.root.after(0, self.aplicar_filtro)
+
         if resultado.get("consolidado"):
             self.ultimos.setdefault("xlsx", []).insert(0, resultado["consolidado"])
         if self.ultimos.get("xlsx"):
@@ -196,6 +259,9 @@ class WideAppInterface:
         self.log(f"Pipeline concluido. Manifesto Drive: {config.LINKS_DRIVE_MD}")
         if resultado["ignorados"]:
             self.log(f"Ignorados sem contrato confirmado: {len(resultado['ignorados'])}")
+
+        self.root.after(0, lambda: self.btn_gerar_sel.configure(state="normal"))
+        self.root.after(0, lambda: self.btn_gerar_todos.configure(state="normal"))
 
     def abrir_ultimo(self):
         if not self.ultimos.get("xlsx"):
