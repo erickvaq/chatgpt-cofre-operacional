@@ -217,8 +217,8 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                 ("regra universal", "A skill de PDF nao reforca a Regra Universal"),
                 ("widepay vem primeiro", "A skill de PDF nao reforca WidePay primeiro"),
                 ("conferencia em markdown", "A skill de PDF nao reforca a conferencia em Markdown"),
-                ("planilha consolidada", "A skill de PDF nao reforca a planilha consolidada"),
-                ("par de entrega", "A skill de PDF nao reforca o par de entrega"),
+                ("excel .xlsx principal", "A skill de PDF nao define Excel/XLSX como formato principal"),
+                ("pdf somente quando", "A skill de PDF nao bloqueia PDF automatico"),
                 ("parcelas restantes pelo contrato", "A skill de PDF nao reforca parcelas restantes pelo contrato"),
                 ("total pago do terreno/lote", "A skill de PDF nao reforca o total pago do terreno/lote"),
                 ("pagamentos interpretados", "A skill de PDF nao exige pagamentos interpretados"),
@@ -281,6 +281,36 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                     erros.append(msg)
         except Exception as ev:
             erros.append(f"Erro ao ler {rotulo_script}: {ev}")
+
+    arquivos_publicos_sanitizados = [
+        (
+            os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "REGISTROS_ANTIGRAVITY", "PAINEL_OPERACIONAL_WIDEPAY.md"),
+            "Painel operacional publico",
+        ),
+        (
+            os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "REGISTROS_ANTIGRAVITY", "INDICE_AUDITAVEL_RELATORIOS.md"),
+            "Indice auditavel publico",
+        ),
+    ]
+    marcadores_financeiros_publicos = [
+        "r$",
+        "total pago:",
+        "total pago registrado",
+        "parcelas pagas equiv",
+        "parcelas restantes:",
+        "valor recebido",
+    ]
+    for caminho_publico, rotulo_publico in arquivos_publicos_sanitizados:
+        if not os.path.exists(caminho_publico):
+            continue
+        try:
+            with open(caminho_publico, "r", encoding="utf-8") as fp:
+                publico_norm = normalizar_texto(fp.read())
+            for marcador in marcadores_financeiros_publicos:
+                if marcador in publico_norm:
+                    erros.append(f"{rotulo_publico} contem dado financeiro publico proibido: '{marcador}'")
+        except Exception as ep:
+            erros.append(f"Erro ao validar sanitizacao de {rotulo_publico}: {ep}")
 
     regra_zero_pos = conteudo_norm.find("## regra zero")
     regra_prioritaria_pos = conteudo_norm.find("## regra prioritaria")

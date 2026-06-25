@@ -57,7 +57,7 @@ Erro critico:
 - o total de parcelas do contrato deve vir somente do contrato fÃ­sico/local confirmado;
 - parcelas restantes = total de parcelas do contrato confirmado menos parcelas pagas confirmadas;
 - nunca usar parcelas geradas no WidePay como substituto do total do contrato;
-- se o contrato nÃ£o confirmar o total de parcelas, marcar `CONTRATO NAO CONFIRMADO - PARCELAS RESTANTES BLOQUEADAS` e nÃ£o gerar PDF/HTML final com nÃºmero de parcelas restantes.
+- se o contrato nao confirmar o total de parcelas, marcar `CONTRATO NAO CONFIRMADO - PARCELAS RESTANTES BLOQUEADAS` e nao gerar XLS/XLSX/PDF/HTML final com numero de parcelas restantes.
 
 Bloqueio obrigatorio:
 - proibido fechar lista oficial de clientes, pendentes, ativos ou relatorios comecando por arquivos locais.
@@ -126,10 +126,12 @@ Fluxo obrigatorio:
 - nunca inventar valor, data, parcela ou pagamento.
 
 6. Conferencia e entregas
-- gerar conferencia em Markdown (`.md`) antes do PDF final individual;
+- gerar conferencia em Markdown (`.md`) antes da entrega final quando exigida;
+- gerar XLS/XLSX como formato principal do relatorio financeiro;
 - para mais de um cliente, gerar tambem planilha consolidada `.xlsx`;
-- gerar HTML + PDF no padrao visual aprovado;
-- abrir PDF externamente; nao abrir como texto bruto;
+- gerar PDF somente quando o usuario pedir explicitamente;
+- gerar HTML somente quando o usuario pedir previa/painel/conferencia visual;
+- se PDF for gerado, abrir externamente; nao abrir como texto bruto;
 - atualizar o painel publico somente com resumo curto;
 - nao enviar dados sensiveis ao GitHub sem autorizacao.
 
@@ -211,12 +213,14 @@ Para cada cliente:
 3. cruzar com contrato local quando existir;
 4. recalcular tudo do zero;
 5. nunca copiar numeros de um cliente para outro;
-6. gerar conferencia em Markdown (`.md`) antes do PDF final;
-7. gerar PDF/HTML final somente apos validacao do usuario, quando exigida.
+6. gerar conferencia em Markdown (`.md`) antes da entrega final quando exigida;
+7. gerar XLS/XLSX como entrega financeira principal;
+8. gerar PDF somente quando o usuario pedir explicitamente;
+9. gerar HTML somente quando o usuario pedir previa/painel/conferencia visual.
 
 Parcelas restantes:
 - devem ser compatÃ­veis somente com o contrato confirmado;
-- se o contrato nÃ£o confirmar o total de parcelas, bloquear o nÃºmero de restantes no PDF/HTML final;
+- se o contrato nao confirmar o total de parcelas, bloquear o numero de restantes no XLS/XLSX/PDF/HTML final;
 - o total de parcelas geradas no WidePay serve para auditoria de carnÃªs, mas nÃ£o define o total do contrato.
 
 Para pedidos como `A a E`, interpretar como iniciais reais dos nomes dos clientes, nao como quadras.
@@ -475,6 +479,12 @@ O GitHub é o padrão obrigatório de rastreabilidade e conferência do projeto.
 
 Esta regra é ativada automaticamente. Não depende de o usuário pedir.
 Não é opcional. Não depende de "suba para o GitHub" posterior.
+
+Esta regra nao altera o formato principal de entrega financeira:
+- XLS/XLSX e o formato principal do relatorio financeiro;
+- PDF somente deve ser gerado quando o usuario pedir explicitamente;
+- HTML somente deve ser gerado quando o usuario pedir previa/painel/conferencia visual;
+- arquivos financeiros completos ficam locais e o GitHub recebe apenas painel/indice sanitizado.
 
 ### 10.1 — O que entra obrigatoriamente no GitHub
 

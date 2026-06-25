@@ -52,7 +52,7 @@ Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`
 * O total de parcelas do contrato vem somente do contrato fisico/local confirmado.
 * Parcelas restantes = total de parcelas do contrato confirmado menos parcelas pagas confirmadas.
 * Nunca usar parcelas geradas no WidePay como substituto do total do contrato.
-* Se o contrato nao confirmar o total de parcelas, marcar `CONTRATO NAO CONFIRMADO - PARCELAS RESTANTES BLOQUEADAS` e bloquear PDF/HTML final com numero de restantes.
+* Se o contrato nao confirmar o total de parcelas, marcar `CONTRATO NAO CONFIRMADO - PARCELAS RESTANTES BLOQUEADAS` e bloquear XLS/XLSX/PDF/HTML final com numero de restantes.
 * O total pago do terreno/lote deve somar carnÃªs pagos e cobranÃ§as/boletos recebidos do mesmo cliente.
 * Alias e erros de digitacao comuns do nome do cliente podem ser aceitos quando a evidencia financeira e o contrato apontarem para o mesmo lote (ex.: `Edmilson` e `Edimson`).
 * Todo relatorio de cliente deve consultar e listar todos os carnes e todas as cobrancas/boletos pagos ou em aberto localizados no WidePay.
@@ -112,7 +112,7 @@ Quando o painel operacional publico for alterado, consolidado ou limpo, o fluxo 
 O painel nao deve manter restos como `19 x 21`, `Heron Souza Dias`, `cb8c5c8` ou fotografias antigas de auditoria quando o objetivo for versao limpa.
 
 ## 11. Precheck relacionado
-* O script de validacao `precheck_regras.py` valida a presenca deste arquivo, da Regra Zero e das 9 regras numeradas em `REGRAS_PERSISTENTES_DO_PROJETO.md`.
+* O script de validacao `precheck_regras.py` valida a presenca deste arquivo, da Regra Zero e das 10 regras numeradas em `REGRAS_PERSISTENTES_DO_PROJETO.md`.
 
 ## 12. Exemplos curtos de decisao
 * *Cenario:* O usuario pede checagem do cliente "Alex Santos de Azevedo" (Lote B2).
