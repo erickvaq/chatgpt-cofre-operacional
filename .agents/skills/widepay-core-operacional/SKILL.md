@@ -56,10 +56,14 @@ ensure_widepay_logged_in(): iniciado
 * Cobertura A a E baseada estritamente nas iniciais reais dos nomes.
 * Tabela de pendências atualizada sem dados financeiros sensíveis expostos no GitHub público.
 
-## 10. Precheck relacionado
-* O script de validação `precheck_regras.py` valida a presença deste arquivo e suas 31 regras em `REGRAS_PERSISTENTES_DO_PROJETO.md`.
+## 10. Painel operacional publico
+Quando o painel operacional publico for alterado, consolidado ou limpo, o fluxo deve seguir a versão publicada, rodar precheck, fazer commit, fazer push e conferir o GitHub normal e o raw antes de encerrar.
+O painel não deve manter restos como `19 x 21`, `Heron Souza Dias`, `cb8c5c8` ou fotografias antigas de auditoria quando o objetivo for versão limpa.
 
-## 11. Exemplos curtos de decisão
+## 11. Precheck relacionado
+* O script de validação `precheck_regras.py` valida a presença deste arquivo e suas 9 regras em `REGRAS_PERSISTENTES_DO_PROJETO.md`.
+
+## 12. Exemplos curtos de decisão
 * *Cenário:* O usuário pede checagem do cliente "Alex Santos de Azevedo" (Lote B2).
 * *Decisão:* A inicial do nome é "A". Executar auditoria, pois está dentro da cobertura A a E (apesar de o lote estar na Quadra B).
 * *Cenário:* O script CDP falha ao conectar ou a página de login está sem senha salva.

@@ -105,7 +105,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         registrar_log(script_chamador, "ERRO", len(unicos), f"Duplicidade nas regras: {duplicadas}")
         sys.exit(1)
 
-    esperados = list(range(1, 9))
+    esperados = list(range(1, 10))
     if unicos != esperados:
         print(f"ERRO: Numeracao das regras inconsistente. Esperado {esperados}, encontrado {unicos}.")
         registrar_log(script_chamador, "ERRO", len(unicos), f"Numeracao inconsistente: {unicos}")
@@ -121,6 +121,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         6: ("github e rastreabilidade", "nunca inventar link github"),
         7: ("painel operacional", "painel operacional widepay"),
         8: ("economia operacional, skills e precheck", "precheck_regras.py"),
+        9: ("painel operacional publico sempre limpo e verificado", "github normal"),
     }
 
     erros = []
@@ -140,6 +141,11 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         erros.append("REGRA PRIORITARIA (fonte principal de instrucoes) nao foi encontrada")
     elif "ordem de prioridade" not in conteudo_norm:
         erros.append("REGRA PRIORITARIA esta incompleta (esperado termo: 'ordem de prioridade')")
+
+    if "painel operacional publico sempre limpo e verificado" not in conteudo_norm:
+        erros.append("REGRA 9 (painel operacional publico sempre limpo e verificado) nao foi encontrada")
+    elif "painel publico oficial" not in conteudo_norm:
+        erros.append("REGRA 9 esta incompleta (esperado termo: 'painel publico oficial')")
 
     caminho_procedimento = os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "PROCEDIMENTO_WIDEPAY_OPERA_CDP_WMI.md")
     if not os.path.exists(caminho_procedimento):

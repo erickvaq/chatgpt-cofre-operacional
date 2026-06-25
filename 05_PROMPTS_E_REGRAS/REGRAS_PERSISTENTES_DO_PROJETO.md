@@ -211,3 +211,39 @@ Modelo Camila:
 - serve apenas como modelo visual e metodologico;
 - nao usar numeros ou constantes da Camila em outros clientes;
 - sempre recalcular do zero para cada cliente novo.
+
+---
+
+## REGRA 9 - Painel operacional publico sempre limpo e verificado
+
+O arquivo `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md` e o painel publico oficial usado para revisar o estado do projeto.
+
+Sempre que o Antigravity alterar, consolidar, limpar ou atualizar esse painel, deve:
+1. atualizar o painel local;
+2. remover conteudo legado que possa confundir a revisao;
+3. rodar precheck;
+4. fazer commit;
+5. fazer push;
+6. conferir o conteudo publicado no GitHub apos o push;
+7. so entao declarar a tarefa concluida.
+
+Marcadores proibidos quando o painel estiver em modo limpo:
+- `19 x 21`;
+- `Heron Souza Dias`;
+- `cb8c5c8`;
+- `RESUMO DA EXTRAÇÃO WIDEPAY`;
+- tabelas antigas de clientes A a E;
+- auditoria antiga;
+- pendencias antigas ja substituidas;
+- commits antigos apresentados como estado atual;
+- qualquer informacao que contradiga o estado final informado no chat.
+
+Pos-push obrigatorio:
+- conferir o arquivo publicado no GitHub normal;
+- conferir o raw, quando possivel;
+- so declarar conclusao se o painel publico realmente mostrar a versao nova.
+
+Se o painel local estiver correto, mas o painel publico ainda mostrar conteudo antigo, cache, branch errada ou versao divergente, nao responder `concluido`.
+
+Resposta obrigatoria nesse caso:
+`O painel local foi atualizado, mas o painel público ainda não reflete a versão limpa. Vou corrigir sincronização, branch, commit ou push antes de declarar concluído.`
