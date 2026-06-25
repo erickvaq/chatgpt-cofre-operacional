@@ -84,12 +84,18 @@ BRL_FORMAT = '#,##0.00'
 PCT_FORMAT = '0.00%'
 
 
-def interpretar_referencias(descricao, valor_original, valor_base):
+def interpretar_referencias(descricao, valor_original, valor_base, valor_entrada=0.0):
     """Interpreta descrição do WidePay para identificar referências/meses pagos."""
     desc = (descricao or "").lower().strip()
     refs = []
     regra = ""
     qtd = 0
+
+    if "entrada" in desc:
+        return ["Entrada"], 0, "identificado como entrada pela descricao"
+
+    if valor_entrada > 0 and abs(valor_original - valor_entrada) < 0.01:
+        return ["Entrada"], 0, "valor original corresponde a entrada contratual"
 
     # Padrão: "atrazo 08 09 10 11 de 2025" ou "atraso 12-25"
     meses_match = re.findall(r'\b(0[1-9]|1[0-2])\b', desc)
@@ -179,14 +185,19 @@ def criar_aba_resumo(ws, dados_cliente, total_pago, parcelas_pagas_equiv,
     c.alignment = ALIGN_CENTER
 
     # Dados do cliente
+    saldo_parcelado = total_parcelas_contrato * valor_parcela
+    entrada = valor_total_contrato - saldo_parcelado
+
     campos = [
         ("Cliente", dados_cliente.get("cliente", "-")),
         ("Lote / Quadra", f"{dados_cliente.get('lote', '-')} / Quadra {dados_cliente.get('quadra', '-')}"),
         ("Loteamento", "Água Viva — Iaçú-BA"),
         ("Data do Relatório", datetime.now().strftime("%d/%m/%Y")),
+        ("Valor Total Contratado", valor_total_contrato),
+        ("Entrada ou Valor Fora do Parcelamento", entrada),
+        ("Saldo Parcelado", saldo_parcelado),
         ("Total de Parcelas (Contrato)", total_parcelas_contrato),
         ("Valor Base da Parcela", valor_parcela),
-        ("Valor Total Contratado", valor_total_contrato),
     ]
 
     row = 4
@@ -231,7 +242,7 @@ def criar_aba_resumo(ws, dados_cliente, total_pago, parcelas_pagas_equiv,
 
     resumo_campos = [
         ("Total Pago Recebido", total_pago, BRL_FORMAT),
-        ("Parcelas Pagas Equivalentes", parcelas_pagas_equiv, None),
+        ("Parcelas Pagas Confirmadas", parcelas_pagas_equiv, None),
         ("Parcelas Restantes", parcelas_restantes, None),
         ("% Parcelas Quitadas", pct_parcelas, PCT_FORMAT),
         ("% Financeiro Pago", pct_financeiro, PCT_FORMAT),
@@ -269,7 +280,7 @@ def criar_aba_resumo(ws, dados_cliente, total_pago, parcelas_pagas_equiv,
     }
 
 
-def criar_aba_pagamentos(ws, pagamentos, dados_cliente, valor_parcela, carnes_lista):
+def criar_aba_pagamentos(ws, pagamentos, dados_cliente, valor_parcela, carnes_lista, valor_entrada=0.0):
     """Cria a aba Pagamentos Recebidos (somente Recebido/Pago)."""
     ws.sheet_properties.tabColor = "1565C0"
 
@@ -299,7 +310,7 @@ def criar_aba_pagamentos(ws, pagamentos, dados_cliente, valor_parcela, carnes_li
         valor_recebido = float(pag.get("valor_recebido", 0))
         desc = pag.get("descricao", "") or "-"
         tipo = classificar_tipo(pag, carnes_lista)
-        refs, qtd, regra = interpretar_referencias(desc, valor_original, valor_parcela)
+        refs, qtd, regra = interpretar_referencias(desc, valor_original, valor_parcela, valor_entrada)
 
         total_recebido += valor_recebido
         total_parcelas += qtd
@@ -368,7 +379,7 @@ def criar_aba_pagamentos(ws, pagamentos, dados_cliente, valor_parcela, carnes_li
     return total_recebido, total_parcelas
 
 
-def criar_aba_interpretacao(ws, pagamentos, dados_cliente, valor_parcela, carnes_lista):
+def criar_aba_interpretacao(ws, pagamentos, dados_cliente, valor_parcela, carnes_lista, valor_entrada=0.0):
     """Cria a aba Interpretação das Parcelas."""
     ws.sheet_properties.tabColor = "F57F17"
 
@@ -390,7 +401,7 @@ def criar_aba_interpretacao(ws, pagamentos, dados_cliente, valor_parcela, carnes
         valor_recebido = float(pag.get("valor_recebido", 0))
         desc = pag.get("descricao", "") or "-"
         tipo = classificar_tipo(pag, carnes_lista)
-        refs, qtd, regra = interpretar_referencias(desc, valor_original, valor_parcela)
+        refs, qtd, regra = interpretar_referencias(desc, valor_original, valor_parcela, valor_entrada)
 
         fill = FILL_BRANCO if (row_idx % 2 == 0) else FILL_ZEBRA
 
@@ -571,13 +582,15 @@ def gerar_relatorio_excel(dados_wp, dados_cliente, valor_parcela,
             return datetime.min
     pagamentos.sort(key=lambda p: parse_data(p.get("vencimento", "")))
 
+    valor_entrada = valor_total_contrato - (total_parcelas_contrato * valor_parcela)
+
     # Calcular totais
     total_pago = sum(float(p.get("valor_recebido", 0)) for p in pagamentos)
     parcelas_pagas_equiv = 0
     for pag in pagamentos:
         desc = pag.get("descricao", "") or "-"
         valor_original = float(pag.get("valor_original", 0))
-        _, qtd, _ = interpretar_referencias(desc, valor_original, valor_parcela)
+        _, qtd, _ = interpretar_referencias(desc, valor_original, valor_parcela, valor_entrada)
         parcelas_pagas_equiv += qtd
 
     # ── Aba 1: Resumo ────────────────────────────────────────────────────
@@ -591,12 +604,12 @@ def gerar_relatorio_excel(dados_wp, dados_cliente, valor_parcela,
     # ── Aba 2: Pagamentos Recebidos ──────────────────────────────────────
     ws_pag = wb.create_sheet("Pagamentos Recebidos")
     total_recebido_soma, total_parcelas_soma = criar_aba_pagamentos(
-        ws_pag, pagamentos, dados_cliente, valor_parcela, carnes_lista
+        ws_pag, pagamentos, dados_cliente, valor_parcela, carnes_lista, valor_entrada
     )
 
     # ── Aba 3: Interpretação das Parcelas ────────────────────────────────
     ws_interp = wb.create_sheet("Interpretação Parcelas")
-    criar_aba_interpretacao(ws_interp, pagamentos, dados_cliente, valor_parcela, carnes_lista)
+    criar_aba_interpretacao(ws_interp, pagamentos, dados_cliente, valor_parcela, carnes_lista, valor_entrada)
 
     # ── Aba 4: Validação ─────────────────────────────────────────────────
     ws_valid = wb.create_sheet("Validação")
