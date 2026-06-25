@@ -1,4 +1,4 @@
-# REGRAS PERSISTENTES DO PROJETO — Relatorio_WidePay_Lotes
+﻿# REGRAS PERSISTENTES DO PROJETO — Relatorio_WidePay_Lotes
 # Atualizado em: 16/06/2026
 ---
 
@@ -17,11 +17,6 @@ Se houver conflito entre dados de cliente, carnê, WidePay, print ou relatório 
 ---
 
 ## REGRA 1 — Visualização de PDFs
-
-**Nunca criar link clicável direto para arquivo `.pdf` dentro do Antigravity.**
-
-Quando o link do PDF é clicável dentro do chat/painel do Antigravity,
-o arquivo abre como texto bruto mostrando `%PDF-1.4` — isso está errado.
 
 ### Procedimento correto ao gerar ou referenciar um PDF:
 
@@ -139,7 +134,7 @@ Padrao de entrega apos gerar qualquer relatorio (PADRAO_ENTREGA_CLIENTE_SEM_BAT)
 2. Criar ou atualizar o painel HTML de acesso rapido (ABRIR_RELATORIO_*.html) se for necessário.
 3. Para relatórios e entregas de cliente, não criar arquivos `.bat` por padrão (seguir PADRAO_ENTREGA_CLIENTE_SEM_BAT). Só criar se houver pedido explícito ou necessidade técnica explicada antes.
 4. Se atalhos .bat forem criados sob demanda, devem constar no relatório com caminho local, tamanho e link GitHub individual.
-5. Nunca criar link clicavel direto para .pdf no chat — causa abertura como texto bruto
+5. Quando o usuário pedir acesso direto, o PDF pode ser referenciado por link clicável no chat, mantendo também o caminho em texto puro e a opção de abertura externa.
 
 ---
 
@@ -212,7 +207,7 @@ Antes de entregar qualquer relatorio final (PDF, HTML, DOCX ou planilha), confir
 | 5 | O PDF corrigido tem nome novo (`_CORRIGIDO`, `_V2` ou com data) | [ ] |
 | 6 | Existe previa HTML do relatorio em `02_RELATORIOS_GERADOS` | [ ] |
 | 7 | Pasta final aberta no Windows Explorer para conferência (sem BAT por padrão) | [ ] |
-| 8 | Nenhum link direto para `.pdf` foi criado no chat do Antigravity | [ ] |
+| 8 | Se o usuário pediu acesso clicável, o PDF foi referenciado de forma direta e também em texto puro | [ ] |
 | 9 | Botoes e atalhos apontam para o arquivo corrigido mais recente | [ ] |
 | 10| O PDF foi aberto externamente via Start-Process (nao como texto) | [ ] |
 
@@ -250,15 +245,15 @@ Sempre que precisar consultar a situacao de um loteamento/cliente:
 
 ## REGRA 15 — Entrega clicavel de arquivos criados
 
-Sempre que o agente criar, modificar ou entregar arquivos do projeto, deve fornecer uma forma clicavel e pratica de acesso, usando painel HTA, arquivo BAT, atalho LNK ou link file:/// em Markdown. O usuario nao deve precisar copiar e colar caminhos para abrir arquivos.
+Sempre que o agente criar, modificar ou entregar arquivos do projeto, deve fornecer uma forma clicavel e pratica de acesso, usando painel HTA, arquivo BAT, atalho LNK ou link clicavel do proprio arquivo quando solicitado. O usuario nao deve precisar copiar e colar caminhos para abrir arquivos.
 
-É proibido entregar link Markdown direto para `.pdf` quando houver risco de abrir como texto bruto no Antigravity. PDF deve ser aberto por HTA, BAT, LNK, Start-Process, previa HTML ou visualizador externo.
+Se o ambiente abrir PDF como texto bruto, o agente deve preferir HTA, BAT, LNK, Start-Process, previa HTML ou visualizador externo; quando o usuario pedir link clicavel do PDF, ele pode ser fornecido junto com o caminho em texto puro.
 
 ---
 
 ## REGRA 16 — Abertura externa obrigatoria e organizacao de arquivos finais
 
-Links `file:///` em Markdown dentro do Antigravity nao sao solucao confiavel para abrir arquivos finais. PDF, DOCX, HTML, HTA, planilhas e imagens devem ser abertos por lancador externo, HTA, BAT, LNK, PowerShell `Start-Process` ou aplicativo padrao do Windows.
+Links `file:///` em Markdown dentro do Antigravity podem ser usados como atalho clicavel quando o usuario pedir acesso direto; para prevenção de texto bruto, mantenha também o lancador externo, HTA, BAT, LNK, PowerShell `Start-Process` ou aplicativo padrao do Windows.
 
 Abertura e atalhos na pasta de entrega (PADRAO_ENTREGA_CLIENTE_SEM_BAT):
 1. O sistema deve criar uma pasta final limpa e dedicada para a entrega de cada cliente (ex: `02_RELATORIOS_GERADOS\CAMILA_FERROLHO_V3_FINAL\`).
@@ -267,7 +262,7 @@ Abertura e atalhos na pasta de entrega (PADRAO_ENTREGA_CLIENTE_SEM_BAT):
 4. O padrão de conferência agora é abrir a pasta final no Windows Explorer usando o comando apropriado (ex: `explorer.exe "caminho_da_pasta"`).
 5. Só criar `.bat` se solicitado explicitamente ou houver necessidade técnica real que deve ser justificada previamente.
 6. Se um `.bat` for criado por exceção, ele deve usar caminhos relativos com `%~dp0` (ex: `cd /d "%~dp0" && start "" "nome_do_arquivo.pdf"`), possuir numeração e nomes claros (ex: `01_ABRIR_PDF_FINAL.bat`), e constar no relatório com caminho local, tamanho e link GitHub individual.
-7. Links clicaveis do Antigravity devem abrir preferencialmente a pasta de entrega limpa em vez do arquivo individual diretamente.
+7. Links clicaveis do Antigravity podem abrir a pasta de entrega limpa ou o arquivo individual, conforme o pedido do usuario.
 
 ---
 
