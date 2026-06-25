@@ -1,7 +1,7 @@
 # PAINEL OPERACIONAL WIDEPAY — Relatorio_WidePay_Lotes
 
 ## Informações Gerais
-* **Último commit auditado no painel:** cb8c5c8 (Correções de tabelas e segurança do painel)
+* **Último commit auditado no painel:** 520b4b8 (Geração Bloco 1 e índice sanitizado)
 * **Commit real da última atualização:** informado na resposta do Antigravity após o push
 * **Link do histórico de commits:** https://github.com/erickvaq/chatgpt-cofre-operacional/commits/main
 * **Branch atual:** main
@@ -42,9 +42,9 @@
 
 | Cliente | Inicial | Lote | Fonte WidePay | Status WidePay | Relatório | Arquivo local | GitHub | Pendência |
 |---|---|---|---|---|---|---|---|---|
-| Adailton Gomes De Jesus | A | e22a | carnê | Pronto | Pronto (V3) | Sim (PDF/HTML/MD/BAT) | Não enviado — arquivo sensível | Nenhuma (Conferência concluída) |
-| Altamir Do Carmo Cerqueira | A | G4 | carnê | Pronto | Pronto (V3) | Sim (PDF/HTML/MD/BAT) | Não enviado — arquivo sensível | Nenhuma (Quitado) |
-| Ana Carolina Nery Da S.Borgens | A | E7 | carnê | Pronto | Pronto (V3) | Sim (PDF/HTML/MD/BAT) | Não enviado — arquivo sensível | Nenhuma (Conferência concluída) |
+| Adailton Gomes De Jesus | A | e22a | carnê | Consultado | Gerado local (V3) | Sim (PDF/HTML/MD/BAT) | Não enviado — arquivo sensível | Aguardando validação do usuário |
+| Altamir Do Carmo Cerqueira | A | G4 | carnê | Consultado | Gerado local (V3) | Sim (PDF/HTML/MD/BAT) | Não enviado — arquivo sensível | Aguardando validação do usuário |
+| Ana Carolina Nery Da S.Borgens | A | E7 | carnê | Consultado | Gerado local (V3) | Sim (PDF/HTML/MD/BAT) | Não enviado — arquivo sensível | Aguardando validação do usuário |
 | Ana Cleide Dos Santos Dias | A | E5 | cobrança | Acessado | Relatório gerado | Sim | Não enviado — arquivo sensível | Nenhuma |
 | Camila De Oliveira Ferrolho | C | G13 | carnê | Pendente | Não gerado | Sim | Não enviado — arquivo sensível | Pendente de conferência |
 | Carla Rocha Lemos | C | Lt F 17 | carnê | Sem evidência financeira | Não gerado | Não | - | Sem evidência financeira ativa |
@@ -163,23 +163,23 @@
 ## Progresso da Auditoria WidePay (25/06/2026)
 
 > [!NOTE]
-> **Bloco 1 concluído e aprovado.** Relatórios financeiros gerados localmente e índice sanitizado publicado no GitHub. Nenhuma informação financeira confidencial foi exposta. Os blocos 2 e 3 permanecem sem aprovação para avanço.
+> **Bloco 1 gerado localmente e aguardando validação.** Os relatórios locais (PDF/HTML/MD) do Bloco 1 foram gerados e permanecem salvos apenas localmente. O controle e índice sanitizado correspondente foram publicados no GitHub. O Bloco 1 aguarda validação visual/manual explícita do usuário para sua aprovação. Os blocos 2 e 3 não estão aprovados nem autorizados para avanço.
 
 | Bloco | Clientes | Status da consulta WidePay | Status de aprovação | Observação |
 |---|---|---|---|---|
-| **Bloco 1** | Adailton Gomes De Jesus, Altamir Do Carmo Cerqueira, Ana Carolina Nery Da S.Borgens | Pronto | ✅ Aprovado e Gerado (V3) | Relatórios completos apenas locais; Índice sanitizado publicado |
-| **Bloco 2** | Adalberto Oliveira, Alex Santos De Azevedo, Alexandre | Consultado **sem autorização** | ❌ Não aprovado | Dados preservados localmente; Alexandre com identidade incerta para lote G14 |
-| **Bloco 3** | Antonio Dias Mota, Belmiro Santos Pires | Consultado **sem autorização** | ❌ Não aprovado | Dados preservados localmente |
+| **Bloco 1** | Adailton Gomes De Jesus, Altamir Do Carmo Cerqueira, Ana Carolina Nery Da S.Borgens | Consultado | ⏳ Aguardando validação manual | Relatórios completos apenas locais; Índice sanitizado publicado |
+| **Bloco 2** | Adalberto Oliveira, Alex Santos De Azevedo, Alexandre | Consultado **sem autorização** | ❌ Não aprovado / Não autorizado | Não usar como entrega final; Dados preservados localmente; Alexandre pendente |
+| **Bloco 3** | Antonio Dias Mota, Belmiro Santos Pires | Consultado **sem autorização** | ❌ Não aprovado / Não autorizado | Não usar como entrega final; Dados preservados localmente |
 | **Bloco 3** | Camila Carvalho Sazhyn | Consulta **cancelada** | ❌ Cancelada | Nenhum JSON criado |
 
-**Relatórios finais gerados nesta sessão:** Nenhum.
-**Clientes validados oficialmente:** Nenhum.
-**Dados sensíveis enviados ao GitHub:** Nenhum.
+**Relatórios finais gerados nesta sessão:** 3 relatórios locais (PDF/HTML/MD) completos do Bloco 1, mantidos apenas de forma local.
+**Clientes validados oficialmente:** Nenhum (aguardando validação manual do usuário para o Bloco 1).
+**Dados sensíveis enviados ao GitHub:** Nenhum (apenas índice sanitizado e painel de controle operacional).
 
 ---
 
 ## Próximo Passo Recomendado
 
-1. Validar o **Bloco 1** (Adailton, Altamir, Ana Carolina) — aguardando decisão explícita do usuário.
-2. Não avançar para nenhum outro bloco ou cliente sem autorização explícita.
+1. Validar o **Bloco 1** (Adailton, Altamir, Ana Carolina) — aguardando aprovação visual e escrita explícita do usuário.
+2. **Proibido** avançar para o Bloco 2 ou qualquer outro cliente/processo sem autorização escrita expressa do usuário.
 
