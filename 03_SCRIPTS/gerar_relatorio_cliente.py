@@ -31,6 +31,31 @@ def extrair_valor_numerico(texto):
     except ValueError:
         return 0.0
 
+def proximo_arquivo_disponivel(caminho_inicial):
+    caminho = Path(caminho_inicial)
+    if not caminho.exists():
+        return caminho
+
+    padrao = re.compile(r"(.*_V)(\d+)(\.[^.]+)$", re.IGNORECASE)
+    match = padrao.match(caminho.name)
+    if not match:
+        base = caminho.stem
+        sufixo = caminho.suffix
+        idx = 2
+        while True:
+            candidato = caminho.with_name(f"{base}_V{idx}{sufixo}")
+            if not candidato.exists():
+                return candidato
+            idx += 1
+
+    prefixo, num, extensao = match.groups()
+    idx = int(num) + 1
+    while True:
+        candidato = caminho.with_name(f"{prefixo}{idx}{extensao}")
+        if not candidato.exists():
+            return candidato
+        idx += 1
+
 def ler_md_conferencia(caminho_md):
     if not os.path.exists(caminho_md):
         print(f"ERRO: Relatorio de conferencia nao encontrado em {caminho_md}")
@@ -237,8 +262,8 @@ def main():
         # Padrão específico da Camila V4 para Etapa 5
         pasta_entrega = ROOT_DIR / "02_RELATORIOS_GERADOS" / "CAMILA_FERROLHO_V4_FINAL"
         os.makedirs(pasta_entrega, exist_ok=True)
-        pdf_saida = ROOT_DIR / "02_RELATORIOS_GERADOS" / "RESUMO_FINANCEIRO_CAMILA_FERROLHO_CORRIGIDO_V4.pdf"
-        html_saida_previa = ROOT_DIR / "02_RELATORIOS_GERADOS" / "RESUMO_FINANCEIRO_CAMILA_FERROLHO_CORRIGIDO_V4_PREVIA.html"
+        pdf_saida = proximo_arquivo_disponivel(ROOT_DIR / "02_RELATORIOS_GERADOS" / "RESUMO_FINANCEIRO_CAMILA_FERROLHO_CORRIGIDO_V4.pdf")
+        html_saida_previa = proximo_arquivo_disponivel(ROOT_DIR / "02_RELATORIOS_GERADOS" / "RESUMO_FINANCEIRO_CAMILA_FERROLHO_CORRIGIDO_V4_PREVIA.html")
     else:
         pasta_entrega = ROOT_DIR / "02_RELATORIOS_GERADOS" / f"{nome_limpo}_V3_FINAL"
         os.makedirs(pasta_entrega, exist_ok=True)

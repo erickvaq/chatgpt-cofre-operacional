@@ -35,47 +35,7 @@ def ler_arquivo(caminho):
 
 
 def termos_atuais_widepay():
-    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    json_path = os.path.join(
-        root_dir,
-        "07_DADOS_TEMPORARIOS",
-        "WIDEPAY_CONSULTAS",
-        "WIDEPAY_CAMILA_DE_OLIVEIRA_FERROLHO.json",
-    )
-    if not os.path.exists(json_path):
-        raise FileNotFoundError(json_path)
-    with open(json_path, "r", encoding="utf-8") as f:
-        dados = json.load(f)
-    totais = dados.get("totais_carnes") or {}
-    pagas = int(totais.get("parcelas_pagas", 0))
-    total_contrato = total_contrato_confirmado()
-    if total_contrato <= 0:
-        raise ValueError(
-            "contrato nao confirmou total de parcelas; nao validar restantes por parcelas geradas no WidePay"
-        )
-    restantes = max(0, total_contrato - pagas)
-    percentual = int((pagas / total_contrato) * 100) if total_contrato else 0
-    return [
-        f"{pagas} de {total_contrato}",
-        f"{restantes} parcelas",
-        f"{percentual}%",
-    ]
-
-
-def total_contrato_confirmado():
-    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    md_path = os.path.join(
-        root_dir,
-        "07_DADOS_TEMPORARIOS",
-        "CONFERENCIA_CALCULOS_CAMILA_DE_OLIVEIRA_FERROLHO.md",
-    )
-    if not os.path.exists(md_path):
-        raise FileNotFoundError(md_path)
-    conteudo = ler_arquivo(md_path)
-    match = re.search(r"Total de parcelas\s*\|\s*\*\*(\d+)\s+parcelas\*\*", conteudo, re.IGNORECASE)
-    if not match:
-        raise ValueError("total de parcelas do contrato nao encontrado na conferencia")
-    return int(match.group(1))
+    raise NotImplementedError("Use validar() com o conteudo do arquivo alvo")
 
 
 def validar(caminho_arquivo):
@@ -85,7 +45,24 @@ def validar(caminho_arquivo):
 
     conteudo_norm = normalizar_texto(ler_arquivo(caminho_arquivo))
     try:
-        termos_obrigatorios = termos_atuais_widepay()
+        if "contrato nao confirmado" in conteudo_norm:
+            raise ValueError("relatorio ainda marcado como contrato nao confirmado")
+
+        match = re.search(r"(\d+)\s+de\s+(\d+)", conteudo_norm)
+        if not match:
+            raise ValueError("nao foi possivel identificar o total de parcelas no relatorio")
+        pagas = int(match.group(1))
+        total_contrato = int(match.group(2))
+        if total_contrato <= 0:
+            raise ValueError("total de parcelas invalido no relatorio")
+
+        restantes = max(0, total_contrato - pagas)
+        percentual = int((pagas / total_contrato) * 100) if total_contrato else 0
+        termos_obrigatorios = [
+            f"{pagas} de {total_contrato}",
+            f"{restantes} parcelas",
+            f"{percentual}%",
+        ]
     except Exception as e:
         print(f"ERRO: validacao bloqueada: {e}")
         return False
