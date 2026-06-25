@@ -10,8 +10,11 @@ Esta skill centraliza as regras de negocio, auditoria financeira, busca de clien
 **WidePay primeiro, contratos depois.**
 Esta ordem tem prioridade acima de qualquer outro fluxo desta skill.
 
+## 0.5 Regra Universal
+Esta skill vale para qualquer cliente especifico, letra unica, intervalo de letras, grupo de clientes, lote, todos os clientes, relatorio individual, relatorio consolidado, levantamento, auditoria, conferencia, lista de pendencias, pagamentos, parcelas, carnes, cobrancas ou boletos.
+
 ## 1. Prioridade
-**Maxima operacional.** Depois da Regra Zero, esta skill sobrescreve orientacoes gerais de desenvolvimento e direciona o fluxo de checagem.
+**Maxima operacional.** Depois da Regra Zero e da Regra Universal, esta skill sobrescreve orientacoes gerais de desenvolvimento e direciona o fluxo de checagem.
 
 ## 2. Quando usar
 * Busca de dados cadastrais e financeiros de clientes do loteamento.
@@ -33,6 +36,7 @@ Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`
 3. **Lista preliminar quando faltar WidePay:** se o WidePay ainda nao foi consultado, qualquer lista baseada em arquivos locais deve receber a marca `LISTA LOCAL PRELIMINAR - PENDENTE DE VALIDACAO WIDEPAY`.
 4. **Consulta segura:** chamar `ensure_widepay_logged_in()` para conectar ao Opera dedicado (`localhost:9444`) e acessar apenas `Recebimentos > Carnes` e `Recebimentos > Cobrancas/Boletos`.
 5. **Arquivo de conferencia:** salvar o log detalhado em `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_[CLIENTE].md`.
+6. **Base estruturada e consolidado:** quando houver mais de um cliente, manter a base local em `07_DADOS_TEMPORARIOS` e garantir que o fluxo consolidado nasça do WidePay antes de qualquer apoio local.
 
 ## 6. Rotinas e scripts relacionados
 * `python 03_SCRIPTS\buscar_cliente.py <nome>`

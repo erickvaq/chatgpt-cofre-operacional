@@ -6,8 +6,9 @@
 * **Regra consolidada:** `REGRAS_PERSISTENTES_DO_PROJETO.md` saiu de 32 regras antigas para 8 blocos operacionais curtos
 * **Precheck atualizado:** nao depende de contagem fixa antiga
 * **Status do precheck:** `REGRAS PERSISTENTES CARREGADAS COM SUCESSO - 9 regras encontradas`
-* **Regra Zero ativa:** WidePay primeiro; contratos locais apenas depois
+* **Regra Universal ativa:** WidePay primeiro para qualquer escopo
 * **Bloqueio local-first:** listas locais sem WidePay ficam preliminares
+* **Consolidado multi-cliente:** planilha xlsx antes do PDF final
 
 ## Commits
 * **Commit da regra consolidada:** `1eae6ce`
@@ -29,4 +30,4 @@
 * **Nao mantido neste painel:** explicacoes antigas, tabelas antigas de clientes, resumo antigo da extracao WidePay e pendencias legadas.
 
 ## Proximo Passo
-* Retomar auditoria WidePay somente depois da aprovacao deste painel.
+* Retomar auditoria WidePay seguindo a Regra Universal.

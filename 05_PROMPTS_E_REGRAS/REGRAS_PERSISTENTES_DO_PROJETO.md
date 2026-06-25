@@ -36,6 +36,72 @@ Excecao permitida:
 
 ---
 
+## REGRA UNIVERSAL - Fluxo padrao universal para relatorios WidePay
+
+Esta regra vale para qualquer:
+- cliente especifico;
+- letra unica;
+- intervalo de letras;
+- grupo de clientes;
+- lote;
+- todos os clientes;
+- relatorio financeiro individual;
+- relatorio financeiro consolidado;
+- levantamento;
+- auditoria;
+- conferencia;
+- lista de pendencias;
+- lista de pagamentos, parcelas, carnes, cobrancas ou boletos.
+
+Fluxo obrigatorio:
+
+1. Precheck e skills
+- carregar `widepay-core-operacional`;
+- carregar `widepay-relatorio-pdf` quando houver HTML, PDF, relatorio visual ou conferencia financeira;
+- carregar `widepay-abertura-externa` quando houver abertura de arquivo ou pasta;
+- rodar `python 00_SISTEMA_PRECHECK\precheck_regras.py`;
+- se o precheck falhar, parar a execucao.
+
+2. WidePay primeiro
+- abrir o Opera dedicado e conectar ao CDP `localhost:9444`;
+- consultar Carnes;
+- consultar Cobrancas/Boletos;
+- identificar clientes com evidencia financeira;
+- consolidar registros repetidos do mesmo cliente/lote;
+- nunca começar por contratos locais;
+- nunca fechar lista oficial por arquivos locais;
+- nunca acessar `Configuracoes > Contatos`.
+
+3. Bloqueio e marcacao
+- se o WidePay nao consultar, marcar `WIDEPAY NAO CONSULTADO - EXECUCAO OFICIAL BLOQUEADA`;
+- se houver busca local por excecao, marcar `LISTA LOCAL PRELIMINAR - PENDENTE DE VALIDACAO WIDEPAY`.
+
+4. Contratos locais depois
+- usar contratos locais apenas como apoio;
+- confirmar lote;
+- confirmar nome completo;
+- conferir contrato fisico;
+- complementar dados ausentes;
+- nunca usar pasta local como fonte principal da lista oficial.
+
+5. Base estruturada
+- criar ou atualizar base local em `07_DADOS_TEMPORARIOS`;
+- separar dados do WidePay, contrato local, inferencias, pendencias e divergencias;
+- nunca inventar valor, data, parcela ou pagamento.
+
+6. Conferencia e entregas
+- gerar conferencia em Markdown (`.md`) antes do PDF final individual;
+- para mais de um cliente, gerar tambem planilha consolidada `.xlsx`;
+- gerar HTML + PDF no padrao visual aprovado;
+- abrir PDF externamente; nao abrir como texto bruto;
+- atualizar o painel publico somente com resumo curto;
+- nao enviar dados sensiveis ao GitHub sem autorizacao.
+
+7. Resposta obrigatoria
+- informar escopo, precheck, WidePay consultado, carnes, cobrancas/boletos, arquivos gerados, painel e pendencias.
+
+---
+
 ## REGRA PRIORITARIA - Fonte principal de instrucoes
 
 Antes de qualquer relatorio, PDF, HTML, DOCX, importacao, conferencia, busca de cliente, painel, script ou entrega final, carregar estas regras via precheck.
@@ -109,7 +175,7 @@ Para cada cliente:
 3. cruzar com contrato local quando existir;
 4. recalcular tudo do zero;
 5. nunca copiar numeros de um cliente para outro;
-6. gerar conferencia `.md` antes do PDF final;
+6. gerar conferencia em Markdown (`.md`) antes do PDF final;
 7. gerar PDF/HTML final somente apos validacao do usuario, quando exigida.
 
 Para pedidos como `A a E`, interpretar como iniciais reais dos nomes dos clientes, nao como quadras.

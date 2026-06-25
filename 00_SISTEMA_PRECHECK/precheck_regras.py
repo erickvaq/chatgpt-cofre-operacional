@@ -166,27 +166,44 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         except Exception as ec:
             erros.append(f"Erro ao ler config_widepay_cdp.py: {ec}")
 
-    caminho_skill = os.path.join(PROJETO_ROOT, ".agents", "skills", "widepay-core-operacional", "SKILL.md")
-    if not os.path.exists(caminho_skill):
-        erros.append("Arquivo SKILL.md da widepay-core-operacional nao foi encontrado")
-    else:
+    skills_a_validar = [
+        (
+            os.path.join(PROJETO_ROOT, ".agents", "skills", "widepay-core-operacional", "SKILL.md"),
+            "SKILL.md da widepay-core-operacional",
+            [
+                ("regra zero", "Regra Zero nao encontrada na skill"),
+                ("regra universal", "A skill nao reforca a Regra Universal"),
+                ("widepay primeiro", "A skill nao reforca WidePay primeiro"),
+                ("contratos locais depois", "A skill nao reforca contratos locais depois"),
+                ("lista local preliminar", "A skill nao marca a lista local como preliminar quando falta WidePay"),
+                ("fluxo local-first bloqueado", "A skill nao bloqueia o fluxo local-first"),
+            ],
+        ),
+        (
+            os.path.join(PROJETO_ROOT, ".agents", "skills", "widepay-relatorio-pdf", "SKILL.md"),
+            "SKILL.md da widepay-relatorio-pdf",
+            [
+                ("regra universal", "A skill de PDF nao reforca a Regra Universal"),
+                ("widepay vem primeiro", "A skill de PDF nao reforca WidePay primeiro"),
+                ("conferencia em markdown", "A skill de PDF nao reforca a conferencia em Markdown"),
+                ("planilha consolidada", "A skill de PDF nao reforca a planilha consolidada"),
+                ("par de entrega", "A skill de PDF nao reforca o par de entrega"),
+            ],
+        ),
+    ]
+
+    for caminho_skill, rotulo_skill, requisitos_skill in skills_a_validar:
+        if not os.path.exists(caminho_skill):
+            erros.append(f"Arquivo {rotulo_skill} nao foi encontrado")
+            continue
         try:
             with open(caminho_skill, "r", encoding="utf-8") as fs:
-                skill_content = fs.read()
-                skill_norm = normalizar_texto(skill_content)
-
-                requisitos_skill = [
-                    ("regra zero", "Regra Zero nao encontrada na skill"),
-                    ("widepay primeiro", "A skill nao reforca WidePay primeiro"),
-                    ("contratos locais depois", "A skill nao reforca contratos locais depois"),
-                    ("lista local preliminar", "A skill nao marca a lista local como preliminar quando falta WidePay"),
-                    ("fluxo local-first bloqueado", "A skill nao bloqueia o fluxo local-first"),
-                ]
+                skill_norm = normalizar_texto(fs.read())
             for termo, msg in requisitos_skill:
                 if termo not in skill_norm:
                     erros.append(msg)
         except Exception as es:
-            erros.append(f"Erro ao ler SKILL.md da widepay-core-operacional: {es}")
+            erros.append(f"Erro ao ler {rotulo_skill}: {es}")
 
     regra_zero_pos = conteudo_norm.find("## regra zero")
     regra_prioritaria_pos = conteudo_norm.find("## regra prioritaria")
@@ -206,6 +223,24 @@ def executar_precheck(script_chamador="Script Desconhecido"):
             erros.append("REGRA ZERO esta incompleta (esperado termo: 'lista local preliminar')")
         if "fluxo local-first bloqueado" not in conteudo_norm:
             erros.append("REGRA ZERO esta incompleta (esperado termo: 'fluxo local-first bloqueado')")
+
+    regra_universal_pos = conteudo_norm.find("## regra universal")
+    if regra_universal_pos == -1:
+        erros.append("REGRA UNIVERSAL (fluxo padrao universal para relatorios WidePay) nao foi encontrada")
+    else:
+        requisitos_regra_universal = [
+            ("cliente especifico", "REGRA UNIVERSAL esta incompleta (esperado termo: 'cliente especifico')"),
+            ("intervalo de letras", "REGRA UNIVERSAL esta incompleta (esperado termo: 'intervalo de letras')"),
+            ("grupo de clientes", "REGRA UNIVERSAL esta incompleta (esperado termo: 'grupo de clientes')"),
+            ("widepay primeiro", "REGRA UNIVERSAL esta incompleta (esperado termo: 'widepay primeiro')"),
+            ("lista local preliminar", "REGRA UNIVERSAL esta incompleta (esperado termo: 'lista local preliminar')"),
+            ("planilha consolidada", "REGRA UNIVERSAL esta incompleta (esperado termo: 'planilha consolidada')"),
+            ("conferencia em markdown", "REGRA UNIVERSAL esta incompleta (esperado termo: 'conferencia em markdown')"),
+            ("painel publico", "REGRA UNIVERSAL esta incompleta (esperado termo: 'painel publico')"),
+        ]
+        for termo, msg in requisitos_regra_universal:
+            if termo not in conteudo_norm:
+                erros.append(msg)
 
     if erros:
         msg_erros = "; ".join(erros)
