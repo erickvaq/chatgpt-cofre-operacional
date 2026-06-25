@@ -1,10 +1,11 @@
-# Lista de Tarefas - Auditoria e Envio GitHub
+# Lista de Tarefas - Registro e Execução da Regra 31
 
-- `[ ]` Criar arquivo `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/AUDITORIA_EXECUCAO_WIDEPAY_ATUAL_20260622.md`
-- `[ ]` Executar precheck de regras para verificar integridade (30 regras)
-- `[ ]` Copiar `implementation_plan.md`, `task.md` e `walkthrough.md` para `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/` (REGRA 25)
-- `[ ]` Obter informações do Git (`git status`, `git remote -v`, `git log`)
+- `[ ]` Registrar `REGRA 31 — ESPELHO OPERACIONAL LEVE NO GITHUB` em `REGRAS_PERSISTENTES_DO_PROJETO.md`
+- `[ ]` Registrar a regra no final do arquivo `REGRA-BASE — RELATÓRIOS FINANCEIROS WIDEPAY...md`
+- `[ ]` Adicionar verificação da REGRA 31 no script `00_SISTEMA_PRECHECK/precheck_regras.py`
+- `[ ]` Criar `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md`
+- `[ ]` Executar o precheck standalone para validar as 31 regras
+- `[ ]` Copiar logs do Antigravity para `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/` (Regra 25)
 - `[ ]` Adicionar arquivos ao Git (excluindo relatórios financeiros de clientes)
-- `[ ]` Fazer commit e push dos arquivos permitidos
-- `[ ]` Registrar dados finais de Git e push no relatório de auditoria
-- `[ ]` Apresentar os resultados e links no chat
+- `[ ]` Executar commit e push
+- `[ ]` Apresentar os resultados, caminhos e links do GitHub no chat

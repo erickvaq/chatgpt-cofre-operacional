@@ -1,45 +1,39 @@
 # RESUMO DA EXECUÇÃO ATUAL
 
-Data/hora: 22/06/2026 21:05
-Comando do usuário: Correção do resumo operacional e controle de execução atual
-Objetivo: Atualizar o checkpoint com relatórios e planilhas de teste já gerados
+Data/hora: 24/06/2026 21:25
+Comando do usuário: Criação e manutenção do controle paralelo leve no GitHub (Regra 31)
+Objetivo: Registrar e implementar a Regra 31 e o Painel Operacional no GitHub
 
 ## Feito
-- Conexão e login seguro estabelecidos no WidePay (via coordenadas).
-- Registro e precheck das Regras 26, 27, 28, 29 e 30 concluídos.
-- Varredura de cobertura A a E rodada sem acessar a área de contatos (limitada a Carnês e Cobranças/Boletos).
-- Geração dos relatórios de teste individuais em PDF, HTML e Markdown de conferência.
-- Geração da planilha consolidada de teste.
+- Backups de regras e scripts realizados.
+- REGRA 26 e REGRA-BASE atualizadas para remover "contatos" do WidePay.
+- Script `extrair_tudo_cobertura.py` modificado para escanear todas as quadras locais e filtrar estritamente por iniciais A-E.
+- REGRA 31 (Espelho Operacional Leve no GitHub) registrada em `REGRAS_PERSISTENTES_DO_PROJETO.md` e `REGRA-BASE...md`.
+- Verificação da REGRA 31 adicionada ao script `00_SISTEMA_PRECHECK/precheck_regras.py`.
+- Precheck standalone executado (31 regras validadas com sucesso).
+- Criado o painel de controle operacional `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md`.
 
-## Clientes processados
-| Cliente | Lote | Status | Arquivo PDF | Arquivo HTML | MD de Conferência |
-|---|---|---|---|---|---|
-| Ana Cleide dos Santos Dias | E5 | Pronto | [RESUMO_FINANCEIRO_ANA_CLEIDE_DOS_SANTOS_DIAS_CORRIGIDO_V1.pdf](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_VALIDACAO_A_E/RESUMO_FINANCEIRO_ANA_CLEIDE_DOS_SANTOS_DIAS_CORRIGIDO_V1.pdf) | [RESUMO_FINANCEIRO_ANA_CLEIDE_DOS_SANTOS_DIAS_CORRIGIDO_V1_PREVIA.html](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_VALIDACAO_A_E/RESUMO_FINANCEIRO_ANA_CLEIDE_DOS_SANTOS_DIAS_CORRIGIDO_V1_PREVIA.html) | [CONFERENCIA_CALCULOS_ANA_CLEIDE_DOS_SANTOS_DIAS.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ANA_CLEIDE_DOS_SANTOS_DIAS.md) |
-| Ana Carolina Nery da S. Borgens | E7 | Pronto | [RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S_BORGENS_CORRIGIDO_V1.pdf](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_VALIDACAO_A_E/RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S_BORGENS_CORRIGIDO_V1.pdf) | [RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S_BORGENS_CORRIGIDO_V1_PREVIA.html](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_VALIDACAO_A_E/RESUMO_FINANCEIRO_ANA_CAROLINA_NERY_DA_S_BORGENS_CORRIGIDO_V1_PREVIA.html) | [CONFERENCIA_CALCULOS_ANA_CAROLINA_NERY_DA_S_BORGENS.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ANA_CAROLINA_NERY_DA_S_BORGENS.md) |
-| Eliel Hora Santana | E12 | Pronto | [RESUMO_FINANCEIRO_ELIEL_HORA_SANTANA_CORRIGIDO_V1.pdf](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_VALIDACAO_A_E/RESUMO_FINANCEIRO_ELIEL_HORA_SANTANA_CORRIGIDO_V1.pdf) | [RESUMO_FINANCEIRO_ELIEL_HORA_SANTANA_CORRIGIDO_V1_PREVIA.html](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_VALIDACAO_A_E/RESUMO_FINANCEIRO_ELIEL_HORA_SANTANA_CORRIGIDO_V1_PREVIA.html) | [CONFERENCIA_CALCULOS_ELIEL_HORA_SANTANA.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_ELIEL_HORA_SANTANA.md) |
+## Clientes processados (Iniciais A a E de todas as Quadras)
+| Cliente | Lote | Status | Arquivo de Check |
+|---|---|---|---|
+| Clientes Iniciais A a E | Vários | Verificados | [CHECAGEM_COBERTURA_A_E.md](file:///c:/Users/Windows%20User/Desktop/chatgpt projetos/Relatorio_WidePay_Lotes/07_DADOS_TEMPORARIOS/CHECAGEM_COBERTURA_A_E.md) |
 
 ## Arquivos criados/alterados
-| Arquivos / Pasta | Tipo | Caminho | Status |
+| Arquivo | Tipo | Caminho | Status |
 |---|---|---|---|
-| `TESTE_VALIDACAO_A_E` | Pasta Relatórios | [TESTE_VALIDACAO_A_E](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/02_RELATORIOS_GERADOS/TESTE_VALIDACAO_A_E) | Pronto (Local) |
-| `PLANILHA_TESTE_VALIDACAO_A_E_20260622.xlsx` | Planilha Geral | [PLANILHA_TESTE_VALIDACAO_A_E_20260622.xlsx](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/03_PLANILHAS/PLANILHA_TESTE_VALIDACAO_A_E_20260622.xlsx) | Pronto (Local) |
-| `REGRAS_PERSISTENTES_DO_PROJETO.md` | Regras | [REGRAS_PERSISTENTES_DO_PROJETO.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md) | Alterado (Local) |
-| `REGRA-BASE...md` | Regras | [REGRA-BASE...md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRA-BASE%20%E2%80%94%20RELAT%C3%93RIOS%20FINANCEIROS%20WIDEPAY%20%E2%80%94%20PROCESSO%20EFICIENTE%20E%20REPLIC%C3%81VEL.md) | Alterado (Local) |
-| `RESUMO_REGRAS_OPERACIONAIS_WIDEPAY.md` | Regras | [RESUMO_REGRAS_OPERACIONAIS_WIDEPAY.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/RESUMO_REGRAS_OPERACIONAIS_WIDEPAY.md) | Criado (Local) |
+| `REGRAS_PERSISTENTES_DO_PROJETO.md` | Regras | [REGRAS_PERSISTENTES_DO_PROJETO.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md) | Modificado (Local) |
+| `REGRA-BASE...md` | Regras | [REGRA-BASE...md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRA-BASE%20%E2%80%94%20RELAT%C3%93RIOS%20FINANCEIROS%20WIDEPAY%20%E2%80%94%20PROCESSO%20EFICIENTE%20E%20REPLIC%C3%81VEL.md) | Modificado (Local) |
+| `precheck_regras.py` | Script | [precheck_regras.py](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/00_SISTEMA_PRECHECK/precheck_regras.py) | Modificado (Local) |
+| `PAINEL_OPERACIONAL_WIDEPAY.md` | Dashboard | [PAINEL_OPERACIONAL_WIDEPAY.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md) | Criado (Local) |
+| `extrair_tudo_cobertura.py` | Script | [extrair_tudo_cobertura.py](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/scratch/extrair_tudo_cobertura.py) | Modificado (Local) |
+| `RESUMO_EXECUCAO_ATUAL.md` | Log | [RESUMO_EXECUCAO_ATUAL.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md) | Modificado (Local) |
 
 ## Controle GitHub
-### Arquivos apenas locais (Sem Commit/Push)
-* Todos os arquivos e pastas criados acima.
-* **Motivo:** Aguardando instrução explícita do usuário para versionamento e commit.
-
-### Arquivos enviados ao GitHub
-* Nenhum arquivo novo ou alterado foi enviado ao repositório remoto nesta etapa.
+- **Status do Commit/Push:** Preparando commit e push para o repositório remoto.
+- **Arquivos locais modificados:** Listados na tabela acima.
 
 ## Pendências
-- Revisar visualmente os relatórios de teste (PDF e HTML).
-- Corrigir a checagem A a E para não confundir iniciais de nomes com quadras.
-- Confirmar cobertura real pelo WidePay usando apenas Carnês e Cobranças/Boletos.
-- Decidir se os relatórios de teste serão aprovados, corrigidos ou descartados.
+- Realizar commit/push das alterações não sensíveis.
 
 ## Próximo passo recomendado
-- Abrir a pasta de relatórios de teste `02_RELATORIOS_GERADOS\TESTE_VALIDACAO_A_E` no Windows Explorer para revisão visual.
+- Realizar o git commit e git push e apresentar os resultados no chat.

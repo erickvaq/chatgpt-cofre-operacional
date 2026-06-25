@@ -364,29 +364,31 @@ async def main():
     
     # (Área de Contatos ignorada por questões de segurança e escopo conforme a REGRA 29)
     
-    # --- D. ESCANEAMENTO LOCAL DE PASTAS DE CONTRATOS (QUADRAS A a E) ---
-    print("\n[LOCAL] Escaneando pastas locais de contratos para Quadras A a E...")
+    # --- D. ESCANEAMENTO LOCAL DE PASTAS DE CONTRATOS ---
+    print("\n[LOCAL] Escaneando pastas locais de contratos para iniciais A a E...")
     clientes_locais = []
     
     if os.path.exists(PASTA_CONTRATOS):
-        for q in quadras_ae:
-            caminho_q = os.path.join(PASTA_CONTRATOS, q)
-            if os.path.exists(caminho_q):
+        for item in os.listdir(PASTA_CONTRATOS):
+            caminho_q = os.path.join(PASTA_CONTRATOS, item)
+            if os.path.isdir(caminho_q) and "quadra" in item.lower():
                 for pasta_cliente in os.listdir(caminho_q):
                     caminho_c = os.path.join(caminho_q, pasta_cliente)
                     if os.path.isdir(caminho_c):
                         nome_limpo = limpar_nome_cliente(pasta_cliente)
-                        # Tentar extrair lote/quadra da pasta
-                        lotes_m = re.findall(r'\b[A-E]\d+\b', pasta_cliente, flags=re.IGNORECASE)
-                        lote_str = ", ".join(lotes_m) if lotes_m else "Não identificado"
-                        
-                        clientes_locais.append({
-                            "original_dir": pasta_cliente,
-                            "nome": nome_limpo,
-                            "quadra": q.replace("QUADRA ", ""),
-                            "lote": lote_str
-                        })
-    print(f"[LOCAL] Encontrados {len(clientes_locais)} clientes físicos nas quadras A a E.")
+                        # Filtrar estritamente apenas iniciais A a E
+                        if nome_limpo and nome_limpo[0].upper() in ["A", "B", "C", "D", "E"]:
+                            # Tentar extrair lote/quadra da pasta
+                            lotes_m = re.findall(r'\b[A-H]\d+\b', pasta_cliente, flags=re.IGNORECASE)
+                            lote_str = ", ".join(lotes_m) if lotes_m else "Não identificado"
+                            
+                            clientes_locais.append({
+                                "original_dir": pasta_cliente,
+                                "nome": nome_limpo,
+                                "quadra": item.upper().replace("QUADRA", "").strip(),
+                                "lote": lote_str
+                            })
+    print(f"[LOCAL] Encontrados {len(clientes_locais)} clientes físicos com iniciais A a E nas quadras locais.")
     
     # --- E. CONSOLIDAÇÃO E CRUZAMENTO (A a E) ---
     print("\nCruzando e classificando todos os registros...")
@@ -450,17 +452,19 @@ async def main():
             consolidado_clientes[encontrado_key]["pasta_local"] = cl["original_dir"]
         else:
             # Cliente local não encontrado no WidePay!
-            key = nome_norm
-            consolidado_clientes[key] = {
-                "nome_widepay": cl["nome"],
-                "lotes_widepay": set(),
-                "fontes_widepay": set(["-"]),
-                "statuses_widepay": set(["Sem Evidência"]),
-                "contrato_local": "Sim",
-                "lote_local": cl["lote"],
-                "quadra_local": cl["quadra"],
-                "pasta_local": cl["original_dir"]
-            }
+            # Dupla checagem da inicial para segurança absoluta
+            if cl["nome"] and cl["nome"][0].upper() in ["A", "B", "C", "D", "E"]:
+                key = nome_norm
+                consolidado_clientes[key] = {
+                    "nome_widepay": cl["nome"],
+                    "lotes_widepay": set(),
+                    "fontes_widepay": set(["-"]),
+                    "statuses_widepay": set(["Sem Evidência"]),
+                    "contrato_local": "Sim",
+                    "lote_local": cl["lote"],
+                    "quadra_local": cl["quadra"],
+                    "pasta_local": cl["original_dir"]
+                }
 
     # Classificação conforme as regras operacionais:
     # - Ativo confirmado: tem carnê/cobrança no WidePay em aberto, vencido ou recebido (não-cancelado/inativo)

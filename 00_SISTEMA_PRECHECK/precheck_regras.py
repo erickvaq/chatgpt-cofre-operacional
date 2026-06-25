@@ -152,7 +152,8 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         27: ("login widepay com autopreenchimento seguro do navegador", "quando o widepay abrir na tela de login"),
         28: ("foco no resultado final: relatorios de todos os clientes com eficiencia", "o objetivo principal dos fluxos do widepay nao e narrar cada etapa"),
         29: ("nao acessar configuracoes/contatos do widepay para relatorios", "dados bancarios"),
-        30: ("resumo operacional leve e controle de execucao", "resumo_execucao_atual.md")
+        30: ("resumo operacional leve e controle de execucao", "resumo_execucao_atual.md"),
+        31: ("espelho operacional leve no github", "painel_operacional_widepay.md")
     }
     
     conteudo_norm = normalizar_texto(conteudo)

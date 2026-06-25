@@ -782,5 +782,107 @@ Sempre separar:
 Manter o processo rápido, rastreável e eficiente.
 O Antigravity/Codex deve entregar os relatórios e resultados ao usuário, sem transformar cada etapa em leitura longa de arquivos, logs enormes ou explicações técnicas desnecessárias.
 
+---
 
+# REGRA — ESPELHO OPERACIONAL LEVE NO GITHUB
 
+## Princípio principal
+
+O GitHub deve funcionar como um painel de controle leve do projeto, não como uma duplicação pesada da pasta local.
+O controle deve ser: leve, objetivo, rápido de atualizar, fácil de revisar, sem logs gigantes, sem excesso de texto, sem duplicação de dados sensíveis, sem interferir na execução principal e sem criar arquivos novos sem necessidade.
+O objetivo final continua sendo entregar relatórios financeiros corretos dos clientes, não criar burocracia.
+
+## Arquivo principal obrigatório
+
+Criar ou manter atualizado:
+`05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md`
+Esse será o arquivo principal para o ChatGPT revisar o andamento do projeto pelo GitHub. Ele deve conter apenas informações essenciais.
+
+## Conteúdo mínimo do painel
+
+O painel deve informar:
+1. Data da última atualização;
+2. Último comando executado;
+3. Estado atual do processo;
+4. Último commit;
+5. Branch atual;
+6. Link GitHub do próprio painel;
+7. Clientes já acessados;
+8. Clientes com relatório gerado;
+9. Clientes pendentes;
+10. Clientes sem evidência financeira no WidePay;
+11. Arquivos locais sensíveis não enviados ao GitHub;
+12. Arquivos enviados ao GitHub;
+13. Erros identificados;
+14. Correções aplicadas;
+15. Se a entrega atual está completa, parcial ou pendente;
+16. Próximo passo recomendado.
+
+## Controle de clientes
+
+Manter no painel uma tabela curta:
+| Cliente | Inicial | Lote | Fonte WidePay | Status WidePay | Relatório | Arquivo local | GitHub | Pendência |
+|---|---|---|---|---|---|---|---|---|
+
+Status permitidos: `Acessado`, `Não acessado`, `Relatório gerado`, `Pendente`, `Sem evidência financeira`, `Erro`, `Revisar`, `Pronto`, `Parcial`.
+
+## Resumo do que foi extraído do WidePay
+
+O painel deve conter uma seção chamada `RESUMO DA EXTRAÇÃO WIDEPAY`. Essa seção deve informar, de forma resumida e sem expor dados financeiros sensíveis:
+* data da extração;
+* áreas consultadas (Carnês e Cobranças/Boletos);
+* clientes encontrados e não encontrados;
+* clientes com carnê e com cobrança/boleto;
+* clientes com dados parciais ou que precisam de conferência individual;
+* erros ou limitações da extração;
+* se a cobertura foi completa ou incompleta.
+
+Não incluir valores financeiros detalhados no GitHub sem autorização. Se necessário, usar termos como: "há parcelas vencidas", "há carnês ativos", "dados financeiros sensíveis mantidos localmente".
+
+## Conferência do que foi pedido x entregue
+
+O painel deve conter uma seção `PEDIDO DO USUÁRIO X ENTREGA` com a tabela:
+| Pedido do usuário | Entregue? | Arquivo/resultado | Status | Pendência |
+|---|---|---|---|---|
+
+Isso é obrigatório para evitar que se declare concluído um pedido que foi apenas parcialmente entregue.
+
+## Arquivos locais sensíveis
+
+Arquivos com dados financeiros ou pessoais de clientes não devem ser enviados ao GitHub sem autorização expressa (PDFs, HTMLs de relatórios, planilhas XLSX, contratos, JSONs do WidePay, caches). Registrar apenas a existência desses arquivos no painel usando:
+`Não enviado — arquivo sensível` no campo de status do GitHub.
+
+## Arquivos permitidos no GitHub
+
+Podem ser enviados ao GitHub: regras, scripts, precheck, auditorias sem dados financeiros pessoais, resumos operacionais, painel operacional, registros de processo, mapas técnicos e históricos de erros.
+
+## Não criar arquivos novos sem necessidade
+
+Antes de criar um novo arquivo de controle, verificar se o `PAINEL_OPERACIONAL_WIDEPAY.md` já resolve. Evitar logs pequenos ou auditorias longas redundantes.
+
+## Erros críticos que não podem se repetir
+
+Manter no painel uma seção `ERROS CRÍTICOS QUE NÃO PODEM SE REPETIR` com os itens:
+1. Não confundir iniciais dos nomes com quadras;
+2. `A a E` significa iniciais dos nomes dos clientes, não quadras;
+3. Não usar contratos locais como fonte principal;
+4. Não acessar `Configurações > Contatos`;
+5. Usar apenas `Carnês` e `Cobranças/Boletos` no WidePay;
+6. Não criar timers repetidos;
+7. Não gerar arquivos finais sem autorização;
+8. Não enviar dados financeiros sensíveis ao GitHub sem autorização;
+9. Não calcular total pago geral usando apenas um carnê quando houver vários;
+10. Não inventar valores, datas, parcelas, clientes ou lotes.
+
+## Fluxo após cada etapa importante
+
+Depois de concluir uma etapa importante:
+1. Atualizar o `PAINEL_OPERACIONAL_WIDEPAY.md`;
+2. Registrar apenas o essencial;
+3. Separar arquivos locais sensíveis dos permitidos;
+4. Fazer commit/push apenas dos arquivos não sensíveis;
+5. Informar no chat os links e status atualizados.
+
+## Segurança obrigatória
+
+Não enviar ao GitHub dados financeiros ou pessoais de clientes sem autorização expressa. Se o arquivo for sensível, registrar como `Não enviado — arquivo sensível`.
