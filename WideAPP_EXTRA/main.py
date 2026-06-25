@@ -61,7 +61,9 @@ class WideApp:
         self.log("VALIDACAO: iniciada")
         falhas = []
 
-        if Path(sys.executable).resolve() != VENV_PYTHON.resolve():
+        exe_path = Path(sys.executable).resolve()
+        expected_path = VENV_PYTHON.resolve()
+        if exe_path.parent != expected_path.parent or exe_path.name.lower() not in ("python.exe", "pythonw.exe"):
             falhas.append(f"Python incorreto: {sys.executable}. Use {VENV_PYTHON}.")
         else:
             self.log(f"OK: Python do .venv em uso: {sys.executable}")
