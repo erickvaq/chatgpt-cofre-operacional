@@ -86,6 +86,7 @@ def executar_cliente(registro, log_callback=None):
         text=True,
         encoding="utf-8",
         errors="replace",
+        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
     )
     with open(log_path, "a", encoding="utf-8") as f:
         for line in proc.stdout or []:
@@ -167,6 +168,7 @@ def executar_lote(registros, grupo="SELECIONADOS", log_callback=None):
             text=True,
             encoding="utf-8",
             errors="replace",
+            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
         )
         with open(log_path, "a", encoding="utf-8") as f:
             for i, line in enumerate(proc.stdout or []):
