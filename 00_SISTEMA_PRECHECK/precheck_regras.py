@@ -105,7 +105,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         registrar_log(script_chamador, "ERRO", len(unicos), f"Duplicidade nas regras: {duplicadas}")
         sys.exit(1)
 
-    esperados = list(range(1, 10))
+    esperados = list(range(1, 11))
     if unicos != esperados:
         print(f"ERRO: Numeracao das regras inconsistente. Esperado {esperados}, encontrado {unicos}.")
         registrar_log(script_chamador, "ERRO", len(unicos), f"Numeracao inconsistente: {unicos}")
@@ -122,6 +122,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         7: ("painel operacional", "painel operacional widepay"),
         8: ("economia operacional, skills e precheck", "precheck_regras.py"),
         9: ("painel operacional publico sempre limpo e verificado", "github normal"),
+        10: ("github como procedimento padrao de conferencia", "procedimento padrao obrigatorio"),
     }
 
     erros = []

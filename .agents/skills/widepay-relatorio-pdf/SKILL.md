@@ -1,10 +1,25 @@
-﻿---
+---
 name: widepay-relatorio-pdf
-description: Usar sempre que o pedido envolver relatorio financeiro, PDF, HTML, tabela, resumo financeiro, padrao visual ou conferencia antes de PDF.
+description: Usar sempre que o pedido envolver relatório financeiro, PDF, HTML, tabela, resumo financeiro, padrão visual ou conferência antes de PDF.
 ---
 # Skill: widepay-relatorio-pdf
 
-Esta skill define as regras de formatacao, layout visual e calculo matematico dos relatorios consolidados em HTML e PDF do projeto `Relatorio_WidePay_Lotes`.
+Esta skill define as regras de formatação, layout visual e cálculo matemático dos relatórios financeiros do projeto `Relatorio_WidePay_Lotes`.
+
+## 0.1 Formato principal de entrega: Excel (.xlsx)
+A partir de 2026-06-25, o formato principal de entrega de relatórios financeiros é **planilha Excel (.xlsx)**.
+PDF e HTML são formatos secundários, gerados **somente quando o usuário pedir expressamente**.
+
+O Excel deve conter 5 abas obrigatórias:
+1. **Resumo**: dados do cliente, lote, contrato, totais, percentuais e situação.
+2. **Pagamentos Recebidos**: somente registros com status Recebido/Pago e valor > R$ 0,00.
+3. **Interpretação das Parcelas**: cada recebimento interpretado individualmente.
+4. **Validação**: checagens matemáticas cruzadas.
+5. **Alertas**: divergências e referências não identificadas (criada somente se houver).
+
+Não listar na aba principal: Vencido, Aguardando, Cancelado, R$ 0,00.
+
+Script principal: `python 03_SCRIPTS\gerar_relatorio_excel.py`
 
 ## 0. Regra Universal
 Esta skill vale para qualquer cliente especifico, letra unica, intervalo de letras, grupo de clientes, lote, todos os clientes, relatorio financeiro individual ou consolidado.
@@ -25,7 +40,7 @@ Se o WidePay real ainda nao foi aberto, a geracao visual deve parar antes de qua
 * Login no WidePay ou extracoes via CDP (usar `widepay-core-operacional`).
 
 ## 4. Gatilhos de ativacao
-Palavras-chave: `gerar PDF`, `relatorio final`, `layout visual`, `cards de resumo`, `previa HTML`, `gerar consolidado`.
+Palavras-chave: `gerar PDF`, `relatorio final`, `layout visual`, `cards de resumo`, `previa HTML`, `gerar consolidado`, `gerar Excel`, `gerar XLSX`.
 
 ## 5. Fluxo obrigatorio
 1. **Conferencia previa:** verificar se o arquivo de conferencia `.md` em `07_DADOS_TEMPORARIOS` ja foi criado e aprovado pelo usuario.
@@ -36,22 +51,23 @@ Palavras-chave: `gerar PDF`, `relatorio final`, `layout visual`, `cards de resum
 6. **Par de entrega:** sempre gerar os arquivos em par (PDF + Previa HTML) no mesmo diretorio de destino.
 7. **Consolidado multi-cliente:** quando o pedido envolver mais de um cliente, exigir que a base consolidada e a planilha `.xlsx` ja existam antes do fechamento do PDF final.
 8. **Parcelas restantes pelo contrato:** calcular restantes somente por total de parcelas do contrato confirmado menos parcelas pagas; se o contrato nao confirmar o total, bloquear PDF/HTML final.
-9. **Total pago do terreno/lote:** o valor pago no card principal e no resumo final deve representar o total pago do terreno/lote, somando carnÃªs pagos e cobranÃ§as/boletos recebidos do mesmo cliente.
+9. **Total pago do terreno/lote:** o valor pago no card principal e no resumo final deve representar o total pago do terreno/lote, somando carnês pagos e cobranças/boletos recebidos do mesmo cliente.
 10. **Cobrancas/boletos visiveis:** o PDF e o HTML devem listar as cobrancas/boletos pagos ou em aberto encontrados no WidePay, alem dos carnes.
 11. **Pagamentos interpretados:** todo PDF/HTML/XLSX/Markdown final deve conter a tabela `Pagamentos Recebidos Interpretados`, calculada recebimento por recebimento.
 12. **Percentuais separados:** percentual de parcelas quitadas usa total de parcelas do contrato; percentual financeiro pago usa total recebido dividido pelo valor total contratado do terreno/lote.
 
 ## 6. Rotinas e scripts relacionados
-* `python 03_SCRIPTS\gerar_pdf_camila_v2.py`
-* `python 03_SCRIPTS\gerar_relatorio_cliente.py`
-* `python 03_SCRIPTS\gerar_conferencia_cliente.py`
+* `python 03_SCRIPTS\gerar_relatorio_excel.py` — **gerador principal** (Excel .xlsx com 5 abas)
+* `python 03_SCRIPTS\gerar_pdf_camila_v2.py` — gerador de PDF (secundário, somente sob demanda)
+* `python 03_SCRIPTS\gerar_relatorio_cliente.py` — gerador legado (mantido para compatibilidade)
+* `python 03_SCRIPTS\gerar_conferencia_cliente.py` — conferência prévia em Markdown
 
 ## 7. Logs obrigatorios
-Ao gerar o PDF/HTML:
+Ao gerar o Excel/PDF/HTML:
 ```text
 SKILL CARREGADA: widepay-relatorio-pdf
-PRODUTO GERADO: HTML de previa e PDF criados na mesma pasta
-VALIDACAO VISUAL: cards de tres colunas e barra de progresso aplicados
+PRODUTO GERADO: Excel .xlsx com 5 abas (ou HTML/PDF sob demanda)
+VALIDACAO: aba de validacao matematica com 8 checagens
 ```
 
 ## 8. Erros proibidos
@@ -61,12 +77,12 @@ VALIDACAO VISUAL: cards de tres colunas e barra de progresso aplicados
 * **ERRO 4:** Expor dados de parcelas e valores financeiros no GitHub publico (dados sensiveis devem ficar apenas locais).
 * **ERRO 5:** Fechar PDF final sem conferencia previa e sem base consolidada quando o pedido envolver mais de um cliente.
 * **ERRO 6:** Usar parcelas geradas no WidePay como se fossem total do contrato para calcular restantes.
-* **ERRO 7:** Exibir um total pago genÃ©rico quando o relatÃ³rio precisa representar o total pago do terreno/lote.
+* **ERRO 7:** Exibir um total pago genérico quando o relatório precisa representar o total pago do terreno/lote.
 * **ERRO 8:** Omitir cobrancas/boletos pagos ou em aberto do PDF/HTML quando eles existem na conferencia WidePay.
 * **ERRO 9:** Gerar PDF/HTML final sem a tabela `Pagamentos Recebidos Interpretados`.
 * **ERRO 10:** Misturar percentual financeiro pago com percentual de parcelas quitadas.
 
-## 9. CritÃ©rios de validaÃ§Ã£o
+## 9. Critérios de validação
 * Tabela de carnes informando ID, referencia, valor da parcela, parcelas geradas/pagas, total recebido e status.
 * Total Geral Pago identico ao somatorio de todos os carnes e boletos avulsos pagos do WidePay.
 * Parcelas restantes compativeis somente com contrato fisico/local confirmado.
@@ -76,6 +92,6 @@ VALIDACAO VISUAL: cards de tres colunas e barra de progresso aplicados
 
 ## 11. Exemplos curtos de decisao
 * *Cenario:* O relatorio do cliente "Adailton" de E22A foi aprovado pelo usuario.
-* *Decisao:* Gerar `02_RELATORIOS_GERADOS/Adailton_Resumo_V1.pdf` e `02_RELATORIOS_GERADOS/Adailton_Resumo_V1_PREVIA.html` simultaneamente e abrir a pasta de destino no Windows Explorer.
+* *Decisao:* Gerar `02_RELATORIOS_GERADOS/RELATORIO_FINANCEIRO_CLIENTE_ADAILTON_LOTE_E22A_*.xlsx` e abrir a pasta de destino no Windows Explorer.
 * *Cenario:* O usuario pede o PDF consolidado sem passar pela validacao de Markdown.
 * *Decisao:* Parar, emitir um alerta informando a necessidade do precheck em Markdown e aguardar aprovacao dos valores no chat.

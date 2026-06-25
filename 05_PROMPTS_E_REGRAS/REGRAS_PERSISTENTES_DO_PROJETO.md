@@ -1,4 +1,4 @@
-﻿# REGRAS PERSISTENTES DO PROJETO - Relatorio_WidePay_Lotes
+# REGRAS PERSISTENTES DO PROJETO - Relatorio_WidePay_Lotes
 # Atualizado em: 2026-06-25
 ---
 
@@ -433,6 +433,31 @@ Marcadores proibidos quando o painel estiver em modo limpo:
 
 Pos-push obrigatorio:
 - conferir o arquivo publicado no GitHub normal;
+
+O arquivo `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md` e o painel publico oficial usado para revisar o estado do projeto.
+
+Sempre que o Antigravity alterar, consolidar, limpar ou atualizar esse painel, deve:
+1. atualizar o painel local;
+2. remover conteudo legado que possa confundir a revisao;
+3. rodar precheck;
+4. fazer commit;
+5. fazer push;
+6. conferir o conteudo publicado no GitHub apos o push;
+7. so entao declarar a tarefa concluida.
+
+Marcadores proibidos quando o painel estiver em modo limpo:
+- `19 x 21`;
+- `Heron Souza Dias`;
+- `cb8c5c8`;
+- `RESUMO DA EXTRAÃ‡ÃƒO WIDEPAY`;
+- tabelas antigas de clientes A a E;
+- auditoria antiga;
+- pendencias antigas ja substituidas;
+- commits antigos apresentados como estado atual;
+- qualquer informacao que contradiga o estado final informado no chat.
+
+Pos-push obrigatorio:
+- conferir o arquivo publicado no GitHub normal;
 - conferir o raw, quando possivel;
 - so declarar conclusao se o painel publico realmente mostrar a versao nova.
 
@@ -440,3 +465,80 @@ Se o painel local estiver correto, mas o painel publico ainda mostrar conteudo a
 
 Resposta obrigatoria nesse caso:
 `O painel local foi atualizado, mas o painel pÃºblico ainda nÃ£o reflete a versÃ£o limpa. Vou corrigir sincronizaÃ§Ã£o, branch, commit ou push antes de declarar concluÃ­do.`
+
+---
+
+## REGRA 10 - GitHub como procedimento padrão de conferência
+# Adicionada em: 2026-06-25 — regra permanente e obrigatória
+
+O GitHub é o padrão obrigatório de rastreabilidade e conferência do projeto.
+
+Esta regra é ativada automaticamente. Não depende de o usuário pedir.
+Não é opcional. Não depende de "suba para o GitHub" posterior.
+
+### 10.1 — O que entra obrigatoriamente no GitHub
+
+Entram sem exceção, se não tiverem dados sensíveis em texto aberto:
+- scripts (.py, .bat, .ps1, .vbs);
+- skills (.md);
+- regras (.md);
+- painel operacional (.md);
+- relatórios de conferência (.md) — sanitizados se necessário;
+- índices auditáveis (.md);
+- saídas de teste (.md, .txt);
+- resumos de execução.
+
+Entram com versão sanitizada ou índice auditável quando tiverem dados financeiros pessoais:
+- Excel/XLSX de relatório financeiro individual;
+- JSON do WidePay com dados de cliente;
+- PDF e HTML com valores e parcelas;
+- planilhas com CPF, valores, datas de pagamento individualizadas;
+- conferência de cálculos com dados de cliente.
+
+Ficam apenas locais, com registro obrigatório no painel:
+- cookies, tokens, senhas;
+- caches de sessão do navegador;
+- arquivos temporários de CDP sem valor auditável.
+
+### 10.2 — Procedimento padrão obrigatório após qualquer ação relevante
+
+1. executar a tarefa;
+2. gerar ou alterar os arquivos necessários;
+3. validar o resultado;
+4. salvar as evidências;
+5. `git status`;
+6. `git add` nos arquivos relevantes;
+7. `git commit` com mensagem descritiva;
+8. `git push` para o GitHub;
+9. responder com os links do GitHub.
+
+### 10.3 — Resposta obrigatória quando houver arquivo criado ou alterado
+
+Toda resposta final deve trazer:
+- resumo do que foi feito;
+- arquivos criados;
+- arquivos alterados;
+- arquivos enviados ao GitHub;
+- hash do commit;
+- link do commit no GitHub;
+- links diretos dos arquivos principais no GitHub;
+- indicação clara de qualquer arquivo que ficou apenas local e o motivo.
+
+É proibido responder apenas com caminho local.
+Caminho local é complemento. Nunca é prova final.
+Se não houver link do GitHub na resposta final, a etapa é considerada incompleta.
+
+### 10.4 — Índice auditável obrigatório para arquivos sensíveis não enviados completos
+
+Quando um arquivo relevante não puder ser enviado completo ao GitHub por conter dados pessoais ou financeiros, o Antigravity deve registrar no painel operacional:
+- caminho local;
+- nome do arquivo;
+- cliente/lote;
+- data/hora de geração;
+- tipo de dado;
+- status (gerado, validado, aguardando);
+- hash do conteúdo ou tamanho, quando possível;
+- motivo de não subir completo.
+
+Erro crítico proibido:
+- `ERRO: arquivo gerado e deixado local sem registro no painel e sem índice auditável no GitHub.`
