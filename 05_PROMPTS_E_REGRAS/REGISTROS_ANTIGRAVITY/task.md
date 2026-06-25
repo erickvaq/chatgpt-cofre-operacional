@@ -1,11 +1,9 @@
-# Lista de Tarefas - Registro e Execução da Regra 31
+# Checklist - WidePay Login Automation & Bloco 1 Audit
 
-- `[x]` Registrar `REGRA 31 — ESPELHO OPERACIONAL LEVE NO GITHUB` em `REGRAS_PERSISTENTES_DO_PROJETO.md`
-- `[x]` Registrar a regra no final do arquivo `REGRA-BASE — RELATÓRIOS FINANCEIROS WIDEPAY...md`
-- `[x]` Adicionar verificação da REGRA 31 no script `00_SISTEMA_PRECHECK/precheck_regras.py`
-- `[x]` Criar `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md`
-- `[x]` Executar o precheck standalone para validar as 31 regras
-- `[x]` Copiar logs do Antigravity para `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/` (Regra 25)
-- `[x]` Adicionar arquivos ao Git (excluindo relatórios financeiros de clientes)
-- `[x]` Executar commit e push
-- `[x]` Apresentar os resultados, caminhos e links do GitHub no chat
+- `[x]` Implement autofill login session check and automated submit in `03_SCRIPTS/consultar_widepay_cdp.py`
+- `[x]` Run safety precheck to verify rules integrity
+- `[x]` Test connection and login automation
+- `[x]` Audit Client 1: Adailton Gomes De Jesus (E22A) in read-only mode
+- `[x]` Audit Client 2: Altamir Do Carmo Cerqueira (G4) in read-only mode
+- `[x]` Audit Client 3: Ana Carolina Nery Da S. Borgens (E7) in read-only mode
+- `[x]` Classify results and present findings in chat

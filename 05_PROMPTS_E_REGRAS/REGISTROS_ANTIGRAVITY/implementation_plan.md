@@ -1,38 +1,37 @@
-# Implementation Plan - Register and Implement Rule 31 (GitHub Operational Panel)
+# Plan - Session Login Automation via CDP and Audit of Bloco 1 (3 Clients)
 
-We will register a new rule (Rule 31) requiring a lightweight operational dashboard (`PAINEL_OPERACIONAL_WIDEPAY.md`) on GitHub to mirror project execution without publishing sensitive data.
+We will modify the WidePay query integration to handle the login page dynamically by leveraging the saved password in the dedicated Opera browser's persistent profile (port 9444). We will trigger autofill using element focus and click events, click the login button, and confirm successful navigation to the dashboard. Subsequently, we will audit the first 3 clients in a read-only manner.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Autofill Trigger:**
+> The script will attempt to trigger the browser's native autofill by simulating user click/focus on the email and password fields. If Opera successfully fills the fields, it will click "Acessar". If no saved password is found or autofill fails, the script will prompt for manual login and pause.
+> **No Sensitive Data Exposure:**
+> The automation does not read, copy, print, or store the password. It operates completely through browser events.
 
 ## Proposed Changes
 
-### Documentation and Rules
-#### [MODIFY] [REGRAS_PERSISTENTES_DO_PROJETO.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md)
-* Append `## REGRA 31 — ESPELHO OPERACIONAL LEVE NO GITHUB` detailing dashboard requirements, formatting tables, sensitive data bans, and git update flows.
+### Scripts
 
-#### [MODIFY] [REGRA-BASE — RELATÓRIOS FINANCEIROS WIDEPAY — PROCESSO EFICIENTE E REPLICÁVEL.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRA-BASE%20%E2%80%94%20RELAT%C3%93RIOS%20FINANCEIROS%20WIDEPAY%20%E2%80%94%20PROCESSO%20EFICIENTE%20E%20REPLIC%C3%81VEL.md)
-* Append Rule 31 details at the end.
+#### [MODIFY] [consultar_widepay_cdp.py](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/03_SCRIPTS/consultar_widepay_cdp.py)
+* Implement `ensure_widepay_logged_in(ws_url)` function:
+  - Check if the current URL points to a login/access page.
+  - If yes, query inputs to check visibility.
+  - Simulate focus and click events on the `usuario` / `email` and `senha` / `password` inputs to trigger Opera's native autofill.
+  - Wait 1-2 seconds.
+  - If the password input receives autofill value (which might be verified by checking if the browser allows submitting or if value length > 0), click the submit button.
+  - Confirm the page navigates away from the login URL to the authenticated page.
+  - If it fails, raise a login required exception/exit with code 2 for manual login.
 
-#### [MODIFY] [precheck_regras.py](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/00_SISTEMA_PRECHECK/precheck_regras.py)
-* Add a check validation for Rule 31 in `regras_criticas`.
-
-#### [NEW] [PAINEL_OPERACIONAL_WIDEPAY.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md)
-* Create the master operational dashboard detailing: execution metadata, clients status table, WidePay extraction summary, requested vs delivered checklist, local sensitive files register, committed files catalog, error lists, and recommended next steps.
-
-### Git Versioning
-* Copy current Antigravity logs (`implementation_plan.md`, `task.md`, `walkthrough.md`) to `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/` (Rule 25).
-* Stage only:
-  - `00_SISTEMA_PRECHECK/precheck_regras.py`
-  - `05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md`
-  - `05_PROMPTS_E_REGRAS/REGRA-BASE — RELATÓRIOS FINANCEIROS WIDEPAY — PROCESSO EFICIENTE E REPLICÁVEL.md`
-  - `05_PROMPTS_E_REGRAS/RESUMO_REGRAS_OPERACIONAIS_WIDEPAY.md`
-  - `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md`
-  - `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/implementation_plan.md`
-  - `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/task.md`
-  - `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/walkthrough.md`
-  - `07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md`
-  - `scratch/extrair_tudo_cobertura.py`
-* Execute `git commit -m "Audit: Rule 31 and Painel Operacional 2026-06-24"`
-* Execute `git push`
+### Execution Scope (Bloco 1)
+* Run read-only query on the 3 clients:
+  1. **Adailton Gomes De Jesus** (lote **E22A**)
+  2. **Altamir Do Carmo Cerqueira** (lote **G4**)
+  3. **Ana Carolina Nery Da S. Borgens** (lote **E7**)
 
 ## Verification Plan
-* Run `python 00_SISTEMA_PRECHECK/precheck_regras.py` standalone.
-* Confirm git commit/push success on remote.
+
+### Manual Verification
+* Run `python 03_SCRIPTS/consultar_widepay_cdp.py --cliente "Adailton Gomes De Jesus"` and observe if the Opera browser automatically processes the login screen and navigates to the carnês page, or if it halts correctly when credentials aren't populated.
+* Verify the console output for each of the 3 clients in the block, confirming carnês, avulsos, and status details.

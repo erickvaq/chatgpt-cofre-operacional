@@ -1,28 +1,49 @@
-# Walkthrough - Implementação da Regra 31 e Painel Operacional no GitHub
+# Walkthrough - Login Session Automation & Bloco 1 Audit
 
-Concluímos com sucesso o registro e a implantação da REGRA 31 (Espelho Operacional Leve no GitHub) no projeto `Relatorio_WidePay_Lotes`, corrigindo a identificação das iniciais dos clientes de pastas locais e alterando o formato de monitoramento de commits no painel para evitar ciclos infinitos. Também explicamos a divergência de 19 vs 21 pendentes no painel.
+We successfully implemented a robust login session automation using CDP to simulate focus and Enter keypress events, triggering Opera's native autofilled credentials. We then completed the read-only financial audit of the first three clients in Bloco 1.
 
-## Alterações Realizadas
+## Changes Implemented
 
-### Documentação de Regras
-1. **[REGRAS_PERSISTENTES_DO_PROJETO.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md):** Contém agora a `## REGRA 31 — ESPELHO OPERACIONAL LEVE NO GITHUB` descrevendo o painel, tabelas exigidas, listagem de arquivos sensíveis locais, e fluxo de versionamento.
-2. **[REGRA-BASE...md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGRA-BASE%20%E2%80%94%20RELAT%C3%93RIOS%20FINANCEIROS%20WIDEPAY%20%E2%80%94%20PROCESSO%20EFICIENTE%20E%20REPLIC%C3%81VEL.md):** Rule 31 também anexada ao final do documento base de regras.
+### Login Session Automation via CDP
+1. **[consultar_widepay_cdp.py](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/03_SCRIPTS/consultar_widepay_cdp.py):**
+   - Refactored the login detection logic to focus the password input and dispatch virtual `keyDown`/`keyUp` keyboard events for the `Enter` key (virtual code `13`) using CDP's `Input.dispatchKeyEvent`.
+   - This method bypasses standard script limitations where programmatic clicks do not register autofilled values in frontend frameworks (like React).
+   - Added automated redirection check to confirm dashboard load and error logs.
 
-### Correções no Script de Extração de Cobertura
-1. **[extrair_tudo_cobertura.py](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/scratch/extrair_tudo_cobertura.py):**
-   - Melhorada a função `limpar_nome_cliente(nome)` para remover prefixos e ruídos de pastas como "Contrato", "Copia", "Cópia" e "Léo/Leo" de forma insensível a maiúsculas/minúsculas.
-   - A inicial de busca local passou a ser calculada estritamente sobre o nome limpo e normalizado do cliente.
-   - Adicionada detecção e proteção para nomes curtos/indefinidos (retornando "Nome pendente de normalização").
-   - Clientes com iniciais fora do escopo A a E (como Heron, inicial H) são excluídos da lista A a E de auditoria local.
+## Audit Results (Bloco 1 - 3 Clients)
 
-### Correções no Painel Operacional
-1. **[PAINEL_OPERACIONAL_WIDEPAY.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md):**
-   - Substituído o campo dinâmico "Último Commit" por: "Último commit auditado no painel" (cb8c5c8), "Link do histórico de commits" (apontando de forma fixa para a página de histórico do repositório) e "Branch atual", eliminando o ciclo infinito de commits do próprio painel.
-   - Adicionada a seção "Explicação da Diferença de Contagem (19 x 21 Pendentes)".
-   - Ajustada a tabela de pendências locais para categorizar os clientes com iniciais reais de A a E.
-   - Inserida uma tabela dedicada (Tabela 4) para listar as pastas locais fora do escopo A a E encontradas por auditoria (ex: Heron Souza Dias), mantendo-as separadas do escopo atual.
-   - Ajustado o status de busca na tabela de pendentes locais para `Pendente — contrato local sem confirmação financeira no WidePay`.
-   - Atualizada a seção "Pedido do usuário x entrega" detalhando o estado de relatórios de teste, relatórios completos e painel operacional.
+### 1. Adailton Gomes De Jesus (Lote E22A)
+* **Found in WidePay:** Yes
+* **Carnes:** 
+  - Carnê `45` (Lt E 22): Finalized (21/21 paid, received R$ 3,183.09, final venc. 20/06/2023)
+  - Carnê `159` (ref `e22a 20-07 parcela 25 em diante R$140`): Cancelled (0 paid)
+* **Cobranças/Boletos:** 
+  - 2 active unpaid vencidos (ID `3461` and `3460` for late fees, total R$ 315)
+  - 23 cancelled boletos under `"e22a 20-07..."`
+* **Local folder:** Matches E22A (contains a physical copy of "DISTRATO").
+* **Audit Diagnosis:** **Pendente.** The cancellation of carnê `159` and boletos matches the local contract distrato (cancellation). Outstanding late fees of R$ 315 from 2023 need verification.
 
-## Versionamento
-* Os arquivos permitidos foram staged, commitados e atualizados no repositório remoto.
+### 2. Altamir Do Carmo Cerqueira (Lote G4)
+* **Found in WidePay:** Yes
+* **Carnes:**
+  - Carnê `33` (Lt G-4): Finalized (5/5 paid, received R$ 2,500)
+  - Carnê `93` (no reference): Finalized (2/2 paid, received R$ 1,000)
+  - Carnê `31` (no reference): Cancelled (0 paid)
+* **Cobranças/Boletos:**
+  - 16 cancelled boletos of R$ 350
+* **Local folder:** Matches G4 (contains "A VISTA" contract).
+* **Audit Diagnosis:** **Pronto para relatório.** Paid R$ 3,500.00 in total, which matches the "A VISTA" full quittance plan. No outstanding active boletos.
+
+### 3. Ana Carolina Nery Da S. Borgens (Lote E7)
+* **Found in WidePay:** Yes
+* **Carnes:**
+  - Carnê `47` (no reference): Finalized (22/22 paid, received R$ 2,611.67)
+  - Carnê `152` (ref `"e7 carne2 apart 25 R110"`): Finalized (11/11 paid, received R$ 1,298.27)
+  - Carnê `185` (ref `"E7 apart.37"`): Finalized (4/4 paid, received R$ 500.87)
+  - Carnê `234` (no reference): Active/Pendente (0/24 paid, total pending R$ 3,312.00, value per installment R$ 138)
+* **Cobranças/Boletos:**
+  - 5 active **Vencidos** from active carnê `234` (totaling R$ 690.00 in arrears)
+  - 19 active **Aguardando** (totaling R$ 2,622.00 future)
+  - 1 cancelled boleto (ID `5191`)
+* **Local folder:** Matches E7.
+* **Audit Diagnosis:** **Pendente.** Recent installment reajuste to R$ 138.00 and R$ 690.00 in active arrears (vencidos in 2026) must be audited and verified against the contract rules before producing a final report.
