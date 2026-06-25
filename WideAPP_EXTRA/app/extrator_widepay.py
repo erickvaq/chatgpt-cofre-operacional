@@ -10,6 +10,8 @@ import re
 import unicodedata
 from pathlib import Path
 
+from app.coletor_tabelas_paginadas import COLETOR_TABELAS_PAGINADAS_JS, validar_coleta_paginada
+
 # Configuração e inicialização importáveis
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -40,17 +42,16 @@ def normalizar_busca(texto):
 def gerar_termos_busca_cliente(cliente):
     base = normalizar_busca(cliente)
     if not base:
-        return ["edmilson"]
+        return ["edmilson", "edimson", "edjinson"]
     termos = {base}
     tokens = base.split()
-    if "edmilson" in tokens:
-        termos.add("edimson")
-    if "edimson" in tokens:
+    
+    # Trata variações e erros comuns de digitação para Edmilson
+    if any(t in tokens for t in ["edmilson", "edimson", "edjinson"]):
         termos.add("edmilson")
-    if base == "edmilson":
         termos.add("edimson")
-    if base == "edimson":
-        termos.add("edmilson")
+        termos.add("edjinson")
+        
     return sorted(termos, key=len, reverse=True)
 
 async def ensure_widepay_logged_in(ws_url):
@@ -243,17 +244,21 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
     filtro = []
     for p in palavras:
         p_lower = p.lower()
+        if p_lower in ["leo", "leonardo", "copia", "contrato"]:
+            continue
         if p_lower in ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8", "agua", "viva", "leandro", "meirelles", "lote", "quadra", "par"]:
             break
         if re.match(r'^[a-zA-Z]\d+$', p):
             continue
         filtro.append(p)
     busca_simplificada = " ".join(filtro) if filtro else "Edmilson"
-    termo_busca_carnes_js = json.dumps(busca_simplificada, ensure_ascii=False)
+    termos_busca_carnes_js = json.dumps(gerar_termos_busca_cliente(busca_simplificada), ensure_ascii=False)
     termos_busca_cobrancas_js = json.dumps(gerar_termos_busca_cliente(busca_simplificada), ensure_ascii=False)
+    coletor_paginado_js = COLETOR_TABELAS_PAGINADAS_JS
     
     js_extract_carnes = """
     async function() {
+        %s
         // Garantir que todos os status estejam marcados
         var statusIds = ["jab-1083-field", "jab-1084-field", "jab-1085-field", "jab-1086-field"];
         var changed = false;
@@ -271,109 +276,154 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
             applyBtn.click();
             await new Promise(r => setTimeout(r, 4000));
         }
+
+        var wideappRpp = await wideappSelecionarMaiorRegistrosPorPagina("Carnes");
         
-        var searchInput = document.getElementById("jab-1036-field");
-        if (searchInput) {
-            searchInput.value = %s;
-            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            var searchBtn = document.getElementById("jab-1038");
-            if (searchBtn) {
-                searchBtn.click();
-            } else {
-                searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-            }
-            await new Promise(r => setTimeout(r, 4000));
-        }
-        
+        var queryTerms = %s;
         var carnes = [];
         var nomeEncontrado = "%s";
-        var page = 1;
+        var visitadas = [];
+        var paginasWideapp = [];
         
-        while (page <= 10) {
-            var trs = Array.from(document.querySelectorAll('tr'));
-            var query = %s.toLowerCase();
+        var searchInput = document.getElementById("jab-1036-field");
+        for (var termIndex = 0; termIndex < queryTerms.length; termIndex++) {
+            var termoAtual = queryTerms[termIndex];
+            if (searchInput && termoAtual) {
+                searchInput.value = termoAtual;
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                var searchBtn = document.getElementById("jab-1038");
+                if (searchBtn) {
+                    searchBtn.click();
+                } else {
+                    searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                }
+                await new Promise(r => setTimeout(r, 4000));
+            }
             
-            var foundRows = trs.filter(tr => {
-                var text = tr.innerText.toLowerCase();
-                return text.includes(query);
-            });
+            await wideappIrPrimeiraPagina();
+            var page = 1;
             
-            foundRows.forEach(tr => {
-                var tds = tr.querySelectorAll('td');
-                if (tds.length >= 16) {
-                    var col_id = tds[1].innerText.trim();
-                    var col_cliente = tds[2].innerText.trim();
-                    var col_referencia = tds[8].innerText.trim();
-                    var col_valor = tds[9].innerText.trim();
-                    var col_parcelas = tds[10].innerText.trim();
-                    var col_recebimentos = tds[11].innerText.trim();
-                    var col_prox_venc = tds[12].innerText.trim();
-                    var col_ult_venc = tds[13].innerText.trim();
-                    var col_status = tds[15].innerText.trim();
-                    
-                    nomeEncontrado = col_cliente;
-                    
-                    var pagas = 0;
-                    var total_geradas = parseInt(col_parcelas) || 24;
-                    var total_recebido = 0.0;
-                    
-                    var rec_match = col_recebimentos.match(/(\\d+)\\/(\\d+)\\s+R\\$\\s*([\\d\\.,]+)/);
-                    if (rec_match) {
-                        pagas = parseInt(rec_match[1]);
-                        total_geradas = parseInt(rec_match[2]);
-                        total_recebido = parseFloat(rec_match[3].replace(/\\./g, '').replace(',', '.'));
-                    } else {
-                        var parts = col_recebimentos.split('/');
-                        if (parts.length >= 2) {
-                            pagas = parseInt(parts[0].trim()) || 0;
-                            var right_parts = parts[1].split('R$');
-                            total_geradas = parseInt(right_parts[0].trim()) || total_geradas;
-                            if (right_parts.length >= 2) {
-                                total_recebido = parseFloat(right_parts[1].replace(/\\./g, '').replace(',', '.')) || 0.0;
+            while (page <= 25) {
+                var marcador = marcadorPagina() + "|" + termoAtual;
+                if (visitadas.indexOf(marcador) !== -1) {
+                    break;
+                }
+                visitadas.push(marcador);
+
+                var trs = Array.from(document.querySelectorAll('tr'));
+                var query = (termoAtual || "").toLowerCase();
+                
+                var foundRows = trs.filter(tr => {
+                    var text = tr.innerText.toLowerCase();
+                    return text.includes(query);
+                });
+                
+                foundRows.forEach(tr => {
+                    var tds = tr.querySelectorAll('td');
+                    if (tds.length >= 16) {
+                        var col_id = tds[1].innerText.trim();
+                        var col_cliente = tds[2].innerText.trim();
+                        var col_referencia = tds[8].innerText.trim();
+                        var col_valor = tds[9].innerText.trim();
+                        var col_parcelas = tds[10].innerText.trim();
+                        var col_recebimentos = tds[11].innerText.trim();
+                        var col_prox_venc = tds[12].innerText.trim();
+                        var col_ult_venc = tds[13].innerText.trim();
+                        var col_status = tds[15].innerText.trim();
+                        
+                        nomeEncontrado = col_cliente;
+                        
+                        var pagas = 0;
+                        var total_geradas = parseInt(col_parcelas) || 24;
+                        var total_recebido = 0.0;
+                        
+                        var rec_match = col_recebimentos.match(/(\\d+)\\/(\\d+)\\s+R\\$\\s*([\\d\\.,]+)/);
+                        if (rec_match) {
+                            pagas = parseInt(rec_match[1]);
+                            total_geradas = parseInt(rec_match[2]);
+                            total_recebido = parseFloat(rec_match[3].replace(/\\./g, '').replace(',', '.'));
+                        } else {
+                            var parts = col_recebimentos.split('/');
+                            if (parts.length >= 2) {
+                                pagas = parseInt(parts[0].trim()) || 0;
+                                var right_parts = parts[1].split('R$');
+                                total_geradas = parseInt(right_parts[0].trim()) || total_geradas;
+                                if (right_parts.length >= 2) {
+                                    total_recebido = parseFloat(right_parts[1].replace(/\\./g, '').replace(',', '.')) || 0.0;
+                                }
                             }
                         }
+                        
+                        var valor_parcela = parseFloat(col_valor.replace(/\\./g, '').replace(',', '.')) || 0.0;
+                        var parcelas_restantes = total_geradas - pagas;
+                        var total_pendente = parcelas_restantes * valor_parcela;
+                        
+                        if (!carnes.some(c => c.carne === col_id)) {
+                            carnes.push({
+                                carne: col_id,
+                                referencia: col_referencia,
+                                valor_parcela: valor_parcela,
+                                parcelas_geradas: total_geradas,
+                                parcelas_pagas: pagas,
+                                parcelas_restantes: parcelas_restantes,
+                                total_recebido: total_recebido,
+                                total_pendente: total_pendente,
+                                proximo_vencimento: col_prox_venc,
+                                ultimo_vencimento: col_ult_venc,
+                                status: col_status
+                            });
+                        }
                     }
-                    
-                    var valor_parcela = parseFloat(col_valor.replace(/\\./g, '').replace(',', '.')) || 0.0;
-                    var parcelas_restantes = total_geradas - pagas;
-                    var total_pendente = parcelas_restantes * valor_parcela;
-                    
-                    if (!carnes.some(c => c.carne === col_id)) {
-                        carnes.push({
-                            carne: col_id,
-                            referencia: col_referencia,
-                            valor_parcela: valor_parcela,
-                            parcelas_geradas: total_geradas,
-                            parcelas_pagas: pagas,
-                            parcelas_restantes: parcelas_restantes,
-                            total_recebido: total_recebido,
-                            total_pendente: total_pendente,
-                            proximo_vencimento: col_prox_venc,
-                            ultimo_vencimento: col_ult_venc,
-                            status: col_status
-                        });
-                    }
+                });
+
+                var totalPagina = wideappInfoTotalTabela();
+                var infoPagina = wideappInfoPagina();
+                paginasWideapp.push({
+                    termo: termoAtual,
+                    pagina: infoPagina.atual || page,
+                    paginas: infoPagina.total,
+                    totalWidePay: totalPagina.total,
+                    faixa: totalPagina.texto,
+                    coletadosPagina: foundRows.length
+                });
+                
+                var nextBtn = wideappBotaoPaginacao('next');
+                if (nextBtn && !wideappDisabled(nextBtn)) {
+                    nextBtn.click();
+                    page++;
+                    await new Promise(r => setTimeout(r, 3500));
+                } else {
+                    break;
                 }
-            });
-            
-            var nextBtn = document.getElementById("jab-1023");
-            if (nextBtn && !nextBtn.disabled && !nextBtn.className.includes("disabled")) {
-                nextBtn.click();
-                page++;
-                await new Promise(r => setTimeout(r, 4000));
-            } else {
-                break;
             }
         }
+
+        var totalInfoFinal = wideappInfoTotalTabela();
+        var totalInformado = totalInfoFinal.total;
+        paginasWideapp.forEach(function(p) {
+            if (p.totalWidePay !== null && p.totalWidePay !== undefined) {
+                totalInformado = Math.max(totalInformado || 0, p.totalWidePay);
+            }
+        });
+        var metaColeta = wideappValidarMetaColeta({
+            tela: "Carnes",
+            filtro: queryTerms.join(" | "),
+            registrosPorPagina: wideappRpp,
+            totalWidePay: { total: totalInformado, texto: totalInfoFinal.texto },
+            paginas: paginasWideapp,
+            totalColetadoUnico: carnes.length,
+            erros: []
+        });
         
         return {
             nome_encontrado: nomeEncontrado,
-            carnes: carnes
+            carnes: carnes,
+            _wideapp_meta_coleta: metaColeta
         };
     }
-    """ % (termo_busca_carnes_js, cliente_nome, termo_busca_carnes_js)
+    """ % (coletor_paginado_js, termos_busca_carnes_js, cliente_nome, termos_busca_carnes_js)
     
     eval_extract_carnes = await cdp_command(ws_url, "Runtime.evaluate", {
         "expression": f"({js_extract_carnes})()",
@@ -381,6 +431,7 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         "returnByValue": True
     })
     raw_data_carnes = eval_extract_carnes.get("result", {}).get("result", {}).get("value", {}) or {}
+    validar_coleta_paginada("Carnes", raw_data_carnes)
     
     # 3. Navegar para Cobranças
     print("Navegando para a pagina de cobrancas...")
@@ -391,6 +442,7 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
     
     js_extract_cobrancas = """
     async function() {
+        %s
         var labels = Array.from(document.querySelectorAll('label'));
         var changed = false;
         ["Aguardando", "Cancelado", "Recebido", "Vencido"].forEach(status => {
@@ -420,9 +472,67 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
             applyBtn.click();
             await new Promise(r => setTimeout(r, 4000));
         }
+
+        var wideappRpp = await wideappSelecionarMaiorRegistrosPorPagina("Cobrancas/Boletos");
         
+        function isDisabled(el) {
+            if (!el) return true;
+            var cls = (el.className || '').toString().toLowerCase();
+            return !!el.disabled || cls.includes('disabled') || el.getAttribute('aria-disabled') === 'true';
+        }
+
+        function botaoPaginacao(tipo) {
+            var botoes = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+            return botoes.find(function(el) {
+                var txt = (el.innerText || el.textContent || el.value || '').toLowerCase().trim();
+                var id = (el.id || '').toLowerCase();
+                var cls = (el.className || '').toString().toLowerCase();
+                var aria = (el.getAttribute('aria-label') || '').toLowerCase();
+                var title = (el.getAttribute('title') || '').toLowerCase();
+                var temPrimeiro = !!el.querySelector('i.fa-angle-double-left, i.fa-step-backward, i.fa-fast-backward');
+                var temAnterior = !!el.querySelector('i.fa-angle-left, i.fa-chevron-left');
+                var temProximo = !!el.querySelector('i.fa-angle-right, i.fa-chevron-right, i.fa-step-forward, i.fa-fast-forward');
+                var temUltimo = !!el.querySelector('i.fa-angle-double-right, i.fa-step-forward, i.fa-fast-forward');
+                if (tipo === 'first') {
+                    return id.includes('first') || cls.includes('first') || aria.includes('primeira') || title.includes('primeira') || txt.includes('<<') || txt.includes('|<') || temPrimeiro;
+                }
+                if (tipo === 'prev') {
+                    return id.includes('prev') || id.includes('anterior') || cls.includes('prev') || aria.includes('anterior') || title.includes('anterior') || txt.includes('<') || temAnterior;
+                }
+                if (tipo === 'next') {
+                    return id.includes('next') || id.includes('proximo') || cls.includes('next') || aria.includes('proximo') || aria.includes('próximo') || title.includes('proximo') || title.includes('próximo') || txt.includes('>') || txt.includes('>>') || temProximo;
+                }
+                if (tipo === 'last') {
+                    return id.includes('last') || cls.includes('last') || aria.includes('ultima') || title.includes('ultima') || txt.includes('>|') || temUltimo;
+                }
+                return false;
+            });
+        }
+
+        function marcadorPagina() {
+            var totalWideapp = wideappInfoTotalTabela();
+            if (totalWideapp && totalWideapp.texto) {
+                return totalWideapp.texto;
+            }
+            var paginaWideapp = wideappInfoPagina();
+            if (paginaWideapp && paginaWideapp.texto) {
+                return paginaWideapp.texto;
+            }
+            var texto = document.body.innerText || '';
+            var m = texto.match(/Página\\s+(\\d+)\\s+de\\s+(\\d+)/i) || texto.match(/Pagina\\s+(\\d+)\\s+de\\s+(\\d+)/i);
+            if (m) {
+                return m[1] + "/" + m[2];
+            }
+            var atual = document.querySelector('[aria-current="page"], .active, .current');
+            if (atual) {
+                return (atual.innerText || atual.textContent || atual.value || '').trim();
+            }
+            return String(window.location.href) + "|" + String(texto.length);
+        }
+
         var queryTerms = %s;
         var cobrancas = [];
+        var paginasWideapp = [];
         var searchInput = document.getElementById("jab-1043-field") || document.querySelector('input[placeholder*="Pesquisar"], input[type="text"], input[type="search"]');
         for (var termIndex = 0; termIndex < queryTerms.length; termIndex++) {
             var termoAtual = queryTerms[termIndex];
@@ -441,8 +551,17 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
             }
             await new Promise(r => setTimeout(r, 4000));
             
+            await wideappIrPrimeiraPagina();
+
             var page = 1;
+            var visitadas = [];
             while (page <= 10) {
+                var marcador = marcadorPagina();
+                if (visitadas.indexOf(marcador) !== -1) {
+                    break;
+                }
+                visitadas.push(marcador);
+
                 var trs = Array.from(document.querySelectorAll('tr'));
                 var foundRows = trs.filter(tr => {
                     var text = tr.innerText.toLowerCase();
@@ -489,33 +608,55 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
                         }
                     }
                 });
-                
-                var nextBtn = Array.from(document.querySelectorAll('button, a')).find(el => {
-                    var txt = el.innerText || '';
-                    var cls = el.className || '';
-                    var id = el.id || '';
-                    return (id.includes('next') || cls.includes('next') || txt.includes('Pr') || txt.includes('>') || el.querySelector('i.fa-angle-right') || el.querySelector('i.fa-chevron-right'));
+
+                var totalPagina = wideappInfoTotalTabela();
+                var infoPagina = wideappInfoPagina();
+                paginasWideapp.push({
+                    termo: termoAtual,
+                    pagina: infoPagina.atual || page,
+                    paginas: infoPagina.total,
+                    totalWidePay: totalPagina.total,
+                    faixa: totalPagina.texto,
+                    coletadosPagina: foundRows.length
                 });
                 
-                if (nextBtn && !nextBtn.disabled && !nextBtn.className.includes("disabled")) {
+                var nextBtn = wideappBotaoPaginacao('next');
+                if (nextBtn && !wideappDisabled(nextBtn)) {
                     nextBtn.click();
                     page++;
-                    await new Promise(r => setTimeout(r, 4000));
+                    await new Promise(r => setTimeout(r, 3500));
                 } else {
                     break;
                 }
             }
         }
-        return cobrancas;
+        var totalInformado = null;
+        paginasWideapp.forEach(function(p) {
+            if (p.totalWidePay !== null && p.totalWidePay !== undefined) {
+                totalInformado = Math.max(totalInformado || 0, p.totalWidePay);
+            }
+        });
+        var metaColeta = wideappValidarMetaColeta({
+            tela: "Cobrancas/Boletos",
+            filtro: queryTerms.join(" | "),
+            registrosPorPagina: wideappRpp,
+            totalWidePay: { total: totalInformado, texto: "" },
+            paginas: paginasWideapp,
+            totalColetadoUnico: cobrancas.length,
+            erros: []
+        });
+        return { registros: cobrancas, _wideapp_meta_coleta: metaColeta };
     }
-    """ % (termos_busca_cobrancas_js)
+    """ % (coletor_paginado_js, termos_busca_cobrancas_js)
     
     eval_extract_cobrancas = await cdp_command(ws_url, "Runtime.evaluate", {
         "expression": f"({js_extract_cobrancas})()",
         "awaitPromise": True,
         "returnByValue": True
     })
-    raw_data_cobrancas = eval_extract_cobrancas.get("result", {}).get("result", {}).get("value", []) or []
+    raw_data_cobrancas_result = eval_extract_cobrancas.get("result", {}).get("result", {}).get("value", {}) or {}
+    validar_coleta_paginada("Cobrancas/Boletos", raw_data_cobrancas_result)
+    raw_data_cobrancas = raw_data_cobrancas_result.get("registros") or []
     
     nome_final = raw_data_carnes.get("nome_encontrado") or cliente_nome
     
@@ -529,7 +670,11 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         "cliente": nome_final,
         "status_conexao": "LOGADO",
         "carnes": raw_data_carnes.get("carnes") or [],
-        "cobrancas": raw_data_cobrancas
+        "cobrancas": raw_data_cobrancas,
+        "metadados_coleta_paginada": {
+            "carnes": raw_data_carnes.get("_wideapp_meta_coleta") or {},
+            "cobrancas": raw_data_cobrancas_result.get("_wideapp_meta_coleta") or {},
+        }
     }
     
     with open(caminho_json, "w", encoding="utf-8") as f:
