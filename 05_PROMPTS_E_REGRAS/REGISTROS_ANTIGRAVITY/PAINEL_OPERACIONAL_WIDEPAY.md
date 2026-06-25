@@ -1,4 +1,4 @@
-# PAINEL OPERACIONAL WIDEPAY — Relatorio_WidePay_Lotes
+﻿# PAINEL OPERACIONAL WIDEPAY — Relatorio_WidePay_Lotes
 
 ## Informações Gerais
 * **Último commit auditado no painel:** 520b4b8 (Geração Bloco 1 e índice sanitizado)
@@ -22,6 +22,15 @@
 
 ---
 
+## CONSOLIDACAO DAS REGRAS PERSISTENTES
+
+* **Data da consolidacao:** 25/06/2026
+* **Regras consolidadas:** de 32 regras para 8 blocos operacionais curtos.
+* **Blocos fundidos:** visualizacao de PDF, entrega HTML+PDF, GitHub rastreavel, painel operacional, WidePay seguro/login, fluxo por cliente, lote/consolidado e economia/precheck.
+* **Conflitos resolvidos:** link clicavel de PDF passou a ser permitido quando o usuario pedir acesso direto; a abertura externa continua preferida quando houver risco de texto bruto; o precheck deixou de depender de contagem fixa antiga.
+* **Status da consolidacao:** concluida localmente e validada pelo precheck atualizado.
+
+---
 ## RESUMO DA EXTRAÇÃO WIDEPAY
 * **Data da Extração:** 22/06/2026
 * **Áreas Consultadas:** Carnês (`https://www.widepay.com/conta/recebimentos/carnes`) e Cobranças/Boletos (`https://www.widepay.com/conta/recebimentos`)
@@ -193,3 +202,4 @@
 
 1. Validar o **Bloco 1** (Adailton, Altamir, Ana Carolina) — aguardando aprovação visual e escrita explícita do usuário.
 2. **Proibido** avançar para o Bloco 2 ou qualquer outro cliente/processo sem autorização escrita expressa do usuário.
+
