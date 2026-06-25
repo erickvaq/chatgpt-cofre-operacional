@@ -12,8 +12,9 @@
 * **Seguranca:** WidePay somente leitura; nao acessar `Configuracoes > Contatos`
 
 ## Regras Ativas
-* Regra consolidada de 32 regras antigas para 10 regras persistentes.
-* REGRA 10: GitHub como procedimento padrao obrigatorio de rastreabilidade.
+* Regra consolidada de 32 regras antigas para 11 regras persistentes.
+* REGRA 10 (2026-06-25): GitHub como procedimento padrão obrigatório de rastreabilidade.
+* REGRA 11 (2026-06-25): Acesso conferível ao conteúdo (versão sanitizada no GitHub obrigatória para arquivos sensíveis locais).
 * Parcelas restantes somente pelo total confirmado no contrato.
 * Relatorio deve consultar Carnes e Cobrancas/Boletos no WidePay antes do apoio local.
 * Todo relatorio financeiro padrao deve priorizar XLS/XLSX.

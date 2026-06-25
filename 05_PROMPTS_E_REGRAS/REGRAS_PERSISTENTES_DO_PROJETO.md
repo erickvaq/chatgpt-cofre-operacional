@@ -552,3 +552,45 @@ Quando um arquivo relevante não puder ser enviado completo ao GitHub por conter
 
 Erro crítico proibido:
 - `ERRO: arquivo gerado e deixado local sem registro no painel e sem índice auditável no GitHub.`
+
+---
+
+## REGRA 11 - Acesso conferível ao conteúdo dos arquivos
+# Adicionada em: 2026-06-25 — regra permanente
+
+Sempre que gerar relatórios, Excel, XLSX, CSV, JSON, Markdown de conferência, validação ou evidência de cálculo, é obrigatório garantir que o ChatGPT consiga acessar o conteúdo conferível do arquivo.
+Não basta informar caminho local, dizer que foi gerado, ou registrar apenas no índice auditável.
+
+### 11.1 Formas aceitas de disponibilizar o conteúdo:
+1. subir o arquivo completo no GitHub (se for seguro);
+2. subir uma versão sanitizada conferível no GitHub;
+3. anexar/uploadar o arquivo no chat;
+4. subir no Google Drive e enviar link compartilhável com permissão correta;
+5. gerar CSV/MD de conferência com dados suficientes para validação;
+6. gerar pacote ZIP de conferência.
+
+### 11.2 Regra para dados sensíveis
+Se o arquivo original tiver dados financeiros sensíveis, gerar e disponibilizar uma versão sanitizada que permita validar a estrutura e os cálculos sem expor dados indevidos.
+A versão sanitizada deve manter:
+- quantidade de linhas;
+- nomes das abas;
+- colunas;
+- status dos registros;
+- totais conferíveis (mesmo que mascarados/parciais);
+- resultado das validações;
+- fórmulas ou lógica aplicada;
+- indicação do que foi removido ou mascarado.
+
+### 11.3 Proibições
+É proibido considerar a entrega concluída quando o ChatGPT só recebeu:
+- caminho local;
+- print parcial;
+- índice resumido;
+- mensagem dizendo que o arquivo foi criado;
+- link sem permissão;
+- arquivo sanitizado insuficiente para conferência.
+
+Toda entrega precisa ter:
+1. rastreabilidade (GitHub, commit, índice ou painel);
+2. conferência real (acesso ao conteúdo do arquivo completo ou versão sanitizada conferível).
+Se o ChatGPT não consegue abrir ou conferir o conteúdo, a entrega ainda não está aprovada.
