@@ -7,14 +7,14 @@ Registrar arquivos sensiveis mantidos localmente sem publicar valores financeiro
 
 | Campo | Valor |
 |---|---|
-| Arquivo | `RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_SILVA_DOS_SANTOS_LOTE_F05_20260625.xlsx` |
+| Arquivo | `RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_SILVA_DOS_SANTOS_LOTE_F05_20260625_V2.xlsx` |
 | Caminho local | `02_RELATORIOS_GERADOS/` |
 | Cliente/lote | Edmilson / Edimson - F05 |
 | Tipo | Relatorio financeiro principal em XLSX |
-| Status | Gerado localmente - aguardando validacao do usuario |
+| Status | Gerado localmente - consultado no WidePay em 25/06/2026 |
 | Conteudo sensivel | Sim |
 | Motivo de nao subir completo | Contem dados financeiros individualizados |
-| Versao publica | Registro sanitizado neste indice |
+| Versao publica | `RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_F05_SANITIZADO_V2.md` (publicado no GitHub) |
 | Proximo passo | Validacao manual local |
 
 ## Registro 002 - Conferencia MD Edmilson / Edimson F05
@@ -25,10 +25,10 @@ Registrar arquivos sensiveis mantidos localmente sem publicar valores financeiro
 | Caminho local | `07_DADOS_TEMPORARIOS/` |
 | Cliente/lote | Edmilson / Edimson - F05 |
 | Tipo | Conferencia financeira com pagamentos interpretados |
-| Status | Gerado localmente |
+| Status | Gerado localmente com base na consulta WidePay de 25/06/2026 |
 | Conteudo sensivel | Sim |
 | Motivo de nao subir completo | Contem tabela de pagamentos, IDs, valores e datas |
-| Versao publica | Registro sanitizado neste indice |
+| Versao publica | Registro sanitizado no indice publico |
 
 ## Registro 003 - JSON WidePay Edmilson
 
@@ -38,10 +38,10 @@ Registrar arquivos sensiveis mantidos localmente sem publicar valores financeiro
 | Caminho local | `07_DADOS_TEMPORARIOS/WIDEPAY_CONSULTAS/` |
 | Cliente/lote | Edmilson / Edimson - F05 |
 | Tipo | Extracao bruta do WidePay |
-| Status | Mantido localmente |
+| Status | Mantido localmente (gerado em 25/06/2026) |
 | Conteudo sensivel | Sim |
 | Motivo de nao subir completo | Contem dados financeiros brutos de carnes, cobrancas e boletos |
-| Versao publica | Registro sanitizado neste indice |
+| Versao publica | Registro sanitizado no indice publico |
 
 ## Regra de Publicacao
 * XLS/XLSX e o formato principal de relatorio financeiro.

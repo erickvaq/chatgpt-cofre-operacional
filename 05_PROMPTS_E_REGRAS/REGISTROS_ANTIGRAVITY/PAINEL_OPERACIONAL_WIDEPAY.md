@@ -23,13 +23,14 @@
 
 ## Registro Sanitizado da Rodada
 * **Cliente/lote:** Edmilson / Edimson - F05
-* **Fonte principal consultada:** WidePay real em rodada anterior validada pelo fluxo CDP
-* **Arquivo principal local:** XLSX financeiro gerado localmente
+* **Fonte principal consultada:** WidePay real consultado em 25/06/2026 via fluxo CDP
+* **Arquivo principal local:** XLSX financeiro V2 gerado localmente
 * **PDF/HTML:** existem versoes locais anteriores; PDF so deve ser regenerado quando solicitado
-* **Status:** aguardando validacao manual do usuario
+* **Status:** Gerado e atualizado; aguardando validacao manual do usuario
 * **Exposicao publica:** sem valores financeiros detalhados no painel
 
 ## Arquivos Locais Sensiveis Registrados
+* `02_RELATORIOS_GERADOS/RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_SILVA_DOS_SANTOS_LOTE_F05_20260625_V2.xlsx`
 * `02_RELATORIOS_GERADOS/RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_SILVA_DOS_SANTOS_LOTE_F05_20260625.xlsx`
 * `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_CONTRATO_EDMILSON_F05_AGUA_VIVA_LEO.md`
 * `07_DADOS_TEMPORARIOS/WIDEPAY_CONSULTAS/WIDEPAY_EDMILSON.json`
@@ -40,8 +41,9 @@
 * **Painel normal:** https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md
 * **Painel raw:** https://raw.githubusercontent.com/erickvaq/chatgpt-cofre-operacional/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md
 * **Indice auditavel:** https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/INDICE_AUDITAVEL_RELATORIOS.md
+* **Relatorio Sanitizado V2:** https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/02_RELATORIOS_GERADOS/RELATORIO_FINANCEIRO_CLIENTE_EDMILSON_F05_SANITIZADO_V2.md
 * **Script Excel:** https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/03_SCRIPTS/gerar_relatorio_excel.py
 
 ## Proximo Passo
-* Validar o XLSX local do Edmilson/Edimson.
+* Validar o XLSX local do Edmilson/Edimson V2.
 * Gerar PDF somente se o usuario pedir.
