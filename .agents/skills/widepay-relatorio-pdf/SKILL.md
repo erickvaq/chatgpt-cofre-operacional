@@ -9,6 +9,7 @@ Esta skill define as regras de formatacao, layout visual e calculo matematico do
 ## 0. Regra Universal
 Esta skill vale para qualquer cliente especifico, letra unica, intervalo de letras, grupo de clientes, lote, todos os clientes, relatorio financeiro individual ou consolidado.
 WidePay vem primeiro, a conferencia em Markdown vem antes do PDF e, quando houver mais de um cliente, a planilha consolidada `.xlsx` deve existir antes do fechamento final.
+Se o WidePay real ainda nao foi aberto, a geracao visual deve parar antes de qualquer PDF ou HTML.
 
 ## 1. Prioridade
 **Alta.** Garante a consistencia visual e matematica antes da exportacao de qualquer arquivo de auditoria final.

@@ -20,6 +20,7 @@ except ImportError as e:
 
 from relatorios_pdf import gerar_pdf, gerar_html, abrir_externo
 from gerar_relatorio_cliente import ler_md_conferencia
+from widepay_bootstrap import garantir_widepay_real_ou_parar
 
 def main():
     md_path = ROOT_DIR / "07_DADOS_TEMPORARIOS" / "CONFERENCIA_CALCULOS_CLIENTE_TESTE_USO_REAL_2026-06-20_V2.md"
@@ -27,6 +28,8 @@ def main():
     if not md_path.exists():
         print(f"Caminho inválido: {md_path}")
         sys.exit(1)
+
+    garantir_widepay_real_ou_parar(md_path.stem)
         
     print(f"Lendo dados de conferencia em: {md_path}...")
     dados_cliente, resumo, carnes = ler_md_conferencia(str(md_path))

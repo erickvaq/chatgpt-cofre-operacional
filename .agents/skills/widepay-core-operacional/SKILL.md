@@ -13,8 +13,15 @@ Esta ordem tem prioridade acima de qualquer outro fluxo desta skill.
 ## 0.5 Regra Universal
 Esta skill vale para qualquer cliente especifico, letra unica, intervalo de letras, grupo de clientes, lote, todos os clientes, relatorio individual, relatorio consolidado, levantamento, auditoria, conferencia, lista de pendencias, pagamentos, parcelas, carnes, cobrancas ou boletos.
 
+## 0.6 Abertura obrigatoria do WidePay real
+Antes de qualquer busca, relatorio, auditoria, letra, lote, pendencia, pagamento, parcela, carne, cobranca, PDF, HTML ou XLSX, a primeira acao pratica e abrir o Opera dedicado e carregar o WidePay real.
+Se o Opera/CDP nao estiver aberto, o fluxo deve tentar abrir automaticamente o navegador dedicado.
+Somente depois de entrar no WidePay real pode consultar Carnes e Cobrancas/Boletos.
+Somente depois disso pode usar contratos locais como apoio.
+Se o WidePay real nao abrir, bloquear o fluxo com `ERRO CRITICO: WidePay real nao foi aberto. Fluxo bloqueado antes de consultar arquivos locais.`
+
 ## 1. Prioridade
-**Maxima operacional.** Depois da Regra Zero e da Regra Universal, esta skill sobrescreve orientacoes gerais de desenvolvimento e direciona o fluxo de checagem.
+**Maxima operacional.** Depois da Regra Zero, da Regra Universal e da Abertura obrigatoria do WidePay real, esta skill sobrescreve orientacoes gerais de desenvolvimento e direciona o fluxo de checagem.
 
 ## 2. Quando usar
 * Busca de dados cadastrais e financeiros de clientes do loteamento.
@@ -60,6 +67,7 @@ ensure_widepay_logged_in(): iniciado
 * **ERRO 4:** Calcular o total pago geral considerando apenas o primeiro carne do cliente quando houver multiplos carnes ativos ou finalizados.
 * **ERRO 5:** Tentar fechar lista oficial por arquivos locais antes da consulta WidePay.
 * **ERRO 6:** fluxo local-first bloqueado.
+* **ERRO 7:** WidePay real nao foi aberto.
 
 ## 9. Critérios de validação
 * Normalizacao rigorosa de nomes (remover termos como "Contrato", "Copia", "Leo/Leo").

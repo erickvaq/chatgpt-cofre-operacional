@@ -142,6 +142,11 @@ def executar_precheck(script_chamador="Script Desconhecido"):
     elif "ordem de prioridade" not in conteudo_norm:
         erros.append("REGRA PRIORITARIA esta incompleta (esperado termo: 'ordem de prioridade')")
 
+    if "abrir widepay real antes de qualquer consulta" not in conteudo_norm:
+        erros.append("REGRA OBRIGATORIA de abertura real do WidePay nao foi encontrada")
+    elif "widepay real nao foi aberto" not in conteudo_norm:
+        erros.append("REGRA OBRIGATORIA esta incompleta (esperado termo: 'widepay real nao foi aberto')")
+
     if "painel operacional publico sempre limpo e verificado" not in conteudo_norm:
         erros.append("REGRA 9 (painel operacional publico sempre limpo e verificado) nao foi encontrada")
     elif "painel publico oficial" not in conteudo_norm:
@@ -173,10 +178,12 @@ def executar_precheck(script_chamador="Script Desconhecido"):
             [
                 ("regra zero", "Regra Zero nao encontrada na skill"),
                 ("regra universal", "A skill nao reforca a Regra Universal"),
+                ("carregar o widepay real", "A skill nao obriga a abertura real do WidePay"),
                 ("widepay primeiro", "A skill nao reforca WidePay primeiro"),
                 ("contratos locais depois", "A skill nao reforca contratos locais depois"),
                 ("lista local preliminar", "A skill nao marca a lista local como preliminar quando falta WidePay"),
                 ("fluxo local-first bloqueado", "A skill nao bloqueia o fluxo local-first"),
+                ("widepay real nao foi aberto", "A skill nao bloqueia quando o WidePay real nao abre"),
             ],
         ),
         (

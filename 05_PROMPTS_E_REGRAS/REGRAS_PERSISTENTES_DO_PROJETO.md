@@ -8,6 +8,33 @@ Esta regra tem prioridade acima de todas as outras regras do projeto.
 
 Antes de qualquer consulta, levantamento, auditoria, relatorio, busca de cliente, checagem de cobertura, conferencia A a E, letra especifica, cliente especifico, lote, carne, cobranca ou PDF, a ordem obrigatoria e:
 
+## REGRA OBRIGATORIA - Abrir WidePay real antes de qualquer consulta
+
+Antes de qualquer busca de cliente, relatorio, auditoria, letra, lote, pendencia, pagamento, parcela, carne, cobranca, PDF, HTML ou XLSX, o fluxo deve:
+
+1. Abrir o Opera dedicado do projeto;
+2. Conectar ao CDP `localhost:9444`;
+3. Carregar o site real do WidePay;
+4. Acessar a area financeira;
+5. Consultar Carnes;
+6. Consultar Cobrancas/Boletos.
+
+Bloqueio:
+- proibido continuar o fluxo usando contratos, pastas locais, arquivos antigos, JSONs antigos ou relatorios anteriores antes de tentar abrir o WidePay real;
+- se o Opera/CDP nao estiver aberto, abrir automaticamente o Opera dedicado;
+- se o WidePay nao carregar, parar e informar `WIDEPAY REAL NAO ABERTO - EXECUCAO BLOQUEADA. Nao vou consultar arquivos locais antes de abrir o WidePay.`
+
+Comportamento esperado:
+- a primeira acao pratica deve ser `Abrindo Opera dedicado e carregando WidePay real...`;
+- se ja estiver logado, continuar;
+- se o login estiver preenchido pelo navegador, clicar em Entrar;
+- se o login estiver vazio, houver captcha, 2FA ou erro, aguardar intervencao manual;
+- so depois consultar Carnes e Cobrancas/Boletos;
+- so depois consultar contratos locais.
+
+Erro critico:
+- `ERRO CRITICO: WidePay real nao foi aberto. Fluxo bloqueado antes de consultar arquivos locais.`
+
 1. WidePay primeiro
 - consultar Carnes;
 - consultar Cobrancas/Boletos;
