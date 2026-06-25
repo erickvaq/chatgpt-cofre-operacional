@@ -1,9 +1,9 @@
 # PAINEL OPERACIONAL WIDEPAY - Relatorio_WidePay_Lotes
 
 ## Estado Atual
-* **Data da atualizacao:** 2026-06-25
+* **Data da atualizacao:** 2026-06-25 (Regra 13 Ativada)
 * **Branch atual:** `main`
-* **Status do precheck:** `REGRAS PERSISTENTES CARREGADAS COM SUCESSO - 10 regras encontradas`
+* **Status do precheck:** `REGRAS PERSISTENTES CARREGADAS COM SUCESSO - 13 regras encontradas`
 * **Regra principal:** WidePay primeiro, contratos depois
 * **Formato principal:** XLS/XLSX para relatorios financeiros
 * **PDF:** gerar somente quando o usuario pedir explicitamente
