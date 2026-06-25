@@ -1,0 +1,6 @@
+pandas
+openpyxl
+websockets
+beautifulsoup4
+lxml
+playwright

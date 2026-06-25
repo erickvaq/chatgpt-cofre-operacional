@@ -1,0 +1,8 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}\\WideAPP_EXTRA\\.venv\\Scripts\\python.exe",
+  "python.terminal.activateEnvironment": true,
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}\\WideAPP_EXTRA",
+    "${workspaceFolder}\\WideAPP_EXTRA\\app"
+  ]
+}
