@@ -1,70 +1,79 @@
 ---
 name: widepay-core-operacional
-description: Usar sempre que o pedido envolver WidePay, cliente, contrato, lote, quadra, parcelas, carnês, cobrança, busca de cliente ou conferência financeira.
+description: Usar sempre que o pedido envolver WidePay, cliente, contrato, lote, quadra, parcelas, carnes, cobranca, busca de cliente ou conferencia financeira.
 ---
 # Skill: widepay-core-operacional
 
-Esta skill centraliza as regras de negócio, auditoria financeira, busca de clientes e segurança do projeto `Relatorio_WidePay_Lotes`.
+Esta skill centraliza as regras de negocio, auditoria financeira, busca de clientes e seguranca do projeto `Relatorio_WidePay_Lotes`.
+
+## 0. Regra Zero
+**WidePay primeiro, contratos depois.**
+Esta ordem tem prioridade acima de qualquer outro fluxo desta skill.
 
 ## 1. Prioridade
-**Máxima operacional.** Sobrescreve orientações gerais de desenvolvimento de código e direciona o fluxo de checagem.
+**Maxima operacional.** Depois da Regra Zero, esta skill sobrescreve orientacoes gerais de desenvolvimento e direciona o fluxo de checagem.
 
 ## 2. Quando usar
 * Busca de dados cadastrais e financeiros de clientes do loteamento.
-* Cruzamento de contratos físicos locais com lançamentos do site WidePay.
-* Geração do relatório de conferência Markdown em `07_DADOS_TEMPORARIOS`.
-* Processamento e normalização de nomes, quadras e lotes.
-* Automação de login e controle de perfil de navegação.
+* Cruzamento de contratos fisicos locais com lancamentos do site WidePay.
+* Geracao do relatorio de conferencia Markdown em `07_DADOS_TEMPORARIOS`.
+* Processamento e normalizacao de nomes, quadras e lotes.
+* Automacao de login e controle de perfil de navegacao.
 
-## 3. Quando não usar
+## 3. Quando nao usar
 * Abertura direta de arquivos gerados (usar `widepay-abertura-externa`).
-* Customização visual de relatórios ou conversão final de PDF/HTML (usar `widepay-relatorio-pdf`).
+* Customizacao visual de relatorios ou conversao final de PDF/HTML (usar `widepay-relatorio-pdf`).
 
-## 4. Gatilhos de ativação
+## 4. Gatilhos de ativacao
 Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`, `loteamento`, `quadra`, `verificar A a E`.
 
-## 5. Fluxo obrigatório
-1. **Precheck de Segurança:** Chamar `python 00_SISTEMA_PRECHECK\precheck_regras.py` antes de qualquer ação.
-2. **Localização Local:** Procurar a pasta do cliente sob a respectiva quadra em `C:\Users\Windows User\Desktop\AGUA VIVA\- CONTRATOS AGUA VIVA\`.
-3. **Login WidePay Seguro:** Chamar `ensure_widepay_logged_in()` para conectar ao Opera dedicado (`localhost:9444` via CDP) e preencher automaticamente caso a senha esteja salva.
-4. **Extração de Registros:** Acessar passivamente `Recebimentos > Carnês` e `Recebimentos > Cobranças/Boletos` extraindo todos os registros.
-5. **Cálculo de Quitação:** Cruzar o total nominal de parcelas do contrato físico com os recebimentos efetivos do WidePay.
-6. **Arquivo de Conferência:** Salvar o log detalhado em `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_[CLIENTE].md`.
+## 5. Ordem obrigatoria das fontes
+1. **WidePay primeiro:** consultar Carnes, Cobrancas/Boletos, identificar clientes com evidencia financeira, localizar carnes ativos, finalizados, pagos, pendentes e cancelados, e consolidar registros repetidos do mesmo cliente/lote.
+2. **Contratos locais depois:** usar contratos locais apenas como apoio, confirmar lote, confirmar nome completo, conferir contrato fisico e complementar dados ausentes.
+3. **Lista preliminar quando faltar WidePay:** se o WidePay ainda nao foi consultado, qualquer lista baseada em arquivos locais deve receber a marca `LISTA LOCAL PRELIMINAR - PENDENTE DE VALIDACAO WIDEPAY`.
+4. **Consulta segura:** chamar `ensure_widepay_logged_in()` para conectar ao Opera dedicado (`localhost:9444`) e acessar apenas `Recebimentos > Carnes` e `Recebimentos > Cobrancas/Boletos`.
+5. **Arquivo de conferencia:** salvar o log detalhado em `07_DADOS_TEMPORARIOS/CONFERENCIA_CALCULOS_[CLIENTE].md`.
 
 ## 6. Rotinas e scripts relacionados
 * `python 03_SCRIPTS\buscar_cliente.py <nome>`
 * `python 03_SCRIPTS\consultar_widepay_cdp.py --cliente <nome>`
 * `python 03_SCRIPTS\gerar_conferencia_cliente.py`
 
-## 7. Logs obrigatórios
-Ao iniciar a execução, imprimir no console:
+## 7. Logs obrigatorios
+Ao iniciar a execucao, imprimir no console:
 ```text
 SKILL CARREGADA: widepay-core-operacional
+REGRA ZERO: WIDEPAY PRIMEIRO
 PRECHECK SKILLS: aprovado
-PRECHECK LOGIN WIDEPAY: perfil persistente Opera/CDP obrigatório
+PRECHECK LOGIN WIDEPAY: perfil persistente Opera/CDP obrigatorio
 ensure_widepay_logged_in(): iniciado
 ```
 
 ## 8. Erros proibidos
 * **ERRO 1:** Confundir iniciais dos nomes dos clientes com a letra da quadra/lote (ex: "Alex" pertence ao escopo A a E, embora seu lote B2 esteja na Quadra B).
-* **ERRO 2:** Acessar a página de configurações `Configurações > Contatos` ou transferências.
-* **ERRO 3:** Simular dados financeiros falsos ou preencher dados de quitação quando o WidePay não pôde ser consultado.
-* **ERRO 4:** Calcular o total pago geral considerando apenas o primeiro carnê do cliente quando houver múltiplos carnês ativos/finalizados.
+* **ERRO 2:** Acessar a pagina de configuracoes `Configuracoes > Contatos` ou transferencias.
+* **ERRO 3:** Simular dados financeiros falsos ou preencher dados de quitacao quando o WidePay nao pode ser consultado.
+* **ERRO 4:** Calcular o total pago geral considerando apenas o primeiro carne do cliente quando houver multiplos carnes ativos ou finalizados.
+* **ERRO 5:** Tentar fechar lista oficial por arquivos locais antes da consulta WidePay.
+* **ERRO 6:** fluxo local-first bloqueado.
 
 ## 9. Critérios de validação
-* Normalização rigorosa de nomes (remover termos como "Contrato", "Cópia", "Leo/Léo").
+* Normalizacao rigorosa de nomes (remover termos como "Contrato", "Copia", "Leo/Leo").
+* WidePay define quem existe financeiramente; contratos locais apenas complementam depois da consulta.
 * Cobertura A a E baseada estritamente nas iniciais reais dos nomes.
-* Tabela de pendências atualizada sem dados financeiros sensíveis expostos no GitHub público.
+* Tabela de pendencias atualizada sem dados financeiros sensiveis expostos no GitHub publico.
 
 ## 10. Painel operacional publico
-Quando o painel operacional publico for alterado, consolidado ou limpo, o fluxo deve seguir a versão publicada, rodar precheck, fazer commit, fazer push e conferir o GitHub normal e o raw antes de encerrar.
-O painel não deve manter restos como `19 x 21`, `Heron Souza Dias`, `cb8c5c8` ou fotografias antigas de auditoria quando o objetivo for versão limpa.
+Quando o painel operacional publico for alterado, consolidado ou limpo, o fluxo deve seguir a versao publicada, rodar precheck, fazer commit, fazer push e conferir o GitHub normal e o raw antes de encerrar.
+O painel nao deve manter restos como `19 x 21`, `Heron Souza Dias`, `cb8c5c8` ou fotografias antigas de auditoria quando o objetivo for versao limpa.
 
 ## 11. Precheck relacionado
-* O script de validação `precheck_regras.py` valida a presença deste arquivo e suas 9 regras em `REGRAS_PERSISTENTES_DO_PROJETO.md`.
+* O script de validacao `precheck_regras.py` valida a presenca deste arquivo, da Regra Zero e das 9 regras numeradas em `REGRAS_PERSISTENTES_DO_PROJETO.md`.
 
-## 12. Exemplos curtos de decisão
-* *Cenário:* O usuário pede checagem do cliente "Alex Santos de Azevedo" (Lote B2).
-* *Decisão:* A inicial do nome é "A". Executar auditoria, pois está dentro da cobertura A a E (apesar de o lote estar na Quadra B).
-* *Cenário:* O script CDP falha ao conectar ou a página de login está sem senha salva.
-* *Decisão:* Interromper imediatamente, registrar `WIDEPAY NÃO CONSULTADO — AGUARDANDO LOGIN MANUAL` e solicitar ação do usuário.
+## 12. Exemplos curtos de decisao
+* *Cenario:* O usuario pede checagem do cliente "Alex Santos de Azevedo" (Lote B2).
+* *Decisao:* A inicial do nome e "A". Executar auditoria, mas a confirmacao financeira deve comecar no WidePay antes de qualquer apoio local.
+* *Cenario:* O script CDP falha ao conectar ou a pagina de login esta sem senha salva.
+* *Decisao:* Interromper imediatamente, registrar `WIDEPAY NAO CONSULTADO - AGUARDANDO LOGIN MANUAL` e solicitar acao do usuario.
+* *Cenario:* O usuario pede somente busca local nos contratos.
+* *Decisao:* Permitir a leitura local, mas marcar o resultado como `PRELIMINAR - NAO VALIDADO NO WIDEPAY`.

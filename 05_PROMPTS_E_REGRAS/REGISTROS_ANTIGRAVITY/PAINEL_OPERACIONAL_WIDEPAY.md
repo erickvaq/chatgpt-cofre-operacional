@@ -6,6 +6,8 @@
 * **Regra consolidada:** `REGRAS_PERSISTENTES_DO_PROJETO.md` saiu de 32 regras antigas para 8 blocos operacionais curtos
 * **Precheck atualizado:** nao depende de contagem fixa antiga
 * **Status do precheck:** `REGRAS PERSISTENTES CARREGADAS COM SUCESSO - 9 regras encontradas`
+* **Regra Zero ativa:** WidePay primeiro; contratos locais apenas depois
+* **Bloqueio local-first:** listas locais sem WidePay ficam preliminares
 
 ## Commits
 * **Commit da regra consolidada:** `1eae6ce`

@@ -2,9 +2,45 @@
 # Atualizado em: 2026-06-25
 ---
 
+## REGRA ZERO - WidePay primeiro, contratos depois
+
+Esta regra tem prioridade acima de todas as outras regras do projeto.
+
+Antes de qualquer consulta, levantamento, auditoria, relatorio, busca de cliente, checagem de cobertura, conferencia A a E, letra especifica, cliente especifico, lote, carne, cobranca ou PDF, a ordem obrigatoria e:
+
+1. WidePay primeiro
+- consultar Carnes;
+- consultar Cobrancas/Boletos;
+- identificar clientes com evidencia financeira;
+- identificar carnes ativos, finalizados, pagos, pendentes e cancelados;
+- consolidar registros repetidos do mesmo cliente/lote.
+
+2. Contratos e arquivos locais depois
+- usar contratos locais apenas como apoio;
+- confirmar lote;
+- confirmar nome completo;
+- conferir contrato fisico;
+- complementar dados ausentes;
+- nunca usar pasta local como fonte principal da lista oficial.
+
+Bloqueio obrigatorio:
+- proibido fechar lista oficial de clientes, pendentes, ativos ou relatorios comecando por arquivos locais.
+- se o WidePay ainda nao foi consultado, qualquer resultado baseado em arquivos locais deve ser marcado obrigatoriamente como `LISTA LOCAL PRELIMINAR - PENDENTE DE VALIDACAO WIDEPAY`.
+
+Erro critico:
+- ERRO CRITICO: fluxo local-first bloqueado. A fonte principal e WidePay. Consulte Carnes e Cobrancas/Boletos antes de usar contratos locais.
+
+Excecao permitida:
+- so pode comecar por arquivos locais se o usuario pedir explicitamente algo como "procure so nos contratos", "faça uma busca local", "nao acesse o WidePay agora" ou "levante apenas o que existe no disco".
+- mesmo nesses casos, o resultado deve sair marcado como `PRELIMINAR - NAO VALIDADO NO WIDEPAY`.
+
+---
+
 ## REGRA PRIORITARIA - Fonte principal de instrucoes
 
 Antes de qualquer relatorio, PDF, HTML, DOCX, importacao, conferencia, busca de cliente, painel, script ou entrega final, carregar estas regras via precheck.
+
+A REGRA ZERO vem antes de qualquer outra secao.
 
 Ordem de prioridade:
 1. seguranca dos dados;

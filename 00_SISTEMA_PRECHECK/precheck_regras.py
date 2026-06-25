@@ -166,6 +166,47 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         except Exception as ec:
             erros.append(f"Erro ao ler config_widepay_cdp.py: {ec}")
 
+    caminho_skill = os.path.join(PROJETO_ROOT, ".agents", "skills", "widepay-core-operacional", "SKILL.md")
+    if not os.path.exists(caminho_skill):
+        erros.append("Arquivo SKILL.md da widepay-core-operacional nao foi encontrado")
+    else:
+        try:
+            with open(caminho_skill, "r", encoding="utf-8") as fs:
+                skill_content = fs.read()
+                skill_norm = normalizar_texto(skill_content)
+
+                requisitos_skill = [
+                    ("regra zero", "Regra Zero nao encontrada na skill"),
+                    ("widepay primeiro", "A skill nao reforca WidePay primeiro"),
+                    ("contratos locais depois", "A skill nao reforca contratos locais depois"),
+                    ("lista local preliminar", "A skill nao marca a lista local como preliminar quando falta WidePay"),
+                    ("fluxo local-first bloqueado", "A skill nao bloqueia o fluxo local-first"),
+                ]
+            for termo, msg in requisitos_skill:
+                if termo not in skill_norm:
+                    erros.append(msg)
+        except Exception as es:
+            erros.append(f"Erro ao ler SKILL.md da widepay-core-operacional: {es}")
+
+    regra_zero_pos = conteudo_norm.find("## regra zero")
+    regra_prioritaria_pos = conteudo_norm.find("## regra prioritaria")
+    regra_1_pos = conteudo_norm.find("## regra 1")
+    if regra_zero_pos == -1:
+        erros.append("REGRA ZERO (widepay primeiro, contratos depois) nao foi encontrada")
+    else:
+        if regra_prioritaria_pos != -1 and regra_zero_pos > regra_prioritaria_pos:
+            erros.append("REGRA ZERO precisa aparecer antes da REGRA PRIORITARIA")
+        if regra_1_pos != -1 and regra_zero_pos > regra_1_pos:
+            erros.append("REGRA ZERO precisa aparecer antes da REGRA 1")
+        if "widepay primeiro" not in conteudo_norm:
+            erros.append("REGRA ZERO esta incompleta (esperado termo: 'widepay primeiro')")
+        if "contratos e arquivos locais depois" not in conteudo_norm:
+            erros.append("REGRA ZERO esta incompleta (esperado termo: 'contratos e arquivos locais depois')")
+        if "lista local preliminar" not in conteudo_norm:
+            erros.append("REGRA ZERO esta incompleta (esperado termo: 'lista local preliminar')")
+        if "fluxo local-first bloqueado" not in conteudo_norm:
+            erros.append("REGRA ZERO esta incompleta (esperado termo: 'fluxo local-first bloqueado')")
+
     if erros:
         msg_erros = "; ".join(erros)
         print(f"ERRO: Falha na validacao de regras criticas: {msg_erros}")
