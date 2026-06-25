@@ -22,6 +22,8 @@ Antes de qualquer busca de cliente, relatorio, auditoria, letra, lote, pendencia
 Bloqueio:
 - proibido continuar o fluxo usando contratos, pastas locais, arquivos antigos, JSONs antigos ou relatorios anteriores antes de tentar abrir o WidePay real;
 - se o Opera/CDP nao estiver aberto, abrir automaticamente o Opera dedicado;
+- se o CDP ja tiver aba WidePay logada, nunca fechar nem reiniciar o Opera;
+- antes de declarar login necessario, conferir `localhost:9444/json` e validar as abas reais do WidePay;
 - se o WidePay nao carregar, parar e informar `WIDEPAY REAL NAO ABERTO - EXECUCAO BLOQUEADA. Nao vou consultar arquivos locais antes de abrir o WidePay.`
 
 Comportamento esperado:

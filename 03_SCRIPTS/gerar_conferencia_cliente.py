@@ -444,10 +444,9 @@ def main():
     # 1. Localizar pasta do cliente no Água Viva
     matches = localizar_diretorio_cliente(cliente_query)
     if not matches:
-        print(f"ERRO: Nenhuma pasta contendo '{cliente_query}' encontrada na pasta de contratos.")
-        sys.exit(1)
-        
-    if len(matches) > 1:
+        print(f"AVISO: Nenhuma pasta contendo '{cliente_query}' encontrada na pasta de contratos. Seguindo somente com WidePay.")
+        pasta_cliente = None
+    elif len(matches) > 1:
         print(f"Multiplos resultados encontrados para '{cliente_query}':")
         for idx, m in enumerate(matches):
             print(f"  [{idx + 1}] {m.name}")
@@ -467,14 +466,18 @@ def main():
     else:
         pasta_cliente = matches[0]
         
-    print(f"Pasta do cliente localizada: {pasta_cliente}")
+    if pasta_cliente:
+        print(f"Pasta do cliente localizada: {pasta_cliente}")
+    else:
+        print("Contrato local nao localizado; dados contratuais ficarao pendentes.")
     
     # 2. Localizar o contrato (docx ou pdf)
     contratos = []
-    for file in os.listdir(pasta_cliente):
-        file_lower = file.lower()
-        if file_lower.endswith(('.docx', '.pdf')) and "carne" not in file_lower and "recibo" not in file_lower and "wp-pdf" not in file_lower:
-            contratos.append(pasta_cliente / file)
+    if pasta_cliente:
+        for file in os.listdir(pasta_cliente):
+            file_lower = file.lower()
+            if file_lower.endswith(('.docx', '.pdf')) and "carne" not in file_lower and "recibo" not in file_lower and "wp-pdf" not in file_lower:
+                contratos.append(pasta_cliente / file)
             
     if not contratos:
         print("AVISO: Nenhum contrato (.docx ou .pdf) localizado na pasta do cliente. Usando dados padrao.")

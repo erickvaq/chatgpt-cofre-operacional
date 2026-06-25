@@ -16,6 +16,8 @@ Esta skill vale para qualquer cliente especifico, letra unica, intervalo de letr
 ## 0.6 Abertura obrigatoria do WidePay real
 Antes de qualquer busca, relatorio, auditoria, letra, lote, pendencia, pagamento, parcela, carne, cobranca, PDF, HTML ou XLSX, a primeira acao pratica e abrir o Opera dedicado e carregar o WidePay real.
 Se o Opera/CDP nao estiver aberto, o fluxo deve tentar abrir automaticamente o navegador dedicado.
+Se o CDP ja tiver aba WidePay logada, nunca fechar nem reiniciar o Opera.
+Antes de declarar login necessario, conferir `localhost:9444/json` e validar as abas reais do WidePay.
 Somente depois de entrar no WidePay real pode consultar Carnes e Cobrancas/Boletos.
 Somente depois disso pode usar contratos locais como apoio.
 Se o WidePay real nao abrir, bloquear o fluxo com `ERRO CRITICO: WidePay real nao foi aberto. Fluxo bloqueado antes de consultar arquivos locais.`

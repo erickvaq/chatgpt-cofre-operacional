@@ -182,6 +182,23 @@ def ler_md_conferencia(caminho_md):
                 elif "total ainda a pagar" in col1 or "valor restante" in col1 or "total ainda a pagar (nominal)" in col1:
                     resumo_financeiro['valor_restante'] = extrair_valor_numerico(col2)
                 
+    # Quando nao ha contrato local, o total operacional vem dos carnes WidePay.
+    if resumo_financeiro['total_contrato'] <= 0 and carnes_widepay:
+        total_wp = 0
+        for carne in carnes_widepay:
+            if "cancelado" not in str(carne.get("status", "")).lower():
+                try:
+                    total_wp += int(carne.get("parcelas_geradas", 0))
+                except Exception:
+                    pass
+        if total_wp > 0:
+            resumo_financeiro['total_contrato'] = total_wp
+        if dados_cliente['valor_parcela'] <= 0:
+            for carne in carnes_widepay:
+                if "cancelado" not in str(carne.get("status", "")).lower():
+                    dados_cliente['valor_parcela'] = float(carne.get("valor_parcela", 0.0))
+                    break
+
     # Reajustar parcelas restantes e percentuais
     resumo_financeiro['parcelas_restantes'] = max(0, resumo_financeiro['total_contrato'] - resumo_financeiro['parcelas_pagas'])
     if resumo_financeiro['total_contrato'] > 0:
@@ -200,14 +217,14 @@ def main():
         print(f"Caminho invalido: {md_path}")
         sys.exit(1)
 
-    garantir_widepay_real_ou_parar(Path(md_path).stem)
-        
     print(f"Lendo dados de conferencia em: {md_path}...")
     dados_cliente, resumo, carnes = ler_md_conferencia(md_path)
     
     if not dados_cliente or not dados_cliente['nome']:
         print("Erro ao ler dados do relatorio.")
         sys.exit(1)
+
+    garantir_widepay_real_ou_parar(dados_cliente['nome'])
         
     print(f"Cliente: {dados_cliente['nome']}")
     print(f"Lote: {dados_cliente['lote']}")

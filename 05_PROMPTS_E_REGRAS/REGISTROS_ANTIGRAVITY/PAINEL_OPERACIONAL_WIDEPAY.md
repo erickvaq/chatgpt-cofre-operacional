@@ -28,10 +28,11 @@
 ## Estado de Uso
 * **Status atual:** consolidacao aprovada, painel limpo, regravado e pronto para referencia publica.
 * **Solicitacao atual:** relatorios/PDFs dos clientes com inicial C.
-* **WidePay real:** Opera dedicado aberto; login manual necessario.
-* **Bloqueio aplicado:** nao consultar arquivos locais nem gerar PDFs oficiais antes de entrar no WidePay real.
-* **PDFs da letra C:** pendentes de consulta em Carnes e Cobrancas/Boletos.
+* **WidePay real:** Opera dedicado aberto e logado via CDP `9444`.
+* **Cobertura C no WidePay:** 1 cliente com inicial C encontrado na varredura oficial.
+* **PDFs da letra C:** Camila de Oliveira Ferrolho gerado localmente; arquivos financeiros nao enviados ao GitHub.
+* **Correcao aplicada:** launcher nao fecha/reinicia Opera quando ja existe aba WidePay logada.
 * **Nao mantido neste painel:** explicacoes antigas, tabelas antigas de clientes, resumo antigo da extracao WidePay e pendencias legadas.
 
 ## Proximo Passo
-* Fazer login manual no Opera dedicado e retomar a consulta WidePay dos clientes com inicial C.
+* Conferir o PDF local da Camila e seguir para outra inicial quando solicitado.
