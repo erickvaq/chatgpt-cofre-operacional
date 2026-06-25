@@ -72,4 +72,5 @@ Auditoria financeira concluida com sucesso!
 
 - **Commit do Fix em `executar_auditoria.py`:** [42247fb](https://github.com/erickvaq/chatgpt-cofre-operacional/commit/42247fbad10a30b20cb3ee5bf5e5c8e3cc00ad58)
 - **Commit de Status e Homologação da Pipeline:** [e72803b](https://github.com/erickvaq/chatgpt-cofre-operacional/commit/e72803bed567b451559846de6e18f2d5964db2a8)
+- **Commit do Ocultamento da Janela CMD Subprocesso (CREATE_NO_WINDOW):** [3f05614](https://github.com/erickvaq/chatgpt-cofre-operacional/commit/3f05614f6b4bf2f5be24867140f7d54ad589d970)
 - **Branch/Remoto:** `main` / `origin`
