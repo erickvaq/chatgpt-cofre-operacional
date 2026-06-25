@@ -1,6 +1,6 @@
 # Walkthrough - Implementação da Regra 31 e Painel Operacional no GitHub
 
-Concluímos com sucesso o registro e a implantação da REGRA 31 (Espelho Operacional Leve no GitHub) no projeto `Relatorio_WidePay_Lotes`, corrigindo a identificação das iniciais dos clientes de pastas locais e alterando o formato de monitoramento de commits no painel para evitar ciclos infinitos.
+Concluímos com sucesso o registro e a implantação da REGRA 31 (Espelho Operacional Leve no GitHub) no projeto `Relatorio_WidePay_Lotes`, corrigindo a identificação das iniciais dos clientes de pastas locais e alterando o formato de monitoramento de commits no painel para evitar ciclos infinitos. Também explicamos a divergência de 19 vs 21 pendentes no painel.
 
 ## Alterações Realizadas
 
@@ -17,10 +17,12 @@ Concluímos com sucesso o registro e a implantação da REGRA 31 (Espelho Operac
 
 ### Correções no Painel Operacional
 1. **[PAINEL_OPERACIONAL_WIDEPAY.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md):**
-   - Substituído o campo dinâmico "Último Commit" por: "Último commit auditado no painel", "Link do histórico de commits" (apontando de forma fixa para a página de histórico do repositório) e "Branch atual", eliminando o ciclo infinito de commits do próprio painel.
-   - Ajustada a tabela de pendências locais para categorizar os clientes com iniciais reais de A a E (ex: Alex Santos de Azevedo, Edmilson, Emanuel, etc., corrigidos para iniciais A e E, respectivamente).
+   - Substituído o campo dinâmico "Último Commit" por: "Último commit auditado no painel" (cb8c5c8), "Link do histórico de commits" (apontando de forma fixa para a página de histórico do repositório) e "Branch atual", eliminando o ciclo infinito de commits do próprio painel.
+   - Adicionada a seção "Explicação da Diferença de Contagem (19 x 21 Pendentes)".
+   - Ajustada a tabela de pendências locais para categorizar os clientes com iniciais reais de A a E.
    - Inserida uma tabela dedicada (Tabela 4) para listar as pastas locais fora do escopo A a E encontradas por auditoria (ex: Heron Souza Dias), mantendo-as separadas do escopo atual.
    - Ajustado o status de busca na tabela de pendentes locais para `Pendente — contrato local sem confirmação financeira no WidePay`.
+   - Atualizada a seção "Pedido do usuário x entrega" detalhando o estado de relatórios de teste, relatórios completos e painel operacional.
 
 ## Versionamento
 * Os arquivos permitidos foram staged, commitados e atualizados no repositório remoto.

@@ -7,6 +7,10 @@
 * **Branch atual:** main
 * **Link GitHub deste Painel:** [PAINEL_OPERACIONAL_WIDEPAY.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md)
 
+### Explicação da Diferença de Contagem (19 x 21 Pendentes)
+* A contagem anterior de pendentes de iniciais A a E era **21**. A contagem atual foi revisada para **19**.
+* A diferença de **2** registros decorre da remoção de **Heron Souza Dias** (2 pastas locais: H5/H6a e B4/B5/B6) do escopo direto A a E (sua inicial de nome real é H). Estes foram realocados para uma tabela de auditoria externa (Tabela 4) para manter o escopo de iniciais A a E estrito.
+
 > [!NOTE]
 > **Nota sobre o Versionamento:**
 > Para evitar um ciclo infinito de alteração de commit dentro deste próprio arquivo (o que geraria novos commits sucessivos), o hash do commit exato contendo a última alteração deste painel será sempre informado diretamente na resposta final do Antigravity chat após cada push.
@@ -95,9 +99,10 @@
 | :--- | :--- | :--- | :--- | :--- |
 | Relatórios de teste | Parcial | 3 relatórios de teste locais | Parcial | Gerados para 3 clientes (Ana Cleide, Ana Carolina, Eliel) |
 | Relatórios completos A a E | Não | Nenhum | Pendente | Ainda não entregues |
-| Cobertura A a E | Parcial | [CHECAGEM_COBERTURA_A_E.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/07_DADOS_TEMPORARIOS/CHECAGEM_COBERTURA_A_E.md) | Parcial | Pendente de correção/validação individual dos clientes pendentes |
-| Painel operacional | Sim | [PAINEL_OPERACIONAL_WIDEPAY.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md) | Pronto | Criado e funcionando com regras sanitizadas |
+| Cobertura A a E | Parcial | [CHECAGEM_COBERTURA_A_E.md](file:///c:/Users/Windows%20User/Desktop/chatgpt%20projetos/Relatorio_WidePay_Lotes/07_DADOS_TEMPORARIOS/CHECAGEM_COBERTURA_A_E.md) | Parcial/Pendente | Pendente de correção/validação individual dos clientes pendentes |
+| Painel operacional | Sim | [PAINEL_OPERACIONAL_WIDEPAY.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md) | Pronto | Criado e em uso |
 | Registrar regras de login e navegação segura | Sim | [REGRAS_PERSISTENTES_DO_PROJETO.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md) (REGRAS 27 e 29) | Pronto | Nenhuma |
+| Diferença 19 x 21 no painel | Sim | [PAINEL_OPERACIONAL_WIDEPAY.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md) | Pronto | Explicada (2 pastas de Heron Souza Dias reclassificadas para fora do escopo A a E devido à inicial H) |
 
 ---
 
