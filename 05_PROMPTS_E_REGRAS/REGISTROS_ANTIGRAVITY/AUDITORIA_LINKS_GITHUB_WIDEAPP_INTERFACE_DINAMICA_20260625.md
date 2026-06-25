@@ -39,8 +39,14 @@ Publicar a etapa de interface dinamica da `WideAPP_EXTRA` para lista de clientes
 - `WideAPP_EXTRA/app/gerador_xlsx_consolidado.py`  
   https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/WideAPP_EXTRA/app/gerador_xlsx_consolidado.py
 
+- `WideAPP_EXTRA/app/pipeline_runner.py`  
+  https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/WideAPP_EXTRA/app/pipeline_runner.py
+
 - Status da etapa  
   https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/STATUS_WIDEAPP_EXTRA_INTERFACE_DINAMICA_CLIENTES_20260625.md
+
+- Status ETAPA 2 Drive + pipeline  
+  https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/STATUS_WIDEAPP_EXTRA_APROVACAO_FINAL_DRIVE_PIPELINE_20260625.md
 
 - Este indice de auditoria  
   https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/AUDITORIA_LINKS_GITHUB_WIDEAPP_INTERFACE_DINAMICA_20260625.md
@@ -60,4 +66,5 @@ Motivo: contem dados locais de clientes/lotes, logs de ambiente ou manifesto ope
 - Pesquisa por `Edm`, `A a E` e `F05` funcionando.
 - Smoke test da interface aprovado.
 - XLSX consolidado de teste gerado.
-- Drive manifestou `PENDENTE_CONFIGURACAO_DRIVE` por falta de remoto/configuracao local.
+- Drive local copiou arquivo real para `WideAPP_EXTRA/drive_local`.
+- Pipeline real foi acionado, tentou login automatico e falhou por erro de usuario/senha no WidePay; etapa final nao aprovada.

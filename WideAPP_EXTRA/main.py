@@ -32,8 +32,13 @@ class WideApp:
         self.log_path = LOG_DIR / f"wideapp_extra_{stamp}.log"
 
     def log(self, message):
+        message = str(message)
         line = f"[{datetime.now().isoformat(timespec='seconds')}] {message}"
-        print(message)
+        try:
+            print(message)
+        except UnicodeEncodeError:
+            safe_message = message.encode("ascii", errors="replace").decode("ascii")
+            print(safe_message)
         with open(self.log_path, "a", encoding="utf-8") as f:
             f.write(line + "\n")
 
@@ -216,6 +221,23 @@ class WideApp:
         self.log(f"SMOKE_INTERFACE: ok; cache atual com {qtd} registro(s)")
         return 0
 
+    def teste_pipeline(self, termo):
+        from app.indexador_clientes import carregar_cache
+        from app.pesquisa_clientes import filtrar
+        from app.pipeline_runner import executar_lote
+
+        registros = [r for r in filtrar(carregar_cache(), termo) if r.get("contrato") == "Encontrado"]
+        if not registros:
+            self.log(f"ERRO: nenhum registro com contrato confirmado para {termo!r}")
+            return 1
+        registro = registros[0]
+        self.log(f"TESTE_PIPELINE: {registro.get('cliente')} lote {registro.get('lote')}")
+        resultado = executar_lote([registro], grupo="TESTE_PIPELINE", log_callback=self.log)
+        self.log(f"TESTE_PIPELINE: resultados={len(resultado['resultados'])} drive={len(resultado['drive'])}")
+        for item in resultado["drive"]:
+            self.log(f"DRIVE: {item.get('arquivo')} {item.get('status')} {item.get('link')}")
+        return 0
+
     def _menu_consolidado(self):
         print()
         print("Escopo do consolidado:")
@@ -268,6 +290,7 @@ def parse_args():
     parser.add_argument("--sem-widepay", action="store_true", help="na atualizacao, nao valida WidePay/CDP")
     parser.add_argument("--pesquisar", help="pesquisa no cache local de clientes")
     parser.add_argument("--smoke-test-interface", action="store_true", help="testa criacao da interface sem manter janela aberta")
+    parser.add_argument("--teste-pipeline", help="executa pipeline real para o primeiro cliente/lote encontrado no cache")
     return parser.parse_args()
 
 
@@ -287,6 +310,8 @@ def main():
         return app.pesquisar_clientes(args.pesquisar)
     if args.smoke_test_interface:
         return app.smoke_test_interface()
+    if args.teste_pipeline:
+        return app.teste_pipeline(args.teste_pipeline)
     if args.terminal:
         return app.menu()
     return app.abrir_interface_visual()

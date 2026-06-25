@@ -40,7 +40,9 @@ Aplicar a diretriz de interface dinamica da `WideAPP_EXTRA` para listar clientes
   `02_RELATORIOS_GERADOS/CONSOLIDADO_WIDEAPP_EXTRA_TESTE_INTERFACE_20260625_163659.xlsx`
 - Manifesto Google Drive atualizado:
   `WideAPP_EXTRA/LINKS_GOOGLE_DRIVE.md`
-- Status do upload Drive: `PENDENTE_CONFIGURACAO_DRIVE`, pois nao ha `WIDEAPP_RCLONE_REMOTE` nem `WIDEAPP_DRIVE_LOCAL` configurado no ambiente.
+- Status do upload Drive local: `COPIADO_DRIVE_LOCAL` apos configuracao padrao em `WideAPP_EXTRA/drive_local`.
+- Arquivo copiado no teste Drive local:
+  `WideAPP_EXTRA/drive_local/Relatorio_WidePay_Lotes/WideAPP_EXTRA/2026-06-25/TESTE_DRIVE_LOCAL_ETAPA2/CONSOLIDADO_WIDEAPP_EXTRA_TESTE_INTERFACE_20260625_163659.xlsx`
 - `main.py --validar-ambiente`: sucesso.
 - Estado WidePay observado: CDP acessivel em `https://www.widepay.com/conta/acessar`; login pode ser necessario antes de extracao financeira real.
 
@@ -49,17 +51,19 @@ Aplicar a diretriz de interface dinamica da `WideAPP_EXTRA` para listar clientes
 - A interface visual passou a ser o padrao do `main.py`.
 - O menu antigo ficou disponivel por `--terminal`.
 - Foram criados comandos de teste auditaveis para indexar, pesquisar e testar interface.
-- O upload Drive nao inventa link quando nao ha configuracao local; registra manifesto com status pendente.
+- O upload Drive usa pasta local operacional padrao `WideAPP_EXTRA/drive_local` quando nao houver `WIDEAPP_RCLONE_REMOTE`.
+- O pipeline agora falha quando `executar_auditoria.py` retorna erro ou quando nao encontra XLSX/PDF/HTML/MD/JSON/log obrigatorios.
 
 ## Limites desta etapa
 
 - A lista dinamica foi indexada principalmente a partir dos contratos locais.
 - A extracao financeira completa do WidePay continua sendo feita pelo pipeline existente por cliente/lote.
-- O teste nao aprovou upload real ao Google Drive porque nao havia remoto/configuracao local de Drive disponivel.
+- O teste aprovou copia real para Drive local operacional.
+- O teste real do pipeline financeiro nao foi aprovado porque o WidePay retornou erro de usuario/senha apos clique automatico em `Acessar`.
 - O XLSX gerado nesta etapa e consolidado operacional da selecao/cache; relatorios financeiros finais por cliente continuam no pipeline `executar_auditoria.py`.
 
 ## Classificacao
 
-PARCIAL FUNCIONAL.
+PARCIAL FUNCIONAL - NAO APROVADO FINAL.
 
-A aplicacao agora tem interface dinamica, cache, pesquisa, selecao, XLSX consolidado e manifesto Drive. Ainda falta configurar Drive real e integrar a extracao financeira completa em lote direto pelos botoes.
+A aplicacao agora tem interface dinamica, cache, pesquisa, selecao, XLSX consolidado, manifesto Drive local e botoes ligados ao pipeline. Falta login WidePay valido para gerar os artefatos financeiros finais por cliente/lote e fechar aprovacao final.

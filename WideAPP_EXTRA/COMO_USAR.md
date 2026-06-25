@@ -103,4 +103,16 @@ A aplicacao cria e atualiza:
 WideAPP_EXTRA\LINKS_GOOGLE_DRIVE.md
 ```
 
-Se `WIDEAPP_RCLONE_REMOTE` ou `WIDEAPP_DRIVE_LOCAL` estiver configurado, o modulo de upload tenta enviar/copiar os arquivos. Sem essa configuracao, o manifesto registra `PENDENTE_CONFIGURACAO_DRIVE` e nao inventa links.
+Por padrao, quando `WIDEAPP_RCLONE_REMOTE` nao estiver configurado, a aplicacao usa uma pasta Drive local operacional:
+
+```text
+WideAPP_EXTRA\drive_local
+```
+
+Tambem e possivel apontar outra pasta com:
+
+```powershell
+$env:WIDEAPP_DRIVE_LOCAL="C:\caminho\para\Google Drive"
+```
+
+Se `WIDEAPP_RCLONE_REMOTE` estiver configurado, o modulo tenta enviar via `rclone`. Em todos os casos, o manifesto registra o status real e nao inventa links.

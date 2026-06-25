@@ -10,7 +10,7 @@ from app import indexador_clientes
 from app import pesquisa_clientes
 from app import seletor_clientes
 from app import drive_uploader
-from app import gerador_xlsx_consolidado
+from app import pipeline_runner
 from app.abridor_arquivos import abrir_pasta, abrir
 
 
@@ -37,6 +37,9 @@ class WideAppInterface:
         self.filtrados = []
         self.selecionados = set()
         self.ultimo_arquivo = None
+        self.ultima_pasta = config.OUTPUT_DIR
+        self.ultimos = {"xlsx": [], "pdf": [], "html": [], "md": [], "json": [], "log": []}
+        self.ultimo_grupo = "SELECIONADOS"
         self._montar()
         self.aplicar_filtro()
 
@@ -67,10 +70,11 @@ class WideAppInterface:
         ttk.Button(botoes, text="Limpar selecao", command=self.limpar_selecao).pack(side="left", padx=4)
         ttk.Button(botoes, text="Gerar relatorio dos selecionados", command=self.gerar_selecionados).pack(side="left", padx=12)
         ttk.Button(botoes, text="Gerar relatorio de todos os clientes ativos", command=self.gerar_todos_ativos).pack(side="left")
-        ttk.Button(botoes, text="Abrir pasta local", command=lambda: abrir_pasta(config.OUTPUT_DIR)).pack(side="right")
+        ttk.Button(botoes, text="Abrir pasta local", command=self.abrir_pasta_execucao).pack(side="right")
+        ttk.Button(botoes, text="Abrir pasta no Drive", command=self.abrir_drive).pack(side="right", padx=4)
         ttk.Button(botoes, text="Abrir XLSX", command=self.abrir_ultimo).pack(side="right", padx=4)
-        ttk.Button(botoes, text="Abrir PDF", command=lambda: self.log("PDF individual sera gerado pelo pipeline por cliente.")).pack(side="right", padx=4)
-        ttk.Button(botoes, text="Abrir HTML", command=lambda: self.log("HTML individual sera gerado pelo pipeline por cliente.")).pack(side="right", padx=4)
+        ttk.Button(botoes, text="Abrir PDF", command=lambda: self.abrir_tipo("pdf")).pack(side="right", padx=4)
+        ttk.Button(botoes, text="Abrir HTML", command=lambda: self.abrir_tipo("html")).pack(side="right", padx=4)
 
         meio = ttk.Frame(self.root, padding=8)
         meio.pack(fill="both", expand=True)
@@ -161,24 +165,62 @@ class WideAppInterface:
             messagebox.showwarning("WideAPP_EXTRA", "Nenhum cliente selecionado.")
             return
         resumo = seletor_clientes.resumir_selecao(registros)
-        if not messagebox.askyesno("Confirmar selecao", resumo + "\n\nGerar XLSX consolidado agora?"):
+        if not messagebox.askyesno("Confirmar selecao", resumo + "\n\nExecutar pipeline financeiro completo agora?"):
             self.log("Geracao cancelada pelo usuario.")
             return
-        caminho = gerador_xlsx_consolidado.gerar(registros, grupo)
-        self.ultimo_arquivo = caminho
-        self.log(f"XLSX consolidado gerado: {caminho}")
-        arquivos = [{"cliente": r.get("cliente"), "lote": r.get("lote"), "arquivo": caminho.name, "caminho_local": str(caminho)} for r in registros]
-        resultados = drive_uploader.enviar_arquivos(arquivos, grupo)
+        self.ultimo_grupo = grupo
+        threading.Thread(target=self._gerar_thread, args=(registros, grupo), daemon=True).start()
+
+    def _gerar_thread(self, registros, grupo):
+        try:
+            resultado = pipeline_runner.executar_lote(registros, grupo=grupo, log_callback=self.log)
+        except Exception as exc:
+            self.log(f"ERRO_PIPELINE: {exc}")
+            messagebox.showerror("WideAPP_EXTRA", str(exc))
+            return
+        self.ultimos = {"xlsx": [], "pdf": [], "html": [], "md": [], "json": [], "log": []}
+        for res in resultado["resultados"]:
+            for tipo, paths in res["arquivos"].items():
+                self.ultimos.setdefault(tipo, []).extend(paths)
+        if resultado.get("consolidado"):
+            self.ultimos.setdefault("xlsx", []).insert(0, resultado["consolidado"])
+        if self.ultimos.get("xlsx"):
+            self.ultimo_arquivo = self.ultimos["xlsx"][0]
+        if self.ultimos.get("pdf"):
+            self.ultima_pasta = self.ultimos["pdf"][0].parent
+        elif self.ultimos.get("xlsx"):
+            self.ultima_pasta = self.ultimos["xlsx"][0].parent
         self.links.delete("1.0", "end")
-        for item in resultados:
+        for item in resultado["drive"]:
             self.links.insert("end", f"{item.get('cliente')} {item.get('lote')}: {item.get('status')} {item.get('link')}\n")
-        self.log(f"Manifesto Drive atualizado: {config.LINKS_DRIVE_MD}")
+        self.log(f"Pipeline concluido. Manifesto Drive: {config.LINKS_DRIVE_MD}")
+        if resultado["ignorados"]:
+            self.log(f"Ignorados sem contrato confirmado: {len(resultado['ignorados'])}")
 
     def abrir_ultimo(self):
-        if not self.ultimo_arquivo:
+        if not self.ultimos.get("xlsx"):
             messagebox.showinfo("WideAPP_EXTRA", "Nenhum XLSX gerado nesta sessao.")
             return
-        abrir(self.ultimo_arquivo)
+        abrir(self.ultimos["xlsx"][0])
+
+    def abrir_tipo(self, tipo):
+        if not self.ultimos.get(tipo):
+            messagebox.showinfo("WideAPP_EXTRA", f"Nenhum arquivo {tipo.upper()} gerado nesta sessao.")
+            return
+        abrir(self.ultimos[tipo][0])
+
+    def abrir_pasta_execucao(self):
+        abrir_pasta(self.ultima_pasta)
+
+    def abrir_drive(self):
+        destino = drive_uploader.abrir_destino_drive(self.ultimo_grupo)
+        if not destino:
+            messagebox.showinfo("WideAPP_EXTRA", "Destino Drive nao configurado.")
+            return
+        if hasattr(destino, "exists"):
+            abrir_pasta(destino)
+        else:
+            self.links.insert("end", f"Destino Drive remoto: {destino}\n")
 
 
 def abrir_interface():

@@ -19,7 +19,7 @@ CLIENTES_XLSX = DATA_DIR / "clientes_indexados.xlsx"
 LINKS_DRIVE_MD = APP_DIR / "LINKS_GOOGLE_DRIVE.md"
 RCLONE_EXE = ROOT_DIR / "ferramentas" / "rclone" / "rclone.exe"
 RCLONE_REMOTE = os.environ.get("WIDEAPP_RCLONE_REMOTE", "").strip()
-DRIVE_LOCAL_DIR = os.environ.get("WIDEAPP_DRIVE_LOCAL", "").strip()
+DRIVE_LOCAL_DIR = os.environ.get("WIDEAPP_DRIVE_LOCAL", "").strip() or str(APP_DIR / "drive_local")
 
 CONTRATOS_DIR = Path(
     os.environ.get(
@@ -30,5 +30,5 @@ CONTRATOS_DIR = Path(
 
 
 def ensure_dirs():
-    for path in (DATA_DIR, LOG_DIR, OUTPUT_DIR, TEMP_DIR):
+    for path in (DATA_DIR, LOG_DIR, OUTPUT_DIR, TEMP_DIR, Path(DRIVE_LOCAL_DIR)):
         path.mkdir(parents=True, exist_ok=True)

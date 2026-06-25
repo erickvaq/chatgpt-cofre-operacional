@@ -71,3 +71,13 @@ def enviar_arquivos(arquivos, grupo="GRUPO"):
 
     registrar_manifesto(resultados, grupo)
     return resultados
+
+
+def abrir_destino_drive(grupo="GRUPO"):
+    if config.DRIVE_LOCAL_DIR:
+        destino = Path(config.DRIVE_LOCAL_DIR) / f"Relatorio_WidePay_Lotes/WideAPP_EXTRA/{datetime.now().strftime('%Y-%m-%d')}/{grupo}"
+        destino.mkdir(parents=True, exist_ok=True)
+        return destino
+    if config.RCLONE_REMOTE:
+        return f"{config.RCLONE_REMOTE}:Relatorio_WidePay_Lotes/WideAPP_EXTRA/{datetime.now().strftime('%Y-%m-%d')}/{grupo}"
+    return None
