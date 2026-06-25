@@ -5,11 +5,11 @@
 * **Branch atual:** `main`
 * **Regra consolidada:** `REGRAS_PERSISTENTES_DO_PROJETO.md` saiu de 32 regras antigas para 8 blocos operacionais curtos
 * **Precheck atualizado:** nao depende de contagem fixa antiga
-* **Status do precheck:** `REGRAS PERSISTENTES CARREGADAS COM SUCESSO - 8 regras encontradas`
+* **Status do precheck:** `REGRAS PERSISTENTES CARREGADAS COM SUCESSO - 9 regras encontradas`
 
 ## Commits
 * **Commit da regra consolidada:** `1eae6ce`
-* **Commit do painel atualizado:** `2e2c71b`
+* **Commit da publicacao do painel:** informado na resposta final do Antigravity apos push, para evitar ciclo infinito de autoatualizacao de hash
 * **Revisao desta publicacao:** painel regravado nesta rodada para alinhar a versao limpa no GitHub normal e no raw
 
 ## Links Reais
