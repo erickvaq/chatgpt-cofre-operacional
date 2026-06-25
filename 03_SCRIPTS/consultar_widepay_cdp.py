@@ -114,7 +114,7 @@ async def main_async():
     print(f"Conectando ao navegador em {CDP_HOST}:{CDP_PORT}...")
     abas = obter_abas()
     if not abas:
-        print("Abrindo Opera dedicado e carregando WidePay real...")
+        print("Abrindo navegador dedicado e carregando WidePay real...")
         script_inicio = ROOT_DIR / "03_SCRIPTS" / "iniciar_widepay_opera_wmi.py"
         tentativa = subprocess.run([sys.executable, str(script_inicio)], capture_output=True, text=True)
         if tentativa.stdout:
@@ -122,7 +122,7 @@ async def main_async():
         if tentativa.stderr:
             print(tentativa.stderr, end="" if tentativa.stderr.endswith("\n") else "\n")
         if tentativa.returncode == 2:
-            print("WIDEPAY REAL NAO ABERTO - EXECUCAO BLOQUEADA. Login manual necessario no Opera dedicado.")
+            print("WIDEPAY REAL NAO ABERTO - EXECUCAO BLOQUEADA. Login manual necessario no navegador dedicado.")
             sys.exit(2)
         if tentativa.returncode not in (0, 2):
             print("WIDEPAY REAL NAO ABERTO - EXECUCAO BLOQUEADA. Falha ao abrir o Opera dedicado.")
@@ -159,7 +159,7 @@ async def main_async():
     ws_url = wp_aba["webSocketDebuggerUrl"]
     print(f"Conectado com sucesso Ã  aba: {wp_aba.get('title')} ({wp_aba.get('url')})")
     
-    # 1. Verificar se esta na tela de login e tentar usar preenchimento automatico do Opera
+    # 1. Verificar se esta na tela de login e tentar usar preenchimento automatico do navegador dedicado
     eval_location = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "window.location.href", "returnByValue": True})
     current_url = eval_location.get("result", {}).get("result", {}).get("value", "")
     
@@ -173,7 +173,7 @@ async def main_async():
             is_login_page = True
             
     if is_login_page:
-        print("\nTela de login detectada. Tentando preenchimento automatico do Opera via CDP...")
+        print("\nTela de login detectada. Tentando preenchimento automatico do navegador dedicado via CDP...")
         
         # Primeiro, foca no campo de senha para forcar o preenchimento/autofill do Opera
         js_focus = """
@@ -279,14 +279,14 @@ async def main_async():
             body_text2 = eval_body2.get("result", {}).get("result", {}).get("value", "")
             
             if "Erro na" in body_text2 or "incorreta" in body_text2 or "invÃ¡lido" in body_text2:
-                print("\n[FALHA DE AUTOFILL] O Opera nao preencheu automaticamente os dados ou a senha esta invalida.")
+                print("\n[FALHA DE AUTOFILL] O navegador dedicado nao preencheu automaticamente os dados ou a senha esta invalida.")
             elif senha_salva or usuario_preenchido:
                 print("\n[LOGIN SALVO NAO CONFIRMADO] O navegador tinha credenciais preenchidas, mas a navegacao nao saiu da tela de acesso.")
             
-            print("\n[LOGIN REQUERIDO] Login manual necessario no Opera dedicado.")
+            print("\n[LOGIN REQUERIDO] Login manual necessario no navegador dedicado.")
             sys.exit(2)
         else:
-            print("Login automatico realizado com sucesso via preenchimento do Opera!")
+            print("Login automatico realizado com sucesso via preenchimento do navegador dedicado!")
             current_url = current_url2    # 2. ExtraÃ§Ã£o de CarnÃªs
     if "recebimentos/carnes" not in current_url:
         print("Navegando para a pagina de carnes...")

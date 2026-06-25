@@ -361,6 +361,52 @@ Modelo Camila:
 
 ---
 
+## REGRA OPERACIONAL CRITICA - Interpretacao individual de pagamentos WidePay
+
+Esta regra e universal: vale para qualquer cliente, lote, quadra, letra, grupo, intervalo de clientes, relatorio individual ou relatorio consolidado.
+
+Antes de calcular progresso, parcelas pagas, parcelas restantes, percentual de parcelas, percentual financeiro ou total pago, interpretar cada cliente individualmente.
+
+Para cada cliente, identificar obrigatoriamente:
+- total de parcelas do contrato confirmado;
+- valor base da parcela daquele cliente;
+- valor total contratado do terreno/lote;
+- todos os carnes encontrados no WidePay;
+- todas as cobrancas/boletos encontrados no WidePay;
+- todos os recebimentos com status `Recebido`;
+- descricoes que indiquem referencia, atraso, atrazo, parcela, competencia, mes ou meses pagos.
+
+Total pago do terreno/lote = soma de todos os valores recebidos no WidePay com status `Recebido`, desde que pertencam ao cliente/lote correto.
+
+Entram obrigatoriamente no total pago:
+- parcelas recebidas de carne;
+- boletos avulsos recebidos;
+- cobrancas manuais recebidas;
+- boletos com descricao `atraso`, `atrazo`, `REF`, `Ref`, `referente`, `parcela`, `apart`, `competencia` ou termo equivalente;
+- boletos com valor maior que a parcela normal, quando vinculados ao cliente/lote correto.
+
+E proibido calcular total pago apenas pelo resumo de carnes, ignorar boleto avulso recebido ou ignorar cobranca manual recebida.
+
+Parcelas pagas equivalentes devem ser calculadas recebimento por recebimento, nesta ordem:
+1. descricao original do WidePay;
+2. referencias/competencias citadas;
+3. vencimento do boleto;
+4. data de pagamento;
+5. valor original/base da cobranca;
+6. valor base da parcela daquele cliente;
+7. valor recebido apenas como confirmacao financeira, pois pode conter juros, multa ou acrescimos.
+
+Se a descricao informar meses especificos, a descricao prevalece sobre divisao simples por valor.
+Se nao for possivel identificar claramente as referencias pagas, marcar `REFERENCIA NAO IDENTIFICADA` e nao inventar parcela.
+
+Todo relatorio final deve conter a tabela `Pagamentos Recebidos Interpretados` com cliente, lote/quadra, ID, tipo, descricao original, vencimento, pagamento, valor original, valor recebido, valor base da parcela, referencias identificadas, quantidade de parcelas quitadas e observacao.
+
+Antes de gerar HTML, PDF, XLSX, Markdown de conferencia ou relatorio final, validar que todo recebimento `Recebido` foi listado, entrou no total financeiro e foi interpretado individualmente.
+
+Nunca usar o caso Edmilson, R$ 99,00 ou contrato de 100 parcelas como regra fixa global.
+
+---
+
 ## REGRA 9 - Painel operacional publico sempre limpo e verificado
 
 O arquivo `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md` e o painel publico oficial usado para revisar o estado do projeto.

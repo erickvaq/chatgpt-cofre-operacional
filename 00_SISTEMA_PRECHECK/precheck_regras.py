@@ -164,6 +164,12 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         erros.append("Regra de listagem completa de carnes e cobrancas/boletos no relatorio nao foi encontrada")
     if "aproveitar o autopreenchimento e tentar login automatico antes de pedir intervencao manual" not in conteudo_norm:
         erros.append("Regra de login automatico com senha salva no navegador nao foi encontrada")
+    if "interpretacao individual de pagamentos widepay" not in conteudo_norm:
+        erros.append("Regra de interpretacao individual de pagamentos WidePay nao foi encontrada")
+    if "pagamentos recebidos interpretados" not in conteudo_norm:
+        erros.append("Tabela obrigatoria de pagamentos recebidos interpretados nao foi encontrada nas regras")
+    if "nunca usar o caso edmilson" not in conteudo_norm:
+        erros.append("Bloqueio contra regra fixa baseada no caso Edmilson nao foi encontrado")
 
     caminho_procedimento = os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "PROCEDIMENTO_WIDEPAY_OPERA_CDP_WMI.md")
     if not os.path.exists(caminho_procedimento):
@@ -199,6 +205,8 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                 ("widepay real nao foi aberto", "A skill nao bloqueia quando o WidePay real nao abre"),
                 ("parcelas restantes somente pelo contrato", "A skill nao bloqueia parcelas restantes fora do contrato"),
                 ("alias e erros de digitacao comuns", "A skill nao aceita aliases comuns do cliente"),
+                ("interpretacao individual de pagamentos widepay", "A skill nao reforca interpretacao individual de pagamentos WidePay"),
+                ("pagamentos recebidos interpretados", "A skill nao exige a tabela de pagamentos interpretados"),
             ],
         ),
         (
@@ -212,6 +220,8 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                 ("par de entrega", "A skill de PDF nao reforca o par de entrega"),
                 ("parcelas restantes pelo contrato", "A skill de PDF nao reforca parcelas restantes pelo contrato"),
                 ("total pago do terreno/lote", "A skill de PDF nao reforca o total pago do terreno/lote"),
+                ("pagamentos interpretados", "A skill de PDF nao exige pagamentos interpretados"),
+                ("percentuais separados", "A skill de PDF nao separa percentual financeiro e percentual de parcelas"),
             ],
         ),
     ]
@@ -228,6 +238,48 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                     erros.append(msg)
         except Exception as es:
             erros.append(f"Erro ao ler {rotulo_skill}: {es}")
+
+    scripts_a_validar = [
+        (
+            os.path.join(PROJETO_ROOT, "03_SCRIPTS", "gerar_relatorio_cliente.py"),
+            "gerar_relatorio_cliente.py",
+            [
+                ("validar_interpretacao_pagamentos", "Gerador final nao valida interpretacao individual de pagamentos"),
+                ("interpretar_pagamentos_recebidos", "Gerador final nao interpreta pagamentos recebidos"),
+                ("pagamentos_interpretados", "Gerador final nao carrega pagamentos interpretados"),
+            ],
+        ),
+        (
+            os.path.join(PROJETO_ROOT, "03_SCRIPTS", "gerar_conferencia_cliente.py"),
+            "gerar_conferencia_cliente.py",
+            [
+                ("pagamentos recebidos interpretados", "Conferencia Markdown nao gera a tabela de pagamentos interpretados"),
+                ("interpretar_cobrancas_recebidas", "Conferencia Markdown nao interpreta recebimentos"),
+            ],
+        ),
+        (
+            os.path.join(PROJETO_ROOT, "03_SCRIPTS", "relatorios_pdf", "gerar_pdf_final.py"),
+            "gerar_pdf_final.py",
+            [("pagamentos recebidos interpretados", "PDF nao contem tabela de pagamentos interpretados")],
+        ),
+        (
+            os.path.join(PROJETO_ROOT, "03_SCRIPTS", "relatorios_pdf", "gerar_html_previa.py"),
+            "gerar_html_previa.py",
+            [("pagamentos recebidos interpretados", "HTML nao contem tabela de pagamentos interpretados")],
+        ),
+    ]
+    for caminho_script, rotulo_script, requisitos_script in scripts_a_validar:
+        if not os.path.exists(caminho_script):
+            erros.append(f"Arquivo {rotulo_script} nao foi encontrado")
+            continue
+        try:
+            with open(caminho_script, "r", encoding="utf-8") as fs:
+                script_norm = normalizar_texto(fs.read())
+            for termo, msg in requisitos_script:
+                if termo not in script_norm:
+                    erros.append(msg)
+        except Exception as ev:
+            erros.append(f"Erro ao ler {rotulo_script}: {ev}")
 
     regra_zero_pos = conteudo_norm.find("## regra zero")
     regra_prioritaria_pos = conteudo_norm.find("## regra prioritaria")

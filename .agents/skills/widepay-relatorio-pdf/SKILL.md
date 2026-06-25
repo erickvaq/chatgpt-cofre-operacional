@@ -38,6 +38,8 @@ Palavras-chave: `gerar PDF`, `relatorio final`, `layout visual`, `cards de resum
 8. **Parcelas restantes pelo contrato:** calcular restantes somente por total de parcelas do contrato confirmado menos parcelas pagas; se o contrato nao confirmar o total, bloquear PDF/HTML final.
 9. **Total pago do terreno/lote:** o valor pago no card principal e no resumo final deve representar o total pago do terreno/lote, somando carnÃªs pagos e cobranÃ§as/boletos recebidos do mesmo cliente.
 10. **Cobrancas/boletos visiveis:** o PDF e o HTML devem listar as cobrancas/boletos pagos ou em aberto encontrados no WidePay, alem dos carnes.
+11. **Pagamentos interpretados:** todo PDF/HTML/XLSX/Markdown final deve conter a tabela `Pagamentos Recebidos Interpretados`, calculada recebimento por recebimento.
+12. **Percentuais separados:** percentual de parcelas quitadas usa total de parcelas do contrato; percentual financeiro pago usa total recebido dividido pelo valor total contratado do terreno/lote.
 
 ## 6. Rotinas e scripts relacionados
 * `python 03_SCRIPTS\gerar_pdf_camila_v2.py`
@@ -61,6 +63,8 @@ VALIDACAO VISUAL: cards de tres colunas e barra de progresso aplicados
 * **ERRO 6:** Usar parcelas geradas no WidePay como se fossem total do contrato para calcular restantes.
 * **ERRO 7:** Exibir um total pago genÃ©rico quando o relatÃ³rio precisa representar o total pago do terreno/lote.
 * **ERRO 8:** Omitir cobrancas/boletos pagos ou em aberto do PDF/HTML quando eles existem na conferencia WidePay.
+* **ERRO 9:** Gerar PDF/HTML final sem a tabela `Pagamentos Recebidos Interpretados`.
+* **ERRO 10:** Misturar percentual financeiro pago com percentual de parcelas quitadas.
 
 ## 9. CritÃ©rios de validaÃ§Ã£o
 * Tabela de carnes informando ID, referencia, valor da parcela, parcelas geradas/pagas, total recebido e status.

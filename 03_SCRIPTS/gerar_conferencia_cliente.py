@@ -74,6 +74,70 @@ def extrair_texto_pdf(caminho_pdf):
         print(f"Erro ao extrair PDF: {e}")
         return ""
 
+def identificar_referencias_pagamento(descricao):
+    texto = normalizar_texto(descricao or "")
+    refs = []
+    meses_nome = {
+        "janeiro": "01", "jan": "01", "fevereiro": "02", "fev": "02",
+        "marco": "03", "mar": "03", "abril": "04", "abr": "04",
+        "maio": "05", "mai": "05", "junho": "06", "jun": "06",
+        "julho": "07", "jul": "07", "agosto": "08", "ago": "08",
+        "setembro": "09", "set": "09", "outubro": "10", "out": "10",
+        "novembro": "11", "nov": "11", "dezembro": "12", "dez": "12",
+    }
+    for nome, numero in meses_nome.items():
+        if re.search(rf"\b{re.escape(nome)}\b", texto) and numero not in refs:
+            refs.append(numero)
+    if any(t in texto for t in ("ref", "referente", "atraso", "atrazo", "parcela", "apart", "competencia", "mes", "meses")):
+        for token in re.findall(r"\b\d{1,2}\b", texto):
+            mes = int(token)
+            if 1 <= mes <= 12:
+                ref = f"{mes:02d}"
+                if ref not in refs:
+                    refs.append(ref)
+    return refs
+
+def interpretar_cobrancas_recebidas(dados, cobrancas):
+    valor_base = float(dados.get("valor_parcela") or 0.0)
+    interpretados = []
+    for cob in cobrancas:
+        if "recebido" not in str(cob.get("status", "")).lower():
+            continue
+        refs = identificar_referencias_pagamento(cob.get("descricao", ""))
+        tipo = "Carne" if cob.get("pertence_a_carne") else "Avulsa"
+        obs = []
+        if refs:
+            qtd = len(refs)
+            obs.append("referencias identificadas na descricao")
+        elif cob.get("pertence_a_carne"):
+            qtd = 1
+            refs = [cob.get("vencimento") or "vencimento do boleto"]
+            obs.append("boleto de carne tratado pelo vencimento")
+        elif valor_base > 0 and cob.get("valor_original", 0) > 0:
+            proporcao = float(cob.get("valor_original", 0)) / valor_base
+            qtd = max(1, int(round(proporcao)))
+            if abs(proporcao - qtd) <= 0.20:
+                obs.append("quantidade inferida por valor original/base da parcela")
+            else:
+                obs.append("REFERENCIA NAO IDENTIFICADA - proporcao de valor nao exata")
+        else:
+            qtd = 1
+            obs.append("REFERENCIA NAO IDENTIFICADA")
+        interpretados.append({
+            "id": cob.get("id", "-"),
+            "tipo": tipo,
+            "descricao": cob.get("descricao", "-") or "-",
+            "vencimento": cob.get("vencimento", "-"),
+            "pagamento": cob.get("pagamento", "-"),
+            "valor_original": float(cob.get("valor_original") or 0.0),
+            "valor_recebido": float(cob.get("valor_recebido") or 0.0),
+            "valor_base": valor_base,
+            "refs": ", ".join(refs) if refs else "REFERENCIA NAO IDENTIFICADA",
+            "qtd": qtd,
+            "obs": "; ".join(obs),
+        })
+    return interpretados
+
 def parsear_dados_contrato(texto, nome_sugerido):
     dados = {
         'cliente': nome_sugerido,
@@ -323,6 +387,19 @@ Acesso ao WidePay pendente.
             linhas_duplicidades += f"| {cob['id']} | {cob['descricao']} | R$ {cob['valor_original']:.2f} | R$ {cob['valor_recebido']:.2f} | {cob['vencimento']} | {cob['status']} |\n"
     else:
         linhas_duplicidades = "Nenhuma possível duplicidade encontrada."
+
+    pagamentos_interpretados = interpretar_cobrancas_recebidas(dados, cobrancas)
+    if pagamentos_interpretados:
+        linhas_pagamentos_interpretados = "| Cliente | Lote/Quadra | ID | Tipo | Descricao WidePay | Vencimento | Pagamento | Valor Original | Valor Recebido | Valor Base Parcela | Referencias | Qtd. Parcelas | Observacao |\n"
+        linhas_pagamentos_interpretados += "|---------|-------------|----|------|-------------------|------------|-----------|----------------|----------------|--------------------|-------------|---------------|------------|\n"
+        for p in pagamentos_interpretados:
+            linhas_pagamentos_interpretados += (
+                f"| {dados['cliente']} | {dados['lote']} / {dados['quadra']} | {p['id']} | {p['tipo']} | {p['descricao']} | "
+                f"{p['vencimento']} | {p['pagamento']} | R$ {p['valor_original']:.2f} | R$ {p['valor_recebido']:.2f} | "
+                f"R$ {p['valor_base']:.2f} | {p['refs']} | {p['qtd']} | {p['obs']} |\n"
+            )
+    else:
+        linhas_pagamentos_interpretados = "Nenhum pagamento recebido interpretado."
         
     # Divergências
     notas = []
@@ -396,6 +473,12 @@ Acesso ao WidePay pendente.
 ## 6. POSSÍVEIS DUPLICIDADES (Desconsiderados dos cálculos para evitar dupla contagem)
 
 {linhas_duplicidades}
+
+---
+
+## 6.1 PAGAMENTOS RECEBIDOS INTERPRETADOS
+
+{linhas_pagamentos_interpretados}
 
 ---
 

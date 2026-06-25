@@ -16,6 +16,7 @@ def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, cobrancas_widep
     boletos_avulsos_recebidos = cobrancas_widepay.get("boletos_avulsos_recebidos") or []
     boletos_avulsos_abertos = cobrancas_widepay.get("boletos_avulsos_abertos") or []
     boletos_avulsos_abertos_texto = cobrancas_widepay.get("boletos_avulsos_abertos_texto") or []
+    pagamentos_interpretados = cobrancas_widepay.get("pagamentos_interpretados") or []
     parcelas_geradas_widepay = 0
     for c in carnes_widepay:
         try:
@@ -80,6 +81,12 @@ def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, cobrancas_widep
     linhas_avulsos_abertos_texto = "".join(
         f'<tr><td colspan="5" style="text-align:left;">{html_escape(linha)}</td></tr>'
         for linha in boletos_avulsos_abertos_texto
+    )
+    linhas_pagamentos_interpretados = linhas_html_tabela(
+        pagamentos_interpretados,
+        ["cliente", "lote_quadra", "id", "tipo", "descricao", "vencimento", "pagamento", "valor_original", "valor_recebido", "valor_base_parcela", "referencias", "parcelas_quitadas", "observacao"],
+        "Nenhum pagamento recebido interpretado - relatorio final bloqueado.",
+        ["Cliente", "Lote/Quadra", "ID", "Tipo", "Descricao WidePay", "Vencimento", "Pagamento", "Valor Original", "Valor Recebido", "Valor Base Parcela", "Referencias", "Qtd.", "Observacao"]
     )
     
     html_content = f"""<!DOCTYPE html>
@@ -263,6 +270,30 @@ def gerar_html(dados_cliente, resumo_financeiro, carnes_widepay, cobrancas_widep
                 <td style="text-align: left; font-weight: bold;">Avulsos recebidos</td>
                 <td style="text-align: left;">{len(boletos_avulsos_recebidos)} registros</td>
             </tr>
+        </table>
+
+        <div class="section-title">Pagamentos Recebidos Interpretados</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Lote/Quadra</th>
+                    <th>ID</th>
+                    <th>Tipo</th>
+                    <th>Descricao WidePay</th>
+                    <th>Vencimento</th>
+                    <th>Pagamento</th>
+                    <th>Valor Original</th>
+                    <th>Valor Recebido</th>
+                    <th>Valor Base Parcela</th>
+                    <th>Referencias</th>
+                    <th>Qtd.</th>
+                    <th>Observacao</th>
+                </tr>
+            </thead>
+            <tbody>
+                {linhas_pagamentos_interpretados}
+            </tbody>
         </table>
 
         <div class="section-title">Cobranças/Boletos Encontrados no WidePay</div>

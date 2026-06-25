@@ -40,6 +40,19 @@ def localizar_opera():
             return p
     return None
 
+def localizar_chrome():
+    possiveis = [
+        os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    ]
+    for p in possiveis:
+        if os.path.exists(p):
+            return p
+    return None
+
 def testar_cdp():
     url = f"{CDP_BASE_URL}/json/version"
     try:
@@ -83,8 +96,9 @@ def widepay_ja_logado():
         return False, {"erro": str(e)}
     return False, None
 
-def iniciar_opera_wmi(opera_path):
-    perfil = ROOT_DIR / "08_NAVEGADOR_WIDEPAY" / f"OperaProfile_{CDP_PORT}"
+def iniciar_navegador_wmi(browser_path, browser_nome):
+    prefixo = "ChromeProfile" if browser_nome.startswith("chrome") else "OperaProfile"
+    perfil = ROOT_DIR / "08_NAVEGADOR_WIDEPAY" / f"{prefixo}_{CDP_PORT}"
     os.makedirs(perfil, exist_ok=True)
     
     args = [
@@ -97,10 +111,10 @@ def iniciar_opera_wmi(opera_path):
         f'"{WIDEPAY_CARNES_URL}"'
     ]
     
-    cmd_line = f'"{opera_path}" ' + " ".join(args)
+    cmd_line = f'"{browser_path}" ' + " ".join(args)
     ps_cmd = f"Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{{ CommandLine = '{cmd_line}' }}"
     
-    print(f"Spawning Opera GX via WMI...")
+    print(f"Spawning {browser_nome} via WMI...")
     result = subprocess.run(
         ["powershell", "-Command", ps_cmd],
         capture_output=True,
@@ -124,18 +138,24 @@ def main():
             print("STATUS: login necessario (WidePay aberto no Opera dedicado; faça login sem reiniciar o navegador)")
             sys.exit(2)
 
-    print("Abrindo Opera dedicado sem fechar sessoes existentes...")
-    
-    opera_exe = localizar_opera()
-    if not opera_exe:
-        print("STATUS: falha de navegador (Opera nao encontrado no sistema)")
+    print(f"Abrindo navegador dedicado WidePay sem fechar sessoes existentes ({BROWSER_PREFERENCIAL})...")
+
+    if BROWSER_PREFERENCIAL.startswith("chrome"):
+        browser_exe = localizar_chrome()
+        browser_nome = "chrome"
+    else:
+        browser_exe = localizar_opera()
+        browser_nome = "opera"
+
+    if not browser_exe:
+        print(f"STATUS: falha de navegador ({browser_nome} nao encontrado no sistema)")
         sys.exit(1)
         
-    if not iniciar_opera_wmi(opera_exe):
+    if not iniciar_navegador_wmi(browser_exe, browser_nome):
         print("STATUS: falha de navegador (Nao foi possivel iniciar o processo via WMI)")
         sys.exit(1)
         
-    print("Aguardando inicializacao do Opera...")
+    print(f"Aguardando inicializacao do {browser_nome}...")
     for i in range(5):
         time.sleep(2)
         ok, msg, data = testar_cdp()

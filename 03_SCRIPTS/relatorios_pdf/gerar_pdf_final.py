@@ -37,6 +37,7 @@ def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, cobrancas_widepa
     boletos_avulsos_recebidos = cobrancas_widepay.get("boletos_avulsos_recebidos") or []
     boletos_avulsos_abertos = cobrancas_widepay.get("boletos_avulsos_abertos") or []
     boletos_avulsos_abertos_texto = cobrancas_widepay.get("boletos_avulsos_abertos_texto") or []
+    pagamentos_interpretados = cobrancas_widepay.get("pagamentos_interpretados") or []
 
     cab_col = ParagraphStyle('hcol', parent=estilos['normal'], fontSize=9, textColor=CORES['BRANCO'], fontName='Helvetica-Bold', alignment=TA_CENTER)
     cel_s   = ParagraphStyle('cel',  parent=estilos['normal'], fontSize=9, textColor=CORES['CINZA_ESCURO'], fontName='Helvetica', alignment=TA_CENTER)
@@ -175,6 +176,15 @@ def gerar_pdf(dados_cliente, resumo_financeiro, carnes_widepay, cobrancas_widepa
     ]))
     elementos.append(mapa_tbl)
     elementos.append(Spacer(1, 0.3*cm))
+
+    montar_tabela_dados(
+        "Pagamentos Recebidos Interpretados",
+        ["Cliente", "Lote/Quadra", "ID", "Tipo", "Descricao WidePay", "Venc.", "Pgto.", "Valor Orig.", "Valor Rec.", "Base Parc.", "Refs", "Qtd.", "Observacao"],
+        pagamentos_interpretados,
+        ["cliente", "lote_quadra", "id", "tipo", "descricao", "vencimento", "pagamento", "valor_original", "valor_recebido", "valor_base_parcela", "referencias", "parcelas_quitadas", "observacao"],
+        [1.2*cm, 1.2*cm, 1.3*cm, 1.0*cm, 2.2*cm, 1.1*cm, 1.1*cm, 1.2*cm, 1.2*cm, 1.1*cm, 1.4*cm, 0.7*cm, 1.3*cm],
+        vazio="Nenhum pagamento recebido interpretado - relatorio final bloqueado."
+    )
 
     # 4. Cobranças e Boletos em Cobrança no WidePay
     montar_tabela_dados(

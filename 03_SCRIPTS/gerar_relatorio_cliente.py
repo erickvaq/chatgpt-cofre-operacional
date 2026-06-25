@@ -37,6 +37,115 @@ def dividir_linha_md_tabela(linha):
         return []
     return [p.strip() for p in conteudo.split("|")]
 
+def identificar_referencias_pagamento(descricao):
+    texto = normalizar_texto(descricao or "")
+    refs = []
+    meses_nome = {
+        "janeiro": "01", "jan": "01", "fevereiro": "02", "fev": "02",
+        "marco": "03", "mar": "03", "abril": "04", "abr": "04",
+        "maio": "05", "mai": "05", "junho": "06", "jun": "06",
+        "julho": "07", "jul": "07", "agosto": "08", "ago": "08",
+        "setembro": "09", "set": "09", "outubro": "10", "out": "10",
+        "novembro": "11", "nov": "11", "dezembro": "12", "dez": "12",
+    }
+    for nome, numero in meses_nome.items():
+        if re.search(rf"\b{re.escape(nome)}\b", texto) and numero not in refs:
+            refs.append(numero)
+
+    termos_ref = ("ref", "referente", "atraso", "atrazo", "parcela", "apart", "competencia", "mes", "meses")
+    if any(t in texto for t in termos_ref):
+        for token in re.findall(r"\b\d{1,2}\b", texto):
+            try:
+                mes = int(token)
+            except ValueError:
+                continue
+            if 1 <= mes <= 12:
+                ref = f"{mes:02d}"
+                if ref not in refs:
+                    refs.append(ref)
+    return refs
+
+def interpretar_pagamentos_recebidos(dados_cliente, resumo_financeiro, cobrancas_widepay):
+    valor_base = float(dados_cliente.get("valor_parcela") or 0.0)
+    pagamentos = []
+    total_recebido = 0.0
+    parcelas_equivalentes = 0
+    divergencias = []
+
+    for cob in cobrancas_widepay.get("cobrancas_encontradas", []):
+        status = str(cob.get("status", "")).strip().lower()
+        if "recebido" not in status:
+            continue
+
+        tipo_original = str(cob.get("tipo", "") or "").strip()
+        tipo_norm = normalizar_texto(tipo_original)
+        descricao = str(cob.get("descricao", "") or "").strip()
+        refs = identificar_referencias_pagamento(descricao)
+        valor_original = float(cob.get("valor_original") or 0.0)
+        valor_recebido = float(cob.get("valor_recebido") or 0.0)
+        observacao = []
+
+        if refs:
+            qtd = len(refs)
+            observacao.append("referencias identificadas na descricao")
+        elif "carn" in tipo_norm:
+            qtd = 1
+            venc = str(cob.get("vencimento", "") or "").strip()
+            refs = [venc] if venc else ["vencimento do boleto"]
+            observacao.append("boleto de carne tratado pelo vencimento")
+        elif valor_base > 0 and valor_original > 0:
+            proporcao = valor_original / valor_base
+            qtd = max(1, int(round(proporcao)))
+            if abs(proporcao - qtd) <= 0.20:
+                observacao.append("quantidade inferida por valor original/base da parcela")
+            else:
+                observacao.append("REFERENCIA NAO IDENTIFICADA - proporcao de valor nao exata")
+                divergencias.append(f"Recebimento {cob.get('id')} sem referencia clara e proporcao {proporcao:.2f}")
+        else:
+            qtd = 1
+            observacao.append("REFERENCIA NAO IDENTIFICADA")
+            divergencias.append(f"Recebimento {cob.get('id')} sem referencia e sem valor base suficiente")
+
+        total_recebido += valor_recebido
+        parcelas_equivalentes += qtd
+        pagamentos.append({
+            "cliente": dados_cliente.get("nome", "-"),
+            "lote_quadra": f"{dados_cliente.get('lote', '-')} / {dados_cliente.get('quadra', '-')}",
+            "id": cob.get("id", "-"),
+            "tipo": tipo_original or "cobranca",
+            "descricao": descricao or "-",
+            "vencimento": cob.get("vencimento", "-"),
+            "pagamento": cob.get("pagamento", "-"),
+            "valor_original": valor_original,
+            "valor_recebido": valor_recebido,
+            "valor_base_parcela": valor_base,
+            "referencias": ", ".join(refs) if refs else "REFERENCIA NAO IDENTIFICADA",
+            "parcelas_quitadas": qtd,
+            "observacao": "; ".join(observacao),
+        })
+
+    cobrancas_widepay["pagamentos_interpretados"] = pagamentos
+    cobrancas_widepay["divergencias_interpretacao"] = divergencias
+    if pagamentos:
+        resumo_financeiro["parcelas_pagas"] = parcelas_equivalentes
+        resumo_financeiro["valor_pago"] = round(total_recebido, 2)
+    return pagamentos
+
+def validar_interpretacao_pagamentos(resumo_financeiro, cobrancas_widepay):
+    recebidos = [
+        c for c in cobrancas_widepay.get("cobrancas_encontradas", [])
+        if "recebido" in str(c.get("status", "")).strip().lower()
+    ]
+    interpretados = cobrancas_widepay.get("pagamentos_interpretados", [])
+    erros = []
+    if len(recebidos) != len(interpretados):
+        erros.append(f"recebidos no WidePay={len(recebidos)} interpretados={len(interpretados)}")
+    if recebidos and not interpretados:
+        erros.append("nenhum pagamento recebido foi interpretado")
+    if not resumo_financeiro.get("contrato_total_confirmado"):
+        erros.append("contrato sem total de parcelas confirmado")
+    return erros
+
 def proximo_arquivo_disponivel(caminho_inicial):
     caminho = Path(caminho_inicial)
     if not caminho.exists():
@@ -84,7 +193,9 @@ def ler_md_conferencia(caminho_md):
         'percentual_pago': 0.0,
         'percentual_restante': 0.0,
         'valor_pago': 0.0,
-        'valor_restante': 0.0
+        'valor_restante': 0.0,
+        'valor_total_contrato': 0.0,
+        'percentual_financeiro_pago': 0.0
     }
     
     carnes_widepay = []
@@ -114,7 +225,7 @@ def ler_md_conferencia(caminho_md):
             secao_atual = 2
             continue
         elif "## 3. CÃLCULO" in linha or "## 3. CALCULO" in linha:
-            secao_atual = 3
+            secao_atual = 30
             continue
         elif "## 3. COBRAN" in linha:
             secao_atual = 3
@@ -259,9 +370,11 @@ def ler_md_conferencia(caminho_md):
                         resumo_financeiro['total_contrato'] = int(re.sub(r'[^\d]', '', col2))
                     except ValueError:
                         pass
+                elif "valor total do contrato" in col1:
+                    resumo_financeiro['valor_total_contrato'] = extrair_valor_numerico(col2)
                     
             # Dados Financeiros / Resumo (SeÃ§Ã£o 3)
-            elif secao_atual == 3:
+            elif secao_atual == 30:
                 if "total do contrato" in col1:
                     try:
                         resumo_financeiro['total_contrato'] = int(re.sub(r'[^\d]', '', col2))
@@ -285,16 +398,20 @@ def ler_md_conferencia(caminho_md):
     # Regra operacional: parcelas restantes so podem nascer do contrato confirmado.
     # O WidePay informa pagamentos/cobrancas; ele nao substitui o total contratado.
     resumo_financeiro['contrato_total_confirmado'] = resumo_financeiro['total_contrato'] > 0
+    interpretar_pagamentos_recebidos(dados_cliente, resumo_financeiro, cobrancas_widepay)
 
     # Reajustar parcelas restantes e percentuais
     if resumo_financeiro['contrato_total_confirmado']:
         resumo_financeiro['parcelas_restantes'] = max(0, resumo_financeiro['total_contrato'] - resumo_financeiro['parcelas_pagas'])
         resumo_financeiro['percentual_pago'] = resumo_financeiro['parcelas_pagas'] / resumo_financeiro['total_contrato']
         resumo_financeiro['percentual_restante'] = resumo_financeiro['parcelas_restantes'] / resumo_financeiro['total_contrato']
+        if resumo_financeiro.get('valor_total_contrato', 0) > 0:
+            resumo_financeiro['percentual_financeiro_pago'] = resumo_financeiro['valor_pago'] / resumo_financeiro['valor_total_contrato']
     else:
         resumo_financeiro['parcelas_restantes'] = 0
         resumo_financeiro['percentual_pago'] = 0.0
         resumo_financeiro['percentual_restante'] = 0.0
+        resumo_financeiro['percentual_financeiro_pago'] = 0.0
         
     return dados_cliente, resumo_financeiro, carnes_widepay, cobrancas_widepay
 
@@ -325,11 +442,20 @@ def main():
     print(f"WidePay Cobrancas: {len(cobrancas.get('cobrancas_encontradas', []))} encontrado(s)")
     print(f"Boletos avulsos recebidos: {len(cobrancas.get('boletos_avulsos_recebidos', []))}")
     print(f"Boletos avulsos em aberto: {len(cobrancas.get('boletos_avulsos_abertos', []))}")
+    print(f"Pagamentos recebidos interpretados: {len(cobrancas.get('pagamentos_interpretados', []))}")
 
     if not resumo.get('contrato_total_confirmado'):
         print("\n[ERRO CRITICO] Contrato nao confirmou o total de parcelas.")
         print("Parcelas restantes devem ser calculadas somente pelo contrato.")
         print("PDF/HTML final bloqueados para evitar relatorio com restantes derivados do WidePay.")
+        sys.exit(1)
+
+    erros_interpretacao = validar_interpretacao_pagamentos(resumo, cobrancas)
+    if erros_interpretacao:
+        print("\n[ERRO CRITICO] Interpretacao individual de pagamentos incompleta.")
+        for erro in erros_interpretacao:
+            print(f"- {erro}")
+        print("PDF/HTML final bloqueados ate todos os recebimentos do WidePay serem interpretados.")
         sys.exit(1)
     
     # Gerar caminhos de saÃ­da

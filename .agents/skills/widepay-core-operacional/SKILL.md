@@ -58,6 +58,17 @@ Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`
 * Todo relatorio de cliente deve consultar e listar todos os carnes e todas as cobrancas/boletos pagos ou em aberto localizados no WidePay.
 * Se o navegador dedicado ja tiver usuario ou senha salvos, usar o autopreenchimento e tentar login automatico antes de pedir intervencao manual.
 
+## 5.2 Interpretacao individual de pagamentos WidePay
+* A regra e universal e nunca pode usar Edmilson, R$ 99,00 ou 100 parcelas como padrao global.
+* Cada recebimento com status `Recebido` deve ser interpretado separadamente.
+* Total pago do terreno/lote = soma dos valores recebidos no WidePay com status `Recebido` pertencentes ao cliente/lote correto.
+* Parcelas pagas equivalentes = parcelas quitadas por carnes recebidos + parcelas quitadas por boletos avulsos/cobrancas recebidas.
+* A interpretacao deve priorizar descricao original, referencias/competencias, vencimento, pagamento, valor original/base e valor base da parcela do contrato.
+* Valor recebido serve como confirmacao financeira e pode conter juros, multa ou acrescimos; nao usar sozinho para dividir parcelas.
+* Se a descricao indicar meses/referencias, ela prevalece sobre divisao por valor.
+* Se nao houver referencia clara, marcar `REFERENCIA NAO IDENTIFICADA` e nao inventar parcela.
+* Relatorio final deve conter a tabela `Pagamentos Recebidos Interpretados`.
+
 ## 6. Rotinas e scripts relacionados
 * `python 03_SCRIPTS\buscar_cliente.py <nome>`
 * `python 03_SCRIPTS\consultar_widepay_cdp.py --cliente <nome>`
@@ -85,6 +96,8 @@ ensure_widepay_logged_in(): iniciado
 * **ERRO 9:** Ignorar alias ou erro de digitacao comum do cliente e deixar de contabilizar boletos pagos do mesmo lote.
 * **ERRO 10:** Gerar relatorio de cliente omitindo cobrancas/boletos pagos ou em aberto encontrados no WidePay.
 * **ERRO 11:** Pedir login manual sem antes tentar usar usuario/senha ja salvos no navegador dedicado.
+* **ERRO 12:** Gerar relatorio final sem interpretar individualmente todos os recebimentos `Recebido` do WidePay.
+* **ERRO 13:** Usar regra fixa de outro cliente para calcular parcelas pagas equivalentes.
 
 ## 9. CritÃ©rios de validaÃ§Ã£o
 * Normalizacao rigorosa de nomes (remover termos como "Contrato", "Copia", "Leo/Leo").
