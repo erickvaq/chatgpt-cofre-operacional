@@ -50,7 +50,14 @@ class WideApp:
         print(f"Log: {self.log_path}")
         print()
 
-    def validar_ambiente(self, exigir_widepay=False):
+    def validar_ambiente(self, exigir_widepay=False, exigir_executor=True):
+        """Valida o ambiente de execução.
+
+        exigir_widepay  — verifica Chrome/CDP/login WidePay.
+        exigir_executor — verifica presença do executar_auditoria.py.
+                          Deve ser False ao abrir apenas a interface gráfica,
+                          pois o executor só é necessário para auditoria real.
+        """
         self.log("VALIDACAO: iniciada")
         falhas = []
 
@@ -62,8 +69,14 @@ class WideApp:
         if not VENV_PYTHON.exists():
             falhas.append(f"Python do .venv nao encontrado: {VENV_PYTHON}")
 
-        if not EXECUTOR.exists():
-            falhas.append(f"Executor principal nao encontrado: {EXECUTOR}")
+        if exigir_executor:
+            if not EXECUTOR.exists():
+                falhas.append(f"Executor principal nao encontrado: {EXECUTOR}")
+        else:
+            if EXECUTOR.exists():
+                self.log(f"OK: executor disponivel: {EXECUTOR}")
+            else:
+                self.log(f"AVISO: executor ausente (nao necessario para interface): {EXECUTOR}")
 
         for module_name in REQUIRED_MODULES:
             try:
@@ -72,21 +85,26 @@ class WideApp:
             except Exception as exc:
                 falhas.append(f"Dependencia ausente ou invalida: {module_name} ({exc})")
 
-        try:
-            sys.path.insert(0, str(PRECHECK_DIR))
-            from precheck_regras import executar_precheck
-
-            executar_precheck("WideAPP_EXTRA/main.py")
-            self.log("OK: precheck de regras persistentes executado")
-        except Exception as exc:
-            falhas.append(f"Precheck falhou: {exc}")
+        # Precheck de regras é opcional em modo portátil:
+        # se o diretório não existir, apenas avisa sem bloquear.
+        if PRECHECK_DIR.exists():
+            try:
+                sys.path.insert(0, str(PRECHECK_DIR))
+                from precheck_regras import executar_precheck
+                executar_precheck("WideAPP_EXTRA/main.py")
+                self.log("OK: precheck de regras persistentes executado")
+            except Exception as exc:
+                falhas.append(f"Precheck falhou: {exc}")
+        else:
+            self.log("AVISO: 00_SISTEMA_PRECHECK nao encontrado — modo portavel, precheck ignorado")
 
         if exigir_widepay:
             try:
                 sys.path.insert(0, str(APP_DIR))
-                from app.login_navegador import garantir_navegador_conectado, obter_abas
+                from app.login_navegador import garantir_navegador_conectado, obter_abas, validar_sessao_widepay
 
                 ws_url = garantir_navegador_conectado()
+                sessao = validar_sessao_widepay(ws_url)
                 abas = obter_abas()
                 urls_widepay = [
                     aba.get("url", "")
@@ -95,6 +113,10 @@ class WideApp:
                 ]
                 if not ws_url or not urls_widepay:
                     falhas.append("WidePay nao foi localizado em aba CDP ativa.")
+                elif not sessao.get("valida"):
+                    falhas.append(
+                        f"LOGIN_WIDEPAY_INVALIDO: {sessao.get('url')} | login={sessao.get('login')} | erro={sessao.get('erro')}"
+                    )
                 else:
                     self.log(f"OK: WidePay acessivel via CDP: {urls_widepay[0]}")
             except Exception as exc:
@@ -189,7 +211,10 @@ class WideApp:
     def abrir_interface_visual(self):
         from app.interface import abrir_interface
 
-        if not self.validar_ambiente(exigir_widepay=False):
+        # Para abrir a interface gráfica, não exigimos executor de auditoria
+        # nem Chrome/CDP — esses só são necessários para auditoria real.
+        # O precheck é ignorado em modo portátil (quando 00_SISTEMA_PRECHECK não existe).
+        if not self.validar_ambiente(exigir_widepay=False, exigir_executor=False):
             self.log("INTERFACE: validacao basica falhou")
             return 1
         self.log("INTERFACE: abrindo interface visual")
@@ -225,6 +250,13 @@ class WideApp:
         from app.indexador_clientes import carregar_cache
         from app.pesquisa_clientes import filtrar
         from app.pipeline_runner import executar_lote
+        from app.login_navegador import garantir_navegador_conectado, validar_sessao_widepay
+
+        ws_url = garantir_navegador_conectado()
+        sessao = validar_sessao_widepay(ws_url)
+        if not sessao.get("valida"):
+            self.log(f"LOGIN_WIDEPAY_INVALIDO: {sessao.get('url')} | login={sessao.get('login')} | erro={sessao.get('erro')}")
+            return 1
 
         registros = [r for r in filtrar(carregar_cache(), termo) if r.get("contrato") == "Encontrado"]
         if not registros:
