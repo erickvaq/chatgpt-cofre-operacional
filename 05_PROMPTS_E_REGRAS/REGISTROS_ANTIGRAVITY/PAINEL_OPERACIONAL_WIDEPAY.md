@@ -10,6 +10,7 @@
 ## Commits
 * **Commit da regra consolidada:** `1eae6ce`
 * **Commit do painel atualizado:** `2e2c71b`
+* **Revisao desta publicacao:** painel regravado nesta rodada para alinhar a versao limpa no GitHub normal e no raw
 
 ## Links Reais
 * **Regra consolidada:** [REGRAS_PERSISTENTES_DO_PROJETO.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md)
@@ -22,7 +23,7 @@
 * **Conflitos resolvidos:** o precheck deixou de depender de numero fixo de regras; o painel legouado foi removido.
 
 ## Estado de Uso
-* **Status atual:** consolidacao aprovada, painel limpo e pronto para referencia publica.
+* **Status atual:** consolidacao aprovada, painel limpo, regravado e pronto para referencia publica.
 * **Nao mantido neste painel:** explicacoes antigas, tabelas antigas de clientes, resumo antigo da extracao WidePay e pendencias legadas.
 
 ## Proximo Passo
