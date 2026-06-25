@@ -134,9 +134,8 @@ def main():
         if logado:
             print(f"STATUS: WidePay ja aberto e logado ({aba.get('title')} - {aba.get('url')})")
             sys.exit(0)
-        if testar_login_necessario():
-            print("STATUS: login necessario (WidePay aberto no Opera dedicado; faça login sem reiniciar o navegador)")
-            sys.exit(2)
+        print("STATUS: CDP OK (navegador ja em execucao)")
+        sys.exit(0)
 
     print(f"Abrindo navegador dedicado WidePay sem fechar sessoes existentes ({BROWSER_PREFERENCIAL})...")
 
@@ -160,12 +159,8 @@ def main():
         time.sleep(2)
         ok, msg, data = testar_cdp()
         if ok:
-            if testar_login_necessario():
-                print("STATUS: login necessario (Faça login no WidePay na janela do Opera)")
-                sys.exit(2)
-            else:
-                print("STATUS: CDP OK")
-                sys.exit(0)
+            print("STATUS: CDP OK")
+            sys.exit(0)
                 
     print("STATUS: falha de porta (CDP nao respondeu apos inicializacao)")
     sys.exit(3)

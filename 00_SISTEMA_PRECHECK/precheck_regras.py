@@ -260,14 +260,29 @@ def executar_precheck(script_chamador="Script Desconhecido"):
             ],
         ),
         (
-            os.path.join(PROJETO_ROOT, "03_SCRIPTS", "relatorios_pdf", "gerar_pdf_final.py"),
+            os.path.join(PROJETO_ROOT, "WideAPP_EXTRA", "app", "relatorios_pdf", "gerar_pdf_final.py"),
             "gerar_pdf_final.py",
             [("pagamentos recebidos interpretados", "PDF nao contem tabela de pagamentos interpretados")],
         ),
         (
-            os.path.join(PROJETO_ROOT, "03_SCRIPTS", "relatorios_pdf", "gerar_html_previa.py"),
+            os.path.join(PROJETO_ROOT, "WideAPP_EXTRA", "app", "relatorios_pdf", "gerar_html_previa.py"),
             "gerar_html_previa.py",
             [("pagamentos recebidos interpretados", "HTML nao contem tabela de pagamentos interpretados")],
+        ),
+        (
+            os.path.join(PROJETO_ROOT, "WideAPP_EXTRA", "executar_auditoria.py"),
+            "executar_auditoria.py",
+            [
+                ("garantir_navegador_conectado", "CLI unificada nao garante conexao de navegador"),
+                ("extrair_dados_cliente", "CLI unificada nao extrai dados do WidePay"),
+            ],
+        ),
+        (
+            os.path.join(PROJETO_ROOT, "WideAPP_EXTRA", "app", "calculadora_financeira.py"),
+            "calculadora_financeira.py",
+            [
+                ("interpretar_pagamentos", "Calculadora financeira nao interpreta pagamentos recebidos"),
+            ],
         ),
     ]
     for caminho_script, rotulo_script, requisitos_script in scripts_a_validar:

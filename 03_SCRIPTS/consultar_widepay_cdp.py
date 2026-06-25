@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import os
 import sys
 import json
@@ -110,6 +110,177 @@ def abrir_nova_aba(target_url):
         print(f"Erro ao abrir nova aba: {e}")
         return None
 
+async def ensure_widepay_logged_in(ws_url):
+    print("Verificando se o WidePay requer login...")
+    
+    # Obter URL atual
+    eval_loc = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "window.location.href", "returnByValue": True})
+    current_url = eval_loc.get("result", {}).get("result", {}).get("value", "")
+    
+    is_login_page = "login" in current_url or "acessar" in current_url
+    if not is_login_page:
+        eval_body = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "document.body.innerText", "returnByValue": True})
+        body_text = eval_body.get("result", {}).get("result", {}).get("value", "")
+        if "Entrar" in body_text and "Esqueci minha senha" in body_text:
+            is_login_page = True
+            
+    if not is_login_page:
+        print("WidePay ja esta logado. Continuando fluxo...")
+        return True
+
+    print("\nTela de login detectada. Tentando preenchimento automatico do navegador dedicado via CDP...")
+    
+    # Foca no campo de senha para forcar o preenchimento/autofill do Chrome
+    js_focus = """
+    (function() {
+        var emailField = document.querySelector('input[type="text"], input[type="email"], input[name="autenticacao"], input[name="email"], input[name="login"]');
+        var passwordField = document.querySelector('input[type="password"], input[name="senha"]');
+        if (emailField) {
+            emailField.focus();
+            emailField.click();
+        }
+        if (passwordField) {
+            passwordField.focus();
+            passwordField.click();
+            return "focused";
+        }
+        return "not_found";
+    })()
+    """
+    await cdp_command(ws_url, "Runtime.evaluate", {"expression": js_focus, "returnByValue": True})
+    await asyncio.sleep(1.5) # Delay para garantir o autofill do Chrome
+
+    js_check = """
+    (function() {
+        var passwordField = document.querySelector('input[type="password"], input[name*="senha"]');
+        var isPasswordFilled = false;
+        if (passwordField) {
+            isPasswordFilled = (passwordField.value.length > 0 || passwordField.matches(':-webkit-autofill'));
+        }
+        
+        var botoes = Array.from(document.querySelectorAll('button, input[type="submit"], [role="button"], a'));
+        var submitBtn = botoes.find(function(btn) {
+            var txt = (btn.innerText || btn.value || btn.textContent || '').toLowerCase().trim();
+            return txt === 'acessar' || txt === 'entrar' || txt === 'entrar na conta';
+        }) || document.querySelector('button[type="submit"], input[type="submit"]');
+        
+        var isSubmitEnabled = false;
+        if (submitBtn) {
+            isSubmitEnabled = !submitBtn.disabled && !submitBtn.className.includes("disabled");
+        }
+        
+        var bodyTextLower = document.body.innerText.toLowerCase();
+        
+        // Detectar CAPTCHA visível/ativo
+        var hasCaptcha = false;
+        if (bodyTextLower.includes("digite os caracteres") || bodyTextLower.includes("resolva o captcha") || bodyTextLower.includes("prove que você não é um robô")) {
+            hasCaptcha = true;
+        }
+        // Verificar se há iframes de desafio reCAPTCHA ativos/visíveis (bframe)
+        var bframes = Array.from(document.querySelectorAll('iframe[src*="recaptcha/api2/bframe"]'));
+        bframes.forEach(function(iframe) {
+            var style = window.getComputedStyle(iframe);
+            if (style.display !== 'none' && style.visibility !== 'hidden') {
+                hasCaptcha = true;
+            }
+        });
+        // Verificar se há widget visível (não invisible) do checkbox reCAPTCHA
+        var anchors = Array.from(document.querySelectorAll('iframe[src*="recaptcha/api2/anchor"]'));
+        anchors.forEach(function(iframe) {
+            var src = iframe.src || '';
+            if (!src.includes('size=invisible')) {
+                var style = window.getComputedStyle(iframe);
+                if (style.display !== 'none' && style.visibility !== 'hidden') {
+                    hasCaptcha = true;
+                }
+            }
+        });
+
+        var has2FA = bodyTextLower.includes("duas etapas") || bodyTextLower.includes("autenticação por aplicativo") || bodyTextLower.includes("segundo fator") || bodyTextLower.includes("código de segurança") || bodyTextLower.includes("autenticador") || !!document.querySelector('input[name*="token"], input[name*="code"], input[name*="2fa"]');
+        var hasError = bodyTextLower.includes("erro na") || bodyTextLower.includes("incorreta") || bodyTextLower.includes("inválido") || bodyTextLower.includes("usuario ou senha incorretos");
+        
+        return {
+            isPasswordFilled: isPasswordFilled,
+            isSubmitEnabled: isSubmitEnabled,
+            hasCaptcha: hasCaptcha,
+            has2FA: has2FA,
+            hasError: hasError
+        };
+    })()
+    """
+    eval_res = await cdp_command(ws_url, "Runtime.evaluate", {"expression": js_check, "returnByValue": True})
+    info = eval_res.get("result", {}).get("result", {}).get("value", {}) or {}
+    print(f"Estado dos inputs de login: {info}")
+    
+    # Se a senha estiver preenchida e o botão estiver habilitado, e sem erros/captcha/2fa, clica automaticamente
+    if info.get("isPasswordFilled") and info.get("isSubmitEnabled") and not info.get("hasCaptcha") and not info.get("has2FA") and not info.get("hasError"):
+        print("Senha salva e preenchida detectada. Clicando em 'Acessar'...")
+        js_click = """
+        (function() {
+            var botoes = Array.from(document.querySelectorAll('button, input[type="submit"], [role="button"], a'));
+            var submitBtn = botoes.find(function(btn) {
+                var txt = (btn.innerText || btn.value || btn.textContent || '').toLowerCase().trim();
+                return txt === 'acessar' || txt === 'entrar' || txt === 'entrar na conta';
+            }) || document.querySelector('button[type="submit"], input[type="submit"]');
+            if (submitBtn) {
+                submitBtn.click();
+                return "clicked";
+            }
+            return "not_found";
+        })()
+        """
+        await cdp_command(ws_url, "Runtime.evaluate", {"expression": js_click, "returnByValue": True})
+        
+        # Enviar Enter via CDP Input também, por segurança
+        await cdp_command(ws_url, "Input.dispatchKeyEvent", {
+            "type": "keyDown",
+            "windowsVirtualKeyCode": 13,
+            "unmodifiedText": "\r",
+            "text": "\r"
+        })
+        await asyncio.sleep(0.1)
+        await cdp_command(ws_url, "Input.dispatchKeyEvent", {
+            "type": "keyUp",
+            "windowsVirtualKeyCode": 13
+        })
+        
+        # Aguardar navegação
+        print("Aguardando 10 segundos para navegacao e processamento do login...")
+        for i in range(10):
+            await asyncio.sleep(1)
+            eval_loc_now = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "window.location.href", "returnByValue": True})
+            url_now = eval_loc_now.get("result", {}).get("result", {}).get("value", "")
+            if "login" not in url_now and "acessar" not in url_now:
+                print(f"Login realizado com sucesso! URL atual: {url_now}")
+                return True
+                
+            # Verifica se apareceu algum erro ou captcha/2fa durante a navegação
+            eval_res_now = await cdp_command(ws_url, "Runtime.evaluate", {"expression": js_check, "returnByValue": True})
+            info_now = eval_res_now.get("result", {}).get("result", {}).get("value", {}) or {}
+            if info_now.get("hasCaptcha") or info_now.get("has2FA") or info_now.get("hasError"):
+                print(f"Erro detectado apos tentativa de login: {info_now}")
+                break
+
+    # Se falhar ou não puder clicar, gera motivos detalhados
+    motivos = []
+    if not info.get("isPasswordFilled"):
+        motivos.append("campo de senha vazio")
+    if not info.get("isSubmitEnabled"):
+        motivos.append("botao Acessar desabilitado")
+    if info.get("hasCaptcha"):
+        motivos.append("desafio CAPTCHA detectado")
+    if info.get("has2FA"):
+        motivos.append("autenticacao em duas etapas (2FA) detectada")
+    if info.get("hasError"):
+        motivos.append("erro de usuario/senha incorretos exibido")
+    if not motivos:
+        motivos.append("navegacao nao mudou apos o clique (continua na tela de login)")
+        
+    motivo_str = ", ".join(motivos)
+    print(f"\n[INTERVENCAO HUMANA NECESSARIA] Login automatico impossivel porque: {motivo_str}.")
+    print("Por favor, resolva manualmente no navegador dedicado.")
+    sys.exit(2)
+
 async def main_async():
     print(f"Conectando ao navegador em {CDP_HOST}:{CDP_PORT}...")
     abas = obter_abas()
@@ -159,135 +330,12 @@ async def main_async():
     ws_url = wp_aba["webSocketDebuggerUrl"]
     print(f"Conectado com sucesso Ã  aba: {wp_aba.get('title')} ({wp_aba.get('url')})")
     
-    # 1. Verificar se esta na tela de login e tentar usar preenchimento automatico do navegador dedicado
+    # Executa a funcao de login obrigatoria
+    await ensure_widepay_logged_in(ws_url)
+    
+    # Obter URL atualizada apos o login
     eval_location = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "window.location.href", "returnByValue": True})
-    current_url = eval_location.get("result", {}).get("result", {}).get("value", "")
-    
-    is_login_page = "login" in current_url or "acessar" in current_url
-    
-    if not is_login_page:
-        # Fazer checagem de seguranca baseada no corpo da pagina
-        eval_body = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "document.body.innerText", "returnByValue": True})
-        body_text = eval_body.get("result", {}).get("result", {}).get("value", "")
-        if "Entrar" in body_text and "Esqueci minha senha" in body_text:
-            is_login_page = True
-            
-    if is_login_page:
-        print("\nTela de login detectada. Tentando preenchimento automatico do navegador dedicado via CDP...")
-        
-        # Primeiro, foca no campo de senha para forcar o preenchimento/autofill do Opera
-        js_focus = """
-        (function() {
-            var emailField = document.querySelector('input[type="text"], input[type="email"], input[name="autenticacao"], input[name="email"], input[name="login"]');
-            var passwordField = document.querySelector('input[type="password"], input[name="senha"]');
-            
-            if (emailField) {
-                emailField.focus();
-                emailField.click();
-            }
-            if (passwordField) {
-                passwordField.focus();
-                passwordField.click();
-                return "focused";
-            }
-            return "not_found";
-        })()
-        """
-        
-        eval_focus = await cdp_command(ws_url, "Runtime.evaluate", {
-            "expression": js_focus,
-            "returnByValue": True
-        })
-        res_focus = eval_focus.get("result", {}).get("result", {}).get("value", "")
-        print(f"Resultado do foco em inputs: {res_focus}")
-        
-        # Pequeno delay para garantir que o autofill seja aplicado
-        await asyncio.sleep(1.5)
-
-        js_checar_autofill = """
-        (function() {
-            var emailField = document.querySelector('input[type="text"], input[type="email"], input[name*="login"], input[name*="email"], input[name*="autenticacao"]');
-            var passwordField = document.querySelector('input[type="password"], input[name*="senha"]');
-            var botoes = Array.from(document.querySelectorAll('button, input[type="submit"], [role="button"], a'));
-            var submitBtn = botoes.find(function(btn) {
-                var txt = (btn.innerText || btn.value || btn.textContent || '').toLowerCase();
-                return txt.includes('entrar') || txt.includes('acessar') || txt.includes('login');
-            }) || document.querySelector('button[type="submit"], input[type="submit"], button:not([type]), [role="button"]');
-            return {
-                email: emailField ? (emailField.value || "") : "",
-                password: passwordField ? (passwordField.value || "") : "",
-                hasSubmit: !!submitBtn
-            };
-        })()
-        """
-        eval_checar = await cdp_command(ws_url, "Runtime.evaluate", {
-            "expression": js_checar_autofill,
-            "returnByValue": True
-        })
-        dados_autofill = eval_checar.get("result", {}).get("result", {}).get("value", {}) or {}
-        senha_salva = bool(dados_autofill.get("password"))
-        usuario_preenchido = bool(dados_autofill.get("email"))
-        if senha_salva or usuario_preenchido:
-            print("Credenciais salvas detectadas no navegador. Tentando submissao automatica...")
-            js_submit = """
-            (function() {
-                var botoes = Array.from(document.querySelectorAll('button, input[type="submit"], [role="button"], a'));
-                var submitBtn = botoes.find(function(btn) {
-                    var txt = (btn.innerText || btn.value || btn.textContent || '').toLowerCase();
-                    return txt.includes('entrar') || txt.includes('acessar') || txt.includes('login');
-                }) || document.querySelector('button[type="submit"], input[type="submit"], button:not([type]), [role="button"]');
-                if (submitBtn) {
-                    submitBtn.click();
-                    return "submit_click";
-                }
-                var form = document.querySelector('form');
-                if (form) {
-                    form.submit();
-                    return "form_submit";
-                }
-                return "no_submit";
-            })()
-            """
-            await cdp_command(ws_url, "Runtime.evaluate", {
-                "expression": js_submit,
-                "returnByValue": True
-            })
-        
-        # Enviar comandos de teclado virtuais para simular o pressionamento do Enter
-        print("Enviando evento Enter (KeyDown/KeyUp) via CDP Input...")
-        await cdp_command(ws_url, "Input.dispatchKeyEvent", {
-            "type": "keyDown",
-            "windowsVirtualKeyCode": 13,
-            "unmodifiedText": "\r",
-            "text": "\r"
-        })
-        await asyncio.sleep(0.1)
-        await cdp_command(ws_url, "Input.dispatchKeyEvent", {
-            "type": "keyUp",
-            "windowsVirtualKeyCode": 13
-        })
-        
-        print("Aguardando 4 segundos para processamento do login...")
-        await asyncio.sleep(4)
-        
-        # Verificar se realmente logou
-        eval_location2 = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "window.location.href", "returnByValue": True})
-        current_url2 = eval_location2.get("result", {}).get("result", {}).get("value", "")
-        
-        if "login" in current_url2 or "acessar" in current_url2:
-            eval_body2 = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "document.body.innerText", "returnByValue": True})
-            body_text2 = eval_body2.get("result", {}).get("result", {}).get("value", "")
-            
-            if "Erro na" in body_text2 or "incorreta" in body_text2 or "invÃ¡lido" in body_text2:
-                print("\n[FALHA DE AUTOFILL] O navegador dedicado nao preencheu automaticamente os dados ou a senha esta invalida.")
-            elif senha_salva or usuario_preenchido:
-                print("\n[LOGIN SALVO NAO CONFIRMADO] O navegador tinha credenciais preenchidas, mas a navegacao nao saiu da tela de acesso.")
-            
-            print("\n[LOGIN REQUERIDO] Login manual necessario no navegador dedicado.")
-            sys.exit(2)
-        else:
-            print("Login automatico realizado com sucesso via preenchimento do navegador dedicado!")
-            current_url = current_url2    # 2. ExtraÃ§Ã£o de CarnÃªs
+    current_url = eval_location.get("result", {}).get("result", {}).get("value", "")    # 2. ExtraÃ§Ã£o de CarnÃªs
     if "recebimentos/carnes" not in current_url:
         print("Navegando para a pagina de carnes...")
         await cdp_command(ws_url, "Page.navigate", {"url": "https://www.widepay.com/conta/recebimentos/carnes"})
