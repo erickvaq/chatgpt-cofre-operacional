@@ -27,7 +27,11 @@
 
 ## Estado de Uso
 * **Status atual:** consolidacao aprovada, painel limpo, regravado e pronto para referencia publica.
+* **Solicitacao atual:** relatorios/PDFs dos clientes com inicial C.
+* **WidePay real:** Opera dedicado aberto; login manual necessario.
+* **Bloqueio aplicado:** nao consultar arquivos locais nem gerar PDFs oficiais antes de entrar no WidePay real.
+* **PDFs da letra C:** pendentes de consulta em Carnes e Cobrancas/Boletos.
 * **Nao mantido neste painel:** explicacoes antigas, tabelas antigas de clientes, resumo antigo da extracao WidePay e pendencias legadas.
 
 ## Proximo Passo
-* Retomar auditoria WidePay seguindo a Regra Universal.
+* Fazer login manual no Opera dedicado e retomar a consulta WidePay dos clientes com inicial C.
