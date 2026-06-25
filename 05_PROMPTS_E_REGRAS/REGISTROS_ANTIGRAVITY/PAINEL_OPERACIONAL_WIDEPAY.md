@@ -4,7 +4,7 @@
 * **Data da Última Atualização:** 24/06/2026
 * **Último Comando Execuado:** "Registro e ativação da REGRA 31 e do Painel Operacional no GitHub"
 * **Estado Atual do Processo:** Parcialmente completo. Regras consolidadas, precheck funcionando com 31 regras, e cobertura de iniciais A a E localmente filtrada e parcialmente auditada.
-* **Último Commit:** fb0ddc9 (Local/Remoto pré-modificação da Regra 31)
+* **Último Commit:** b1355c1 (Implementação da Regra 31 e do Painel)
 * **Branch Atual:** main
 * **Link GitHub deste Painel:** [PAINEL_OPERACIONAL_WIDEPAY.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md)
 
@@ -88,15 +88,15 @@
 
 | Arquivo | Tipo | Link GitHub | Commit | Data |
 | :--- | :--- | :--- | :--- | :--- |
-| `05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md` | Regras do Projeto | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md) | Pendente | 24/06/2026 |
-| `05_PROMPTS_E_REGRAS/REGRA-BASE — RELATÓRIOS FINANCEIROS WIDEPAY — PROCESSO EFICIENTE E REPLICÁVEL.md` | Regra-Base | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGRA-BASE%20%E2%80%94%20RELAT%C3%93RIOS%20FINANCEIROS%20WIDEPAY%20%E2%80%94%20PROCESSO%20EFICIENTE%20E%20REPLIC%C3%81VEL.md) | Pendente | 24/06/2026 |
-| `00_SISTEMA_PRECHECK/precheck_regras.py` | Script de Validação | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/00_SISTEMA_PRECHECK/precheck_regras.py) | Pendente | 24/06/2026 |
-| `scratch/extrair_tudo_cobertura.py` | Script de Extração | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/scratch/extrair_tudo_cobertura.py) | Pendente | 24/06/2026 |
-| `07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md` | Resumo de Execução | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md) | Pendente | 24/06/2026 |
-| `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md` | Painel Operacional | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md) | Pendente | 24/06/2026 |
-| `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/implementation_plan.md` | Plano de Ação | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/implementation_plan.md) | Pendente | 24/06/2026 |
-| `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/task.md` | Lista de Tarefas | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/task.md) | Pendente | 24/06/2026 |
-| `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/walkthrough.md` | Registro de Alterações | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/walkthrough.md) | Pendente | 24/06/2026 |
+| `05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md` | Regras do Projeto | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGRAS_PERSISTENTES_DO_PROJETO.md) | b1355c1 | 24/06/2026 |
+| `05_PROMPTS_E_REGRAS/REGRA-BASE — RELATÓRIOS FINANCEIROS WIDEPAY — PROCESSO EFICIENTE E REPLICÁVEL.md` | Regra-Base | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGRA-BASE%20%E2%80%94%20RELAT%C3%93RIOS%20FINANCEIROS%20WIDEPAY%20%E2%80%94%20PROCESSO%20EFICIENTE%20E%20REPLIC%C3%81VEL.md) | b1355c1 | 24/06/2026 |
+| `00_SISTEMA_PRECHECK/precheck_regras.py` | Script de Validação | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/00_SISTEMA_PRECHECK/precheck_regras.py) | b1355c1 | 24/06/2026 |
+| `scratch/extrair_tudo_cobertura.py` | Script de Extração | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/scratch/extrair_tudo_cobertura.py) | b1355c1 | 24/06/2026 |
+| `07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md` | Resumo de Execução | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/07_DADOS_TEMPORARIOS/RESUMO_EXECUCAO_ATUAL.md) | b1355c1 | 24/06/2026 |
+| `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md` | Painel Operacional | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md) | b1355c1 | 24/06/2026 |
+| `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/implementation_plan.md` | Plano de Ação | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/implementation_plan.md) | b1355c1 | 24/06/2026 |
+| `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/task.md` | Lista de Tarefas | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/task.md) | b1355c1 | 24/06/2026 |
+| `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/walkthrough.md` | Registro de Alterações | [Link](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/walkthrough.md) | b1355c1 | 24/06/2026 |
 
 ---
 
