@@ -2,7 +2,8 @@
 
 ## Informações Gerais
 * **Último commit auditado no painel:** cb8c5c8 (Correções de tabelas e segurança do painel)
-* **Link do histórico de commits:** [Histórico de Commits no GitHub](https://github.com/erickvaq/chatgpt-cofre-operacional/commits/main)
+* **Commit real da última atualização:** informado na resposta do Antigravity após o push
+* **Link do histórico de commits:** https://github.com/erickvaq/chatgpt-cofre-operacional/commits/main
 * **Branch atual:** main
 * **Link GitHub deste Painel:** [PAINEL_OPERACIONAL_WIDEPAY.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md)
 
