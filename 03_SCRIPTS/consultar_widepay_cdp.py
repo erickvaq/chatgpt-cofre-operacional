@@ -7,6 +7,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import asyncio
+import time
 import websockets
 import argparse
 from pathlib import Path
@@ -91,6 +92,12 @@ async def main_async():
             print(tentativa.stdout, end="" if tentativa.stdout.endswith("\n") else "\n")
         if tentativa.stderr:
             print(tentativa.stderr, end="" if tentativa.stderr.endswith("\n") else "\n")
+        if tentativa.returncode == 2:
+            print("WIDEPAY REAL NAO ABERTO - EXECUCAO BLOQUEADA. Login manual necessario no Opera dedicado.")
+            sys.exit(2)
+        if tentativa.returncode not in (0, 2):
+            print("WIDEPAY REAL NAO ABERTO - EXECUCAO BLOQUEADA. Falha ao abrir o Opera dedicado.")
+            sys.exit(1)
         time.sleep(3)
         abas = obter_abas()
         if not abas:
