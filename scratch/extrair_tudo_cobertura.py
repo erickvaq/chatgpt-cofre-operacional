@@ -48,15 +48,23 @@ async def cdp_command(ws_url, method, params=None):
 def limpar_nome_cliente(nome):
     if not nome:
         return ""
-    # Remove lote/quadra padrões ex: A1, E12, G14
-    nome_limpo = re.sub(r'\b[A-H]\d+\b', '', nome, flags=re.IGNORECASE)
-    # Remove palavras irrelevantes
-    nome_limpo = re.sub(r'\b(Lote|Quadra|Agua Viva|Leandro Meirelles|carne\d*|apart\d*|wp-pdf-\w+|v\d+|final|corrigido|previa)\b', '', nome_limpo, flags=re.IGNORECASE)
-    # Remove extensões
+    # Remove initial prefixes like Contrato, Copia, Copia de
+    nome_limpo = re.sub(r'^(Contrato|Copia|Cópia)\b', '', nome, flags=re.IGNORECASE).strip()
+    # Remove lote/quadra patterns ex: A1, E12, G14, e22a
+    nome_limpo = re.sub(r'\b[A-H]\d+[a-zA-Z]?\b', '', nome_limpo, flags=re.IGNORECASE)
+    # Remove noise words and directory suffix identifiers
+    ruidos = r'\b(Contrato|Copia|Cópia|Léo|Leo|Lote|Quadra|Agua\s+Viva|Leandro\s+Meirelles|Leandro\s+Meireles|carne\d*|apart\d*|wp-pdf-\w+|v\d+|final|corrigido|previa)\b'
+    nome_limpo = re.sub(ruidos, '', nome_limpo, flags=re.IGNORECASE)
+    # Remove extensions
     nome_limpo = re.sub(r'\b(docx|pdf|txt|html|md|jpg|jpeg|png)\b', '', nome_limpo, flags=re.IGNORECASE)
     nome_limpo = nome_limpo.replace("-", " ").replace("_", " ").strip()
     nome_limpo = re.sub(r'\s+', ' ', nome_limpo)
-    return nome_limpo.title()
+    
+    # Check if name is too short/unresolved
+    if len(nome_limpo.strip()) < 3:
+        return "Nome pendente de normalização"
+        
+    return nome_limpo.title().strip()
 
 async def garantir_login(ws_url):
     tentou_clicar = False

@@ -1,12 +1,14 @@
 # PAINEL OPERACIONAL WIDEPAY — Relatorio_WidePay_Lotes
 
 ## Informações Gerais
-* **Data da Última Atualização:** 24/06/2026
-* **Último Comando Executado:** "Correção de dados, commit e regras do painel operacional"
-* **Estado Atual do Processo:** Parcialmente completo. Regras consolidadas, precheck validando 31 regras, e checagem de cobertura A a E em andamento (pendente de validação/busca individual).
-* **Último Commit:** cb8c5c8 (Correções de tabelas e segurança do painel)
-* **Branch Atual:** main
+* **Último commit auditado no painel:** cb8c5c8 (Correções de tabelas e segurança do painel)
+* **Link do histórico de commits:** [Histórico de Commits no GitHub](https://github.com/erickvaq/chatgpt-cofre-operacional/commits/main)
+* **Branch atual:** main
 * **Link GitHub deste Painel:** [PAINEL_OPERACIONAL_WIDEPAY.md](https://github.com/erickvaq/chatgpt-cofre-operacional/blob/main/05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/PAINEL_OPERACIONAL_WIDEPAY.md)
+
+> [!NOTE]
+> **Nota sobre o Versionamento:**
+> Para evitar um ciclo infinito de alteração de commit dentro deste próprio arquivo (o que geraria novos commits sucessivos), o hash do commit exato contendo a última alteração deste painel será sempre informado diretamente na resposta final do Antigravity chat após cada push.
 
 > [!IMPORTANT]
 > **Segurança e Privacidade (GitHub Público):**
@@ -19,11 +21,11 @@
 * **Data da Extração:** 22/06/2026
 * **Áreas Consultadas:** Carnês (`https://www.widepay.com/conta/recebimentos/carnes`) e Cobranças/Boletos (`https://www.widepay.com/conta/recebimentos`)
 * **Clientes Encontrados (WidePay):** Adailton Gomes De Jesus, Altamir Do Carmo Cerqueira, Ana Carolina Nery Da S.Borgens, Ana Cleide Dos Santos Dias, Camila De Oliveira Ferrolho, Carla Rocha Lemos, Edmilson Silva Dos Santos, Edna Francisca Dos Santos, Edna Frqncisca Dos Santos, Eliel Hora Santana.
-* **Clientes Não Encontrados (WidePay ou dependendo de checagem ativa):** Adalberto Oliveira, Alexandre, Antonio Dias Mota (Filha), Belmiro Santos Pires, Camila Carvalho Sazhyn, Carlos Alberto, Alex Santos de Azevedo, Edmilson, Emanuel, Heron Souza Dias, Daniela Ramos, Debora Cristina Rei, Edelzuito (Desio), Edneia Souza, Emmanuel Felix, Evaniu Dias Macêdo.
+* **Clientes Não Encontrados (WidePay ou dependendo de checagem ativa):** Adalberto Oliveira, Alexandre, Alex Santos De Azevedo, Antonio Dias Mota (Filha), Belmiro Santos Pires, Camila Carvalho Sazhyn, Carlos Alberto, Daniela Ramos, Debora Cristina Rei, Edelzuito (Desio), Edneia Souza, Emanuel, Emmanuel Felix, Evaniu Dias Macêdo.
 * **Clientes com Carnê:** Adailton Gomes De Jesus, Altamir Do Carmo Cerqueira, Ana Carolina Nery Da S.Borgens, Camila De Oliveira Ferrolho, Carla Rocha Lemos, Edmilson Silva Dos Santos, Edna Francisca Dos Santos, Edna Frqncisca Dos Santos, Eliel Hora Santana.
 * **Clientes com Cobrança/Boleto:** Ana Cleide Dos Santos Dias.
 * **Clientes com Dados Parciais:** Ana Carolina Nery Da S.Borgens (dados coletados, dependendo de validação), Adailton Gomes De Jesus (carnês a partir de determinada parcela).
-* **Clientes que precisam de conferência individual:** 21 clientes classificados como Pendente.
+* **Clientes que precisam de conferência individual:** 19 clientes classificados como Pendente.
 * **Erros ou limitações da extração:** Limitações de login ou CDP quando o navegador exige ação manual.
 * **Status de Cobertura:** Incompleta (varredura inicial A a E concluída, aguardando validações individuais).
 
@@ -41,7 +43,7 @@
 | Ana Cleide Dos Santos Dias | A | E5 | cobrança | Acessado | Relatório gerado | Sim | Não enviado — arquivo sensível | Nenhuma |
 | Camila De Oliveira Ferrolho | C | G13 | carnê | Pendente | Não gerado | Sim | Não enviado — arquivo sensível | Pendente de conferência |
 | Carla Rocha Lemos | C | Lt F 17 | carnê | Sem evidência financeira | Não gerado | Não | - | Sem evidência financeira ativa |
-| Edmilson Silva Dos Santos | E | - | carnê | Sem evidência financeira | Não gerado | Não | - | Sem evidência financeira ativa |
+| Edmilson Silva Dos Santos | E | F05 | carnê | Pendente | Não gerado | Sim | Não enviado — arquivo sensível | Pendente de conferência |
 | Edna Francisca Dos Santos | E | lt D6 | carnê | Sem evidência financeira | Não gerado | Não | - | Sem evidência financeira ativa |
 | Edna Frqncisca Dos Santos | E | Lt D 06 | carnê | Sem evidência financeira | Não gerado | Não | - | Sem evidência financeira ativa |
 | Eliel Hora Santana | E | Lt E 12 | carnê | Sem evidência financeira | Relatório gerado | Sim | Não enviado — arquivo sensível | Sem evidência financeira ativa |
@@ -55,29 +57,34 @@
 | Ana Carolina Nery Da S.Borgens | A | E7 (Q.E) | `Ana Carolina E7 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível | Contrato usado para validar parcelas (43) |
 | Ana Cleide Dos Santos Dias | A | E5 (Q.E) | `Ana Cleide E5 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível | Contrato usado para validar pendência financeira |
 | Camila De Oliveira Ferrolho | C | G13 (Q.G) | `Camila de Oliveira G13 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível | Contrato usado para validar parcelas (78) |
+| Edmilson Silva Dos Santos | E | F05 (Q.F) | `Contrato Edmilson F05 Agua Viva LÉO` | Não enviado — arquivo sensível | Contrato usado para validar nome e lote |
 | Eliel Hora Santana | E | Lt E 12 | `Contrato Eliel E12 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível | Contrato local de apoio |
 
-### 3. Pastas Locais Sem Correspondência Financeira no WidePay (Pendente de busca/validação individual)
+### 3. Pastas Locais Sem Correspondência Financeira no WidePay (Iniciais A a E - Pendente de busca/validação individual)
 
 | Cliente (Normalizado) | Inicial | Lote/Quadra Local | Status / Origem | Pasta/Diretório Local | GitHub |
 |---|---|---|---|---|---|
 | Adalberto Oliveira | A | A3 (Q.A) | Pendente — contrato local sem confirmação financeira no WidePay | `Adalberto Oliveira A3 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
 | Alexandre | A | g14 (Q.G) | Pendente — contrato local sem confirmação financeira no WidePay | `alexandre g14 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
+| Alex Santos De Azevedo | A | B2, B3 (Q.B) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Alex Santos de Azevedo B2 B3 Agua Viva LÉO` | Não enviado — arquivo sensível |
 | Antonio Dias Mota | A | E15, E16, E17 (Q.E) | Pendente — contrato local sem confirmação financeira no WidePay | `Antonio Dias Mota E15 E16 E17 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
 | Belmiro Santos Pires | B | F6 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Belmiro Santos Pires F6` | Não enviado — arquivo sensível |
 | Camila Carvalho Sazhyn | C | D7 (Q.D) | Pendente — contrato local sem confirmação financeira no WidePay | `Camila Carvalho Sazhyn D7 - Agua Viva -Leandro Meirelles` | Não enviado — arquivo sensível |
 | Carlos Alberto | C | E14 (Q.E) | Pendente — contrato local sem confirmação financeira no WidePay | `Carlos Alberto E14 Agua viva` | Não enviado — arquivo sensível |
-| Alex Santos de Azevedo | C | B2, B3 (Q.B) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Alex Santos de Azevedo B2 B3 Agua Viva LÉO` | Não enviado — arquivo sensível |
-| Edmilson | C | F05 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Edmilson F05 Agua Viva LÉO` | Não enviado — arquivo sensível |
-| Emanuel | C | F1, F18 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Emanuel F1 F18 Agua Viva LÉO` | Não enviado — arquivo sensível |
-| Heron Souza Dias | C | H5 (Q.H) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Heron Souza Dias H5 H6a Agua Viva LÉO` | Não enviado — arquivo sensível |
-| Heron Souza Dias | C | B4, B5, B6 (Q.B) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Heron Souza Dias B4 B5 B6 Agua Viva LÉO` | Não enviado — arquivo sensível |
 | Daniela Ramos | D | f7, F8 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Daniela Ramos f7 F8  Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
 | Debora Cristina Rei | D | e22b (Q.E) | Pendente — contrato local sem confirmação financeira no WidePay | `Debora Cristina Rei e22B Agua Viva Leandro Meirelles - Cópia` | Não enviado — arquivo sensível |
 | Edelzuito (Desio) | E | A1 (Q.A) | Pendente — contrato local sem confirmação financeira no WidePay | `Edelzuito (desio) A1 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
+| Emanuel | E | F1, F18 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Contrato Emanuel F1 F18 Agua Viva LÉO` | Não enviado — arquivo sensível |
 | Edneia Souza | E | F16 (Q.F) | Pendente — contrato local sem confirmação financeira no WidePay | `Edneia Souza F16 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
 | Emmanuel Felix | E | G2, G18 (Q.G) | Pendente — contrato local sem confirmação financeira no WidePay | `Emmanuel Felix G2 G18 Agua Viva Leandro Meirelles` | Não enviado — arquivo sensível |
 | Evaniu Dias Macêdo | E | F9, F10 (Q.E) | Pendente — contrato local sem confirmação financeira no WidePay | `Evaniu Dias Macêdo E22a F9 F10` | Não enviado — arquivo sensível |
+
+### 4. Pastas Locais Fora do Escopo A a E Encontradas por Auditoria (Apenas para registro local)
+
+| Cliente (Normalizado) | Inicial | Lote/Quadra Local | Status / Origem | Pasta/Diretório Local | GitHub |
+|---|---|---|---|---|---|
+| Heron Souza Dias | H | H5, H6a (Q.H) | Pendente — fora do escopo A a E / não confirmado no WidePay | `Contrato Heron Souza Dias H5 H6a Agua Viva LÉO` | Não enviado — arquivo sensível |
+| Heron Souza Dias | H | B4, B5, B6 (Q.B) | Pendente — fora do escopo A a E / não confirmado no WidePay | `Contrato Heron Souza Dias B4 B5 B6 Agua Viva LÉO` | Não enviado — arquivo sensível |
 
 ---
 
