@@ -9,6 +9,15 @@ ERRO_COLETA_INCOMPLETA = "COLETA_INCOMPLETA_PAGINACAO_OU_REGISTROS_POR_PAGINA_WI
 
 
 COLETOR_TABELAS_PAGINADAS_JS = r"""
+function wideappNormalizarBusca(texto) {
+    if (!texto) return "";
+    return texto.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+}
+
 async function wideappSleep(ms) {
     await new Promise(r => setTimeout(r, ms));
 }
@@ -316,6 +325,9 @@ function wideappValidarMetaColeta(meta) {
     }
     if (meta.totalWidePay && meta.totalWidePay.total !== null && meta.totalColetadoUnico < meta.totalWidePay.total) {
         meta.erros.push('Total coletado menor que total exibido pelo WidePay');
+    }
+    if (meta.totalWidePay && meta.totalWidePay.total !== null && meta.totalColetadoUnico >= meta.totalWidePay.total) {
+        meta.erros = meta.erros.filter(e => e !== 'Registros por pagina nao foi localizado/selecionado');
     }
     meta.valida = meta.erros.length === 0;
     meta.erroCodigo = meta.valida ? null : 'COLETA_INCOMPLETA_PAGINACAO_OU_REGISTROS_POR_PAGINA_WIDEPAY';

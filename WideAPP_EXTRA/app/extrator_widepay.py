@@ -333,8 +333,18 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
                 foundRows.forEach(tr => {
                     var tds = tr.querySelectorAll('td');
                     if (tds.length >= 16) {
-                        var col_id = tds[1].innerText.trim();
                         var col_cliente = tds[2].innerText.trim();
+                        var col_cliente_norm = wideappNormalizarBusca(col_cliente);
+                        var matchName = false;
+                        for (var t = 0; t < queryTerms.length; t++) {
+                            if (col_cliente_norm.includes(queryTerms[t])) {
+                                matchName = true;
+                                break;
+                            }
+                        }
+                        if (!matchName) return;
+                        
+                        var col_id = tds[1].innerText.trim();
                         var col_referencia = tds[8].innerText.trim();
                         var col_valor = tds[9].innerText.trim();
                         var col_parcelas = tds[10].innerText.trim();
@@ -590,9 +600,19 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
                 foundRows.forEach(tr => {
                     var tds = tr.querySelectorAll('td');
                     if (tds.length >= 21) {
+                        var col_cliente = tds[4].innerText.trim();
+                        var col_cliente_norm = wideappNormalizarBusca(col_cliente);
+                        var matchName = false;
+                        for (var t = 0; t < queryTerms.length; t++) {
+                            if (col_cliente_norm.includes(queryTerms[t])) {
+                                matchName = true;
+                                break;
+                            }
+                        }
+                        if (!matchName) return;
+                        
                         var col_id = tds[1].innerText.trim();
                         var col_forma = tds[3].innerText.trim();
-                        var col_cliente = tds[4].innerText.trim();
                         var col_referencia = tds[10].innerText.trim();
                         var col_valor = tds[11].innerText.trim();
                         var col_recebido = tds[12].innerText.trim();
