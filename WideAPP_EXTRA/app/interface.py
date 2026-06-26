@@ -56,9 +56,9 @@ class ConfirmacaoSelecaoDialogo:
         green_accent = "#00E676"
         green_dark = "#007A3E"
         
-        # Header Label
+        # Header Label (Topo)
         header_frame = tk.Frame(self.top, bg=bg_dark, pady=10)
-        header_frame.pack(fill="x")
+        header_frame.pack(side="top", fill="x")
         tk.Label(
             header_frame, 
             text="Confirmar seleção de clientes e lotes", 
@@ -67,9 +67,31 @@ class ConfirmacaoSelecaoDialogo:
             fg=green_accent
         ).pack(anchor="w", padx=15)
         
-        # Text com Scrollbar para exibir os clientes
+        # Botões de Ação no rodapé (Base) - Empacota primeiro no rodapé para garantir que nunca sejam cortados
+        btn_frame = tk.Frame(self.top, bg=bg_dark, pady=10)
+        btn_frame.pack(side="bottom", fill="x")
+        
+        # Botão Sim (Accent.TButton)
+        btn_yes = ttk.Button(btn_frame, text="Sim, executar", style="Accent.TButton", command=self.on_yes)
+        btn_yes.pack(side="right", padx=(10, 20))
+        
+        # Botão Não
+        btn_no = ttk.Button(btn_frame, text="Não, cancelar", command=self.on_no)
+        btn_no.pack(side="right")
+        
+        # Label de pergunta final (Acima dos botões no rodapé)
+        lbl_pergunta = tk.Label(
+            self.top, 
+            text="Deseja executar o pipeline financeiro completo agora?", 
+            font=("Segoe UI", 10, "bold"), 
+            bg=bg_dark, 
+            fg=fg_white
+        )
+        lbl_pergunta.pack(side="bottom", pady=(0, 10))
+        
+        # Text com Scrollbar para exibir os clientes (Centro - Ocupa o espaço restante)
         container = tk.Frame(self.top, bg=bg_card, bd=1, relief="solid")
-        container.pack(fill="both", expand=True, padx=15, pady=(5, 15))
+        container.pack(side="top", fill="both", expand=True, padx=15, pady=(5, 10))
         
         scroll_y = ttk.Scrollbar(container, orient="vertical")
         scroll_y.pack(side="right", fill="y")
@@ -94,27 +116,6 @@ class ConfirmacaoSelecaoDialogo:
         # Inserir o resumo de clientes e desativar edição
         self.text_widget.insert("1.0", resumo_texto)
         self.text_widget.configure(state="disabled")
-        
-        # Label de pergunta final
-        tk.Label(
-            self.top, 
-            text="Deseja executar o pipeline financeiro completo agora?", 
-            font=("Segoe UI", 10, "bold"), 
-            bg=bg_dark, 
-            fg=fg_white
-        ).pack(pady=(0, 10))
-        
-        # Botões de Ação no rodapé
-        btn_frame = tk.Frame(self.top, bg=bg_dark, pady=10)
-        btn_frame.pack(fill="x")
-        
-        # Botão Sim (Accent.TButton)
-        btn_yes = ttk.Button(btn_frame, text="Sim, executar", style="Accent.TButton", command=self.on_yes)
-        btn_yes.pack(side="right", padx=(10, 20))
-        
-        # Botão Não
-        btn_no = ttk.Button(btn_frame, text="Não, cancelar", command=self.on_no)
-        btn_no.pack(side="right")
         
         self.top.protocol("WM_DELETE_WINDOW", self.on_no)
         self.top.wait_window()
