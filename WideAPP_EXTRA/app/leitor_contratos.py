@@ -74,9 +74,29 @@ def extrair_texto_pdf(caminho_pdf):
         print(f"Erro ao extrair PDF: {e}")
         return ""
 
+def extrair_nome_cliente(texto, nome_sugerido):
+    # Procurar por padrão "2-[NOME COM COMPRADOR]" ou "2. [NOME]"
+    match = re.search(r'2-\s*([A-Za-zÀ-ÿ\s\'\.\-]+?),\s*(?:brasileir|estrangeir|solteir|casad|divorciad|portador|inscrit|residente|cpf|rg)', texto, re.IGNORECASE)
+    if match:
+        nome = match.group(1).strip()
+        nome = re.sub(r'\s+', ' ', nome)
+        if len(nome.split()) >= 2 and len(nome) > 5:
+            return nome.upper()
+            
+    # Padrão alternativo: COMPRADOR: [NOME]
+    match = re.search(r'(?:promissario comprador|comprador|compradora|cessionario)\s*:\s*([A-Za-zÀ-ÿ\s\'\.\-]+?),\s*(?:brasileir|estrangeir|solteir|casad|divorciad|portador|inscrit|residente|cpf|rg)', texto, re.IGNORECASE)
+    if match:
+        nome = match.group(1).strip()
+        nome = re.sub(r'\s+', ' ', nome)
+        if len(nome.split()) >= 2 and len(nome) > 5:
+            return nome.upper()
+            
+    return nome_sugerido.upper()
+
 def parsear_dados_contrato(texto, nome_sugerido):
+    nome_real = extrair_nome_cliente(texto, nome_sugerido)
     dados = {
-        'cliente': nome_sugerido,
+        'cliente': nome_real,
         'lote': '-',
         'quadra': '-',
         'data_assinatura': '-',
@@ -124,10 +144,10 @@ def parsear_dados_contrato(texto, nome_sugerido):
     if area_match:
         dados['area'] = f"{area_match.group(1)} m²"
         
-    # Data de assinatura
-    data_match = re.search(r'(\d+\s*de\s*[a-zA-Z]+\s*de\s*\d{4})', texto, re.IGNORECASE)
-    if data_match:
-        dados['data_assinatura'] = data_match.group(1)
+    # Data de assinatura (pegar o último match de data completa no texto)
+    datas = re.findall(r'(\d+\s*de\s*[a-zA-Z]+\s*de\s*\d{4})', texto, re.IGNORECASE)
+    if datas:
+        dados['data_assinatura'] = datas[-1]
         
     dados['valor_total_contrato'] = dados['entrada'] + (dados['total_parcelas'] * dados['valor_parcela'])
     

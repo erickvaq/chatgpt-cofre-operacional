@@ -66,3 +66,36 @@ A interface e os botoes foram corrigidos e passaram no smoke test. O teste de pi
 ## Conclusao
 
 As funcoes da interface deixaram de ser apenas botoes visuais e agora possuem rotas executaveis, logs e mensagens de erro claras. A proxima validacao deve ser feita na interface isolada reaberta pelo `.bat`, selecionando um cliente por vez e depois dois clientes para confirmar falha parcial sem travamento.
+
+## Limpeza pos-commit 277346b
+
+Auditoria executada em seguida para verificar o que ficou fora do commit publicado:
+
+```powershell
+git status --short
+git diff -- WideAPP_EXTRA/app/indexador_clientes.py
+git diff -- WideAPP_EXTRA/app/leitor_contratos.py
+git diff -- 07_DADOS_TEMPORARIOS/auditoria_rastreabilidade.jsonl
+WideAPP_EXTRA\.venv\Scripts\python.exe -m py_compile WideAPP_EXTRA\app\indexador_clientes.py WideAPP_EXTRA\app\leitor_contratos.py
+```
+
+Classificacao:
+
+- `WideAPP_EXTRA/app/indexador_clientes.py` -> `NECESSARIA PARA FUNCIONAMENTO`
+  - ignora pastas `backup`;
+  - tenta obter nome real do cliente a partir do contrato `docx/pdf/txt convertido`;
+  - preserva nome validado anteriormente no cache;
+  - reduz duplicidade quando o lote nao esta normalizado.
+- `WideAPP_EXTRA/app/leitor_contratos.py` -> `NECESSARIA PARA FUNCIONAMENTO`
+  - extrai nome real do comprador do contrato;
+  - propaga esse nome para o parse financeiro;
+  - usa a ultima data completa do texto como data de assinatura, melhorando contratos com varias datas.
+- `07_DADOS_TEMPORARIOS/auditoria_rastreabilidade.jsonl` -> `GERADA AUTOMATICAMENTE / NAO COMMITAR`
+  - arquivo append-only de execucoes reais e falhas/sucessos do WidePay;
+  - mantido localmente como evidencia operacional.
+
+Observacoes:
+
+- Nada foi descartado automaticamente.
+- Os hashes dos arquivos `indexador_clientes.py` e `leitor_contratos.py` na pasta isolada ja batiam com os arquivos locais no momento desta auditoria, portanto a copia isolada tambem ficou atualizada para essas duas correcoes.
+- Se houver commit complementar para essas correcoes, ele deve conter apenas os dois `.py` acima e este registro de status, sem incluir o `jsonl`.

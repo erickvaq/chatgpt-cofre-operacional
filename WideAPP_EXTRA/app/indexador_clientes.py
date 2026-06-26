@@ -10,6 +10,7 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from app import config
+from app.leitor_contratos import extrair_texto_docx, extrair_texto_pdf, extrair_nome_cliente
 
 
 LOTE_RE = re.compile(r"\b([A-H]\s*[-.]?\s*\d{1,3}[A-Z]?)\b", re.IGNORECASE)
@@ -82,7 +83,7 @@ def iterar_pastas_cliente():
         if not path.is_dir():
             continue
         nome = path.name.strip()
-        if not nome or nome.lower().startswith(("_", ".")):
+        if not nome or nome.lower().startswith(("_", ".")) or "backup" in nome.lower():
             continue
         lote = extrair_lote(nome)
         contrato_status, contrato_path = detectar_contrato(path)
@@ -90,6 +91,40 @@ def iterar_pastas_cliente():
             candidatos.append((path, lote, contrato_status, contrato_path))
     return candidatos
 
+
+def obter_nome_real_contrato(contrato_path, nome_sugerido):
+    if not contrato_path:
+        return nome_sugerido
+    try:
+        p = Path(contrato_path)
+        ext = p.suffix.lower()
+        texto = ""
+        if p.exists():
+            if ext == '.docx':
+                texto = extrair_texto_docx(p)
+            elif ext == '.pdf':
+                texto = extrair_texto_pdf(p)
+        
+        # Fallback: se o arquivo não existe ou é um scan ilegível, busca na pasta 01_DOCUMENTOS_CONVERTIDOS
+        if not texto:
+            convertidos_dir = config.ROOT_DIR / "01_DOCUMENTOS_CONVERTIDOS"
+            if convertidos_dir.exists():
+                slug_sug = slug_busca(nome_sugerido)
+                for txt_path in convertidos_dir.glob("*.txt"):
+                    if slug_sug in slug_busca(txt_path.stem):
+                        try:
+                            with open(txt_path, "r", encoding="utf-8") as tf:
+                                texto = tf.read()
+                            if texto:
+                                break
+                        except Exception:
+                            pass
+        
+        if texto:
+            return extrair_nome_cliente(texto, nome_sugerido)
+    except Exception:
+        pass
+    return nome_sugerido
 
 def indexar_clientes(validar_widepay=False, log_callback=None):
     config.ensure_dirs()
@@ -117,10 +152,29 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
 
     registros = []
     vistos = set()
+    
+    # Carregar cache existente para preservar nomes de clientes já validados pela WidePay ou contratos
+    cache_anterior = {}
+    try:
+        for r in carregar_cache():
+            chave_cache = (str(r.get("pasta_local")).lower(), r.get("lote"))
+            cache_anterior[chave_cache] = r
+    except Exception:
+        pass
+
     for pasta, lote, contrato_status, contrato_path in iterar_pastas_cliente():
-        cliente = limpar_nome_cliente(pasta.name)
+        cliente_sugerido = limpar_nome_cliente(pasta.name)
+        cliente = cliente_sugerido
+        
+        # Se temos cache anterior para esta pasta e lote, e o status era APROVADO, preserva o nome obtido
+        chave_res = (str(pasta).lower(), lote)
+        r_antigo = cache_anterior.get(chave_res)
+        if r_antigo and r_antigo.get("status") == "APROVADO" and r_antigo.get("cliente"):
+            cliente = r_antigo["cliente"]
+        elif contrato_status == "Encontrado" and contrato_path:
+            cliente = obter_nome_real_contrato(contrato_path, cliente_sugerido)
         quadra = extrair_quadra(pasta.name, lote)
-        chave = (slug_busca(cliente), lote, str(pasta).lower())
+        chave = (slug_busca(cliente), lote if lote != "-" else str(pasta).lower())
         if chave in vistos:
             continue
         vistos.add(chave)
