@@ -522,10 +522,12 @@ class WideAppInterface:
                 self.ultimos.setdefault(tipo, []).extend(paths)
 
             # Atualiza registro em memoria com os resultados da pipeline
-            c_name = res.get("cliente")
-            c_lote = res.get("lote")
+            c_name_norm = res.get("cliente", "").strip().lower()
+            c_lote_norm = res.get("lote", "").strip().lower()
             for r in self.registros:
-                if r.get("cliente") == c_name and r.get("lote") == c_lote:
+                r_name = r.get("cliente", "").strip().lower()
+                r_lote = r.get("lote", "").strip().lower()
+                if r_name == c_name_norm and r_lote == c_lote_norm:
                     json_paths = res["arquivos"].get("json", [])
                     if json_paths:
                         try:
@@ -654,7 +656,19 @@ class WideAppInterface:
                     dt_str = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
                 except Exception:
                     dt_str = "Desconhecido"
-                display_name = f"{dt_str} - {p.name}"
+                
+                nome_arq = p.stem
+                friendly_name = nome_arq
+                if nome_arq.startswith("RELATORIO_FINANCEIRO_CLIENTE_"):
+                    partes = nome_arq.replace("RELATORIO_FINANCEIRO_CLIENTE_", "")
+                    if "_LOTE_" in partes:
+                        subpartes = partes.split("_LOTE_")
+                        nome_cliente = subpartes[0].replace("_", " ").title()
+                        lote_e_data = subpartes[1]
+                        lote_name = lote_e_data.split("_")[0] if "_" in lote_e_data else lote_e_data
+                        friendly_name = f"{nome_cliente} - Lote {lote_name}"
+                
+                display_name = f"{dt_str} - {friendly_name}"
                 items.append(display_name)
                 self.xlsx_map[display_name] = p
             self.xlsx_combo.configure(values=items)
