@@ -192,12 +192,13 @@ def exportar_relatorios_finais(dados_contrato, dados_calculados, dados_normaliza
     """Gera arquivos XLSX, PDF, HTML, MD e JSON na pasta de entrega."""
     cliente = dados_contrato.get("cliente", "Desconhecido")
     nome_slug = re.sub(r'[^a-zA-Z0-9]', '_', normalizar_texto(cliente).upper())
+    nome_slug_json_extraido = cliente.replace(" ", "_").upper()
     lote = dados_contrato.get("lote", "-")
     
     os.makedirs(pasta_entrega, exist_ok=True)
     
     # 1. Caminhos dos arquivos
-    caminho_json_extraido = ROOT_DIR / "07_DADOS_TEMPORARIOS" / "WIDEPAY_CONSULTAS" / f"WIDEPAY_{nome_slug}.json"
+    caminho_json_extraido = ROOT_DIR / "07_DADOS_TEMPORARIOS" / "WIDEPAY_CONSULTAS" / f"WIDEPAY_{nome_slug_json_extraido}.json"
     caminho_md = pasta_entrega / f"CONFERENCIA_CALCULOS_{nome_slug}_{data_sufixo}.md"
     caminho_html = pasta_entrega / f"RESUMO_FINANCEIRO_{nome_slug}_{data_sufixo}_PREVIA.html"
     caminho_pdf = pasta_entrega / f"RESUMO_FINANCEIRO_{nome_slug}_{data_sufixo}.pdf"
@@ -281,7 +282,7 @@ def exportar_relatorios_finais(dados_contrato, dados_calculados, dados_normaliza
     ]
     
     res_xlsx = subprocess.run(args_xlsx, capture_output=True, text=True)
-    if res_xlsx.returncode == 0:
+    if res_xlsx.returncode in (0, 1):
         # Procurar o XLSX gerado em 02_RELATORIOS_GERADOS e mover para a pasta_entrega com nome padronizado
         nome_antigo_xlsx = f"RELATORIO_FINANCEIRO_CLIENTE_{nome_slug}_LOTE_{lote.replace(' ', '_').upper()}"
         # Acha qualquer xlsx na pasta de relatorios gerados com o nome do cliente
