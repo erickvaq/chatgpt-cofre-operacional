@@ -17,16 +17,115 @@ from app.abridor_arquivos import abrir_pasta, abrir
 
 COLUNAS = [
     ("cliente", "Cliente", 220),
-    ("lote", "Lote", 70),
-    ("quadra", "Quadra", 70),
-    ("status", "Status", 170),
-    ("contrato", "Contrato", 120),
-    ("origem", "Origem", 130),
-    ("parcelas_pagas_identificadas", "Parcelas", 90),
-    ("ultimo_vencimento_pago", "Ult. vencimento", 110),
-    ("valor_ultimo_pagamento", "Ult. valor", 90),
-    ("observacoes", "Observacoes", 220),
+    ("lote", "Lote", 60),
+    ("quadra", "Quadra", 60),
+    ("contrato_resumo", "Contrato", 140),
+    ("parcelas_resumo", "Parcelas", 110),
+    ("situacao_final", "Situacao", 140),
+    ("ultima_atualizacao_widepay", "Atualizado em", 125),
+    ("valor_total_pago", "Total pago", 100),
+    ("observacoes", "Observacoes", 160),
 ]
+
+
+class ConfirmacaoSelecaoDialogo:
+    def __init__(self, parent, resumo_texto):
+        self.result = False
+        self.top = tk.Toplevel(parent)
+        self.top.title("Confirmar seleção de clientes")
+        self.top.geometry("640x500")
+        self.top.configure(bg="#181818")
+        self.top.transient(parent)
+        self.top.grab_set()
+        self.top.resizable(False, False)
+        
+        # Centralizar na tela parent
+        self.top.update_idletasks()
+        pw = parent.winfo_width()
+        ph = parent.winfo_height()
+        px = parent.winfo_rootx()
+        py = parent.winfo_rooty()
+        x = px + (pw - 640) // 2
+        y = py + (ph - 500) // 2
+        self.top.geometry(f"640x500+{max(0, x)}+{max(0, y)}")
+
+        # Estilo do Tema Dark
+        fg_white = "#F3F3F3"
+        bg_card = "#242424"
+        bg_dark = "#181818"
+        green_accent = "#00E676"
+        green_dark = "#007A3E"
+        
+        # Header Label
+        header_frame = tk.Frame(self.top, bg=bg_dark, pady=10)
+        header_frame.pack(fill="x")
+        tk.Label(
+            header_frame, 
+            text="Confirmar seleção de clientes e lotes", 
+            font=("Segoe UI", 12, "bold"), 
+            bg=bg_dark, 
+            fg=green_accent
+        ).pack(anchor="w", padx=15)
+        
+        # Text com Scrollbar para exibir os clientes
+        container = tk.Frame(self.top, bg=bg_card, bd=1, relief="solid")
+        container.pack(fill="both", expand=True, padx=15, pady=(5, 15))
+        
+        scroll_y = ttk.Scrollbar(container, orient="vertical")
+        scroll_y.pack(side="right", fill="y")
+        
+        self.text_widget = tk.Text(
+            container, 
+            wrap="word", 
+            yscrollcommand=scroll_y.set,
+            bg=bg_card, 
+            fg=fg_white, 
+            insertbackground=fg_white,
+            selectbackground=green_dark, 
+            selectforeground=fg_white, 
+            font=("Segoe UI", 9),
+            bd=0,
+            padx=10,
+            pady=10
+        )
+        self.text_widget.pack(side="left", fill="both", expand=True)
+        scroll_y.config(command=self.text_widget.yview)
+        
+        # Inserir o resumo de clientes e desativar edição
+        self.text_widget.insert("1.0", resumo_texto)
+        self.text_widget.configure(state="disabled")
+        
+        # Label de pergunta final
+        tk.Label(
+            self.top, 
+            text="Deseja executar o pipeline financeiro completo agora?", 
+            font=("Segoe UI", 10, "bold"), 
+            bg=bg_dark, 
+            fg=fg_white
+        ).pack(pady=(0, 10))
+        
+        # Botões de Ação no rodapé
+        btn_frame = tk.Frame(self.top, bg=bg_dark, pady=10)
+        btn_frame.pack(fill="x")
+        
+        # Botão Sim (Accent.TButton)
+        btn_yes = ttk.Button(btn_frame, text="Sim, executar", style="Accent.TButton", command=self.on_yes)
+        btn_yes.pack(side="right", padx=(10, 20))
+        
+        # Botão Não
+        btn_no = ttk.Button(btn_frame, text="Não, cancelar", command=self.on_no)
+        btn_no.pack(side="right")
+        
+        self.top.protocol("WM_DELETE_WINDOW", self.on_no)
+        self.top.wait_window()
+
+    def on_yes(self):
+        self.result = True
+        self.top.destroy()
+
+    def on_no(self):
+        self.result = False
+        self.top.destroy()
 
 
 class WideAppInterface:
@@ -109,9 +208,27 @@ class WideAppInterface:
         self.ultimo_grupo = "SELECIONADOS"
         self.xlsx_map = {}
         self._context_iid = None
+        self.execucao_em_andamento = False
         self._montar()
         self.aplicar_filtro()
         self.atualizar_combo_xlsx()
+        self._trazer_para_frente()
+
+    def _trazer_para_frente(self):
+        def _focus():
+            try:
+                self.root.deiconify()
+                self.root.state("normal")
+                self.root.lift()
+                self.root.attributes("-topmost", True)
+                self.root.focus_force()
+                self.root.after(800, lambda: self.root.attributes("-topmost", False))
+            except Exception:
+                pass
+
+        self.root.after(150, _focus)
+        self.root.after(800, _focus)
+        self.root.after(1600, _focus)
 
     def _montar(self):
         topo = ttk.Frame(self.root, padding=8)
@@ -128,7 +245,7 @@ class WideAppInterface:
         status_box = ttk.Combobox(
             topo,
             textvariable=self.status_var,
-            values=["Todos", "Pendente validacao WidePay", "Sem contrato confirmado", "Ativo", "Com divergencia"],
+            values=["Todos", "Pendente validacao WidePay", "APROVADO", "PENDENTE", "ERRO", "Sem contrato confirmado"],
             width=26,
             state="readonly",
         )
@@ -143,6 +260,8 @@ class WideAppInterface:
         self.btn_gerar_sel.pack(side="left", padx=12)
         self.btn_gerar_todos = ttk.Button(botoes, text="Gerar relatorio de todos os clientes ativos", command=self.gerar_todos_ativos, style="Accent.TButton")
         self.btn_gerar_todos.pack(side="left")
+        self.btn_parar = ttk.Button(botoes, text="Parar captura", command=self.parar_captura, state="disabled")
+        self.btn_parar.pack(side="left", padx=(8, 0))
         
         # Frame para organizador de abridores
         abridores = ttk.Frame(botoes)
@@ -257,6 +376,16 @@ class WideAppInterface:
         valor = item.get(key, "")
         if key == "cliente":
             return indexador_clientes.limpar_nome_cliente(str(valor))
+        if key == "contrato_resumo":
+            return indexador_clientes.deduzir_resumo_contrato(item)
+        if key == "parcelas_resumo":
+            return indexador_clientes.deduzir_resumo_parcelas(item)
+        if key == "situacao_final":
+            return item.get("situacao_final") or indexador_clientes.deduzir_situacao_final(item)
+        if key == "ultima_atualizacao_widepay":
+            return indexador_clientes.formatar_data_hora(item.get("ultima_atualizacao_widepay"))
+        if key == "valor_total_pago":
+            return indexador_clientes.formatar_moeda(valor)
         return valor
 
     def sincronizar_selecao_tree(self):
@@ -306,19 +435,45 @@ class WideAppInterface:
         self._gerar(registros, "SELECIONADOS")
 
     def _gerar(self, registros, grupo):
+        if self.execucao_em_andamento:
+            messagebox.showinfo("WideAPP_EXTRA", "Ja existe uma captura em andamento.")
+            return
         if not registros:
             messagebox.showwarning("WideAPP_EXTRA", "Nenhum cliente selecionado.")
             return
         resumo = seletor_clientes.resumir_selecao(registros)
-        if not messagebox.askyesno("Confirmar selecao", resumo + "\n\nExecutar pipeline financeiro completo agora?"):
+        dialogo = ConfirmacaoSelecaoDialogo(self.root, resumo)
+        if not dialogo.result:
             self.log("Geracao cancelada pelo usuario.")
             return
         self.ultimo_grupo = grupo
         threading.Thread(target=self._gerar_thread, args=(registros, grupo), daemon=True).start()
 
+    def parar_captura(self):
+        if not self.execucao_em_andamento:
+            self.log("Parada ignorada: nenhuma captura em andamento.")
+            return
+        interrompeu = pipeline_runner.solicitar_cancelamento(log_callback=self.log)
+        self.root.after(0, lambda: self.progress_label.configure(text="Cancelamento solicitado..."))
+        if interrompeu:
+            self.log("Cancelamento enviado para a captura atual.")
+        else:
+            self.log("Cancelamento registrado. A captura sera interrompida assim que a etapa atual responder.")
+
+    def _marcar_execucao_iniciada(self):
+        self.execucao_em_andamento = True
+        self.btn_gerar_sel.configure(state="disabled")
+        self.btn_gerar_todos.configure(state="disabled")
+        self.btn_parar.configure(state="normal")
+
+    def _marcar_execucao_finalizada(self):
+        self.execucao_em_andamento = False
+        self.btn_gerar_sel.configure(state="normal")
+        self.btn_gerar_todos.configure(state="normal")
+        self.btn_parar.configure(state="disabled")
+
     def _gerar_thread(self, registros, grupo):
-        self.root.after(0, lambda: self.btn_gerar_sel.configure(state="disabled"))
-        self.root.after(0, lambda: self.btn_gerar_todos.configure(state="disabled"))
+        self.root.after(0, self._marcar_execucao_iniciada)
         self.root.after(0, lambda: self.progress.configure(value=0))
         self.root.after(0, lambda: self.progress_label.configure(text="Iniciando execução da pipeline..."))
         self.log("Processando cliente...")
@@ -336,13 +491,16 @@ class WideAppInterface:
         except Exception as exc:
             self.log(f"ERRO_PIPELINE: {exc}")
             self.root.after(0, lambda: self.progress_label.configure(text=f"Erro na pipeline: {exc}"))
-            self.root.after(0, lambda: self.btn_gerar_sel.configure(state="normal"))
-            self.root.after(0, lambda: self.btn_gerar_todos.configure(state="normal"))
+            self.root.after(0, self._marcar_execucao_finalizada)
             self.root.after(0, lambda: messagebox.showerror("WideAPP_EXTRA", f"Erro na pipeline:\n{exc}"))
             return
 
+        if resultado.get("cancelado"):
+            self.log("CAPTURA_CANCELADA: execucao interrompida pelo usuario.")
+            self.root.after(0, lambda: self.progress_label.configure(text="Captura interrompida pelo usuario."))
+
         falhas = resultado.get("falhas") or []
-        if falhas:
+        if falhas and not resultado.get("cancelado"):
             resumo_falhas = "\n".join(
                 f"- {item.get('cliente')} lote {item.get('lote')}: {item.get('erro')}"
                 for item in falhas[:5]
@@ -367,45 +525,19 @@ class WideAppInterface:
             c_lote = res.get("lote")
             for r in self.registros:
                 if r.get("cliente") == c_name and r.get("lote") == c_lote:
-                    r["status"] = "APROVADO"
-                    r["observacoes"] = "Relatorio gerado"
                     json_paths = res["arquivos"].get("json", [])
                     if json_paths:
                         try:
                             import json
-                            from datetime import datetime as dt_parser
                             with open(json_paths[0], "r", encoding="utf-8") as jf:
                                 metrics = json.load(jf)
-                            
-                            c_name_real = metrics.get("contrato", {}).get("cliente")
-                            if c_name_real:
-                                r["cliente"] = c_name_real
-                            
-                            parcelas = metrics.get("calculos", {}).get("parcelas_pagas_equivalentes", "")
-                            if parcelas != "":
-                                r["parcelas_pagas_identificadas"] = str(parcelas)
-                            
-                            pagamentos = metrics.get("calculos", {}).get("pagamentos_interpretados", [])
-                            ultimo_pgto = None
-                            latest_date = None
-                            for p in pagamentos:
-                                p_date_str = p.get("pagamento") or p.get("vencimento")
-                                if p_date_str:
-                                    try:
-                                        dt = dt_parser.strptime(p_date_str, "%d/%m/%Y")
-                                        if latest_date is None or dt > latest_date:
-                                            latest_date = dt
-                                            ultimo_pgto = p
-                                    except Exception:
-                                        pass
-                            
-                            if ultimo_pgto:
-                                r["ultimo_vencimento_pago"] = ultimo_pgto.get("vencimento", "")
-                                val = ultimo_pgto.get("valor_recebido")
-                                if val is not None:
-                                    r["valor_ultimo_pagamento"] = f"R$ {float(val):.2f}"
+                            atualizado = indexador_clientes.aplicar_metricas_registro(r, metrics)
+                            r.clear()
+                            r.update(atualizado)
                         except Exception as je:
                             self.log(f"Erro ao ler JSON de metricas: {je}")
+                    else:
+                        r["observacoes"] = "Relatorio gerado sem JSON de metricas"
 
         # Salvar cache local atualizado
         try:
@@ -428,12 +560,14 @@ class WideAppInterface:
         self.links.delete("1.0", "end")
         for item in resultado["drive"]:
             self.links.insert("end", f"{item.get('cliente')} {item.get('lote')}: {item.get('status')} {item.get('link')}\n")
-        self.log(f"Pipeline concluido. Manifesto Drive: {config.LINKS_DRIVE_MD}")
+        if resultado.get("cancelado"):
+            self.log("Captura encerrada sem consolidado/upload final por solicitacao do usuario.")
+        else:
+            self.log(f"Pipeline concluido. Manifesto Drive: {config.LINKS_DRIVE_MD}")
         if resultado["ignorados"]:
             self.log(f"Ignorados sem contrato confirmado: {len(resultado['ignorados'])}")
 
-        self.root.after(0, lambda: self.btn_gerar_sel.configure(state="normal"))
-        self.root.after(0, lambda: self.btn_gerar_todos.configure(state="normal"))
+        self.root.after(0, self._marcar_execucao_finalizada)
 
     def abrir_ultimo(self):
         if not self.ultimos.get("xlsx"):
@@ -624,6 +758,11 @@ class WideAppInterface:
 def abrir_interface():
     config.ensure_dirs()
     root = tk.Tk()
+    root.deiconify()
+    root.lift()
+    root.attributes("-topmost", True)
+    root.after(250, lambda: root.attributes("-topmost", False))
+    root.after(300, root.focus_force)
     WideAppInterface(root)
     root.mainloop()
 

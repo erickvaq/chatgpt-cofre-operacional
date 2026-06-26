@@ -54,6 +54,52 @@ def gerar_termos_busca_cliente(cliente):
         
     return sorted(termos, key=len, reverse=True)
 
+
+TOKENS_IGNORADOS_BUSCA = {
+    "a", "e", "de", "da", "do", "das", "dos",
+    "leo", "leonardo", "copia", "contrato", "agua", "viva", "leandro",
+    "meirelles", "lote", "quadra", "par", "wp", "pdf", "docx", "txt",
+}
+
+
+def extrair_tokens_busca_cliente(cliente):
+    base = normalizar_busca(cliente)
+    tokens = []
+    for token in base.split():
+        if token in TOKENS_IGNORADOS_BUSCA:
+            continue
+        if re.match(r"^[a-z]\d+[a-z]?$", token):
+            continue
+        tokens.append(token)
+    return tokens
+
+
+def gerar_termos_busca_cliente(cliente):
+    tokens = extrair_tokens_busca_cliente(cliente)
+    if not tokens:
+        return ["edmilson", "edimson", "edjinson"]
+
+    termos = []
+
+    def adicionar(termo):
+        termo = normalizar_busca(termo)
+        if termo and termo not in termos:
+            termos.append(termo)
+
+    primeiro_nome = tokens[0]
+    adicionar(primeiro_nome)
+
+    if len(tokens) >= 2:
+        adicionar(" ".join(tokens[:2]))
+
+    adicionar(" ".join(tokens))
+
+    if primeiro_nome in {"edmilson", "edimson", "edjinson"}:
+        for alias in ("edmilson", "edimson", "edjinson"):
+            adicionar(alias)
+
+    return termos
+
 async def ensure_widepay_logged_in(ws_url):
     print("Verificando se o WidePay requer login...")
     
@@ -223,8 +269,8 @@ async def ensure_widepay_logged_in(ws_url):
     motivo_str = ", ".join(motivos)
     raise RuntimeError(f"Login automatico impossivel porque: {motivo_str}. Por favor, faca login manualmente.")
 
-async def extrair_dados_cliente(ws_url, cliente_nome):
-    """Navega, pesquisa e extrai carnes e cobrancas do WidePay para o cliente_nome."""
+async def extrair_dados_clientes_bloco(ws_url, clientes_bloco):
+    """Navega, executa pesquisa em branco e extrai dados de até 3 clientes simultaneamente."""
     await ensure_widepay_logged_in(ws_url)
     
     # 1. Obter URL
@@ -237,23 +283,22 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         await cdp_command(ws_url, "Page.navigate", {"url": "https://www.widepay.com/conta/recebimentos/carnes"})
         await asyncio.sleep(4)
         
-    print(f"Pesquisando Carnes para '{cliente_nome}'...")
+    print(f"Extração em Bloco (WidePay) iniciada para: {', '.join(c['nome'] for c in clientes_bloco)}")
     
-    # Normalizar busca do nome
-    palavras = cliente_nome.split()
-    filtro = []
-    for p in palavras:
-        p_lower = p.lower()
-        if p_lower in ["leo", "leonardo", "copia", "contrato"]:
-            continue
-        if p_lower in ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8", "agua", "viva", "leandro", "meirelles", "lote", "quadra", "par"]:
-            break
-        if re.match(r'^[a-zA-Z]\d+$', p):
-            continue
-        filtro.append(p)
-    busca_simplificada = " ".join(filtro) if filtro else "Edmilson"
-    termos_busca_carnes_js = json.dumps(gerar_termos_busca_cliente(busca_simplificada), ensure_ascii=False)
-    termos_busca_cobrancas_js = json.dumps(gerar_termos_busca_cliente(busca_simplificada), ensure_ascii=False)
+    # Preparar payload JSON dos clientes para injetar no JavaScript
+    clientes_js_payload = []
+    for c in clientes_bloco:
+        tokens_busca = extrair_tokens_busca_cliente(c["nome"])
+        busca_simp = tokens_busca[0] if tokens_busca else "Edmilson"
+        c_query_terms = gerar_termos_busca_cliente(busca_simp)
+        clientes_js_payload.append({
+            "nome": c["nome"],
+            "query_terms": c_query_terms,
+            "lote": c.get("lote") or "-",
+            "quadra": c.get("quadra") or "-"
+        })
+        
+    clientes_js_string = json.dumps(clientes_js_payload, ensure_ascii=False)
     coletor_paginado_js = COLETOR_TABELAS_PAGINADAS_JS
     
     js_extract_carnes = """
@@ -300,164 +345,172 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
             return String(window.location.href) + "|" + String(texto.length);
         }
         
-        var queryTerms = %s;
-        var carnes = [];
-        var nomeEncontrado = "%s";
+        var clientesBloco = %s;
+        var carnesPorCliente = {};
+        clientesBloco.forEach(c => {
+            carnesPorCliente[c.nome] = [];
+        });
+        
         var visitadas = [];
         var paginasWideapp = [];
+        var totalAceitos = 0;
+        var totalIgnorados = 0;
+        var ignoradosLog = [];
         
         var searchInput = document.getElementById("jab-1036-field");
-        for (var termIndex = 0; termIndex < queryTerms.length; termIndex++) {
-            if (carnes.length > 0) {
+        if (searchInput) {
+            var termoBusca = "";
+            if (clientesBloco.length === 1) {
+                var tokens = clientesBloco[0].nome.split(" ").filter(Boolean);
+                termoBusca = tokens[0] || "";
+            }
+            searchInput.value = termoBusca;
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            var searchBtn = document.getElementById("jab-1038");
+            if (searchBtn) searchBtn.click();
+            else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+            await new Promise(r => setTimeout(r, 4500));
+        }
+        
+        await wideappIrPrimeiraPagina();
+        var page = 1;
+        
+        while (page <= 25) {
+            var marcador = marcadorPagina() + "|bloco";
+            if (visitadas.indexOf(marcador) !== -1) {
                 break;
             }
-            var termoAtual = queryTerms[termIndex];
-            var termoBuscar = termoAtual;
-            
-            // Loop de refinamento progressivo começando de 2 letras
-            for (var len = 2; len <= termoAtual.length; len++) {
-                var prefixo = termoAtual.substring(0, len);
-                if (searchInput) {
-                    searchInput.value = prefixo;
-                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    var searchBtn = document.getElementById("jab-1038");
-                    if (searchBtn) searchBtn.click();
-                    else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                    await new Promise(r => setTimeout(r, 4000));
-                }
-                
-                var totalInfo = wideappInfoTotalTabela();
-                
-                // Verificar se a busca já está isolada para um único cliente na página
-                var trs = Array.from(document.querySelectorAll('tr'));
-                var nomesClientesDistintos = [];
-                trs.forEach(tr => {
-                    var tds = tr.querySelectorAll('td');
-                    if (tds.length >= 16) {
-                        var col_cliente = tds[2].innerText.trim();
-                        var col_cliente_norm = wideappNormalizarBusca(col_cliente);
-                        if (nomesClientesDistintos.indexOf(col_cliente_norm) === -1) {
-                            nomesClientesDistintos.push(col_cliente_norm);
-                        }
-                    }
-                });
-                
-                var buscaIsolada = (nomesClientesDistintos.length <= 1);
-                
-                if (totalInfo && totalInfo.total !== null && totalInfo.total > 15 && !buscaIsolada) {
-                    termoBuscar = prefixo;
-                } else {
-                    termoBuscar = prefixo;
-                    break;
-                }
-            }
-            
-            await wideappIrPrimeiraPagina();
-            var page = 1;
-            
-            while (page <= 25) {
-                var marcador = marcadorPagina() + "|" + termoBuscar;
-                if (visitadas.indexOf(marcador) !== -1) {
-                    break;
-                }
-                visitadas.push(marcador);
+            visitadas.push(marcador);
 
-                var trs = Array.from(document.querySelectorAll('tr'));
-                var query = (termoBuscar || "").toLowerCase();
-                
-                var foundRows = trs.filter(tr => {
-                    var text = tr.innerText.toLowerCase();
-                    return text.includes(query);
-                });
-                
-                foundRows.forEach(tr => {
-                    var tds = tr.querySelectorAll('td');
-                    if (tds.length >= 16) {
-                        var col_cliente = tds[2].innerText.trim();
-                        var col_cliente_norm = wideappNormalizarBusca(col_cliente);
+            var trs = Array.from(document.querySelectorAll('tr'));
+            
+            trs.forEach(tr => {
+                var tds = tr.querySelectorAll('td');
+                if (tds.length >= 16) {
+                    var col_cliente = tds[2].innerText.trim();
+                    var col_cliente_norm = wideappNormalizarBusca(col_cliente);
+                    var col_referencia = tds[8].innerText.trim().toLowerCase();
+                    
+                    var matchedCliente = null;
+                    for (var i = 0; i < clientesBloco.length; i++) {
+                        var cli = clientesBloco[i];
+                        
                         var matchName = false;
-                        for (var t = 0; t < queryTerms.length; t++) {
-                            if (col_cliente_norm.includes(queryTerms[t])) {
-                                matchName = true;
-                                break;
-                            }
-                        }
-                        if (!matchName) return;
-                        
-                        var col_id = tds[1].innerText.trim();
-                        var col_referencia = tds[8].innerText.trim();
-                        var col_valor = tds[9].innerText.trim();
-                        var col_parcelas = tds[10].innerText.trim();
-                        var col_recebimentos = tds[11].innerText.trim();
-                        var col_prox_venc = tds[12].innerText.trim();
-                        var col_ult_venc = tds[13].innerText.trim();
-                        var col_status = tds[15].innerText.trim();
-                        
-                        nomeEncontrado = col_cliente;
-                        
-                        var pagas = 0;
-                        var total_geradas = parseInt(col_parcelas) || 24;
-                        var total_recebido = 0.0;
-                        
-                        var rec_match = col_recebimentos.match(/(\\d+)\\/(\\d+)\\s+R\\$\\s*([\\d\\.,]+)/);
-                        if (rec_match) {
-                            pagas = parseInt(rec_match[1]);
-                            total_geradas = parseInt(rec_match[2]);
-                            total_recebido = parseFloat(rec_match[3].replace(/\\./g, '').replace(',', '.'));
+                        var cli_nome_norm = wideappNormalizarBusca(cli.nome);
+                        if (col_cliente_norm.includes(cli_nome_norm)) {
+                            matchName = true;
                         } else {
-                            var parts = col_recebimentos.split('/');
-                            if (parts.length >= 2) {
-                                pagas = parseInt(parts[0].trim()) || 0;
-                                var right_parts = parts[1].split('R$');
-                                total_geradas = parseInt(right_parts[0].trim()) || total_geradas;
-                                if (right_parts.length >= 2) {
-                                    total_recebido = parseFloat(right_parts[1].replace(/\\./g, '').replace(',', '.')) || 0.0;
+                            var tokens = cli_nome_norm.split(" ").filter(Boolean);
+                            if (tokens.length >= 2) {
+                                var primeiros = tokens[0] + " " + tokens[1];
+                                if (col_cliente_norm.includes(primeiros)) {
+                                    matchName = true;
                                 }
                             }
                         }
                         
-                        var valor_parcela = parseFloat(col_valor.replace(/\\./g, '').replace(',', '.')) || 0.0;
-                        var parcelas_restantes = total_geradas - pagas;
-                        var total_pendente = parcelas_restantes * valor_parcela;
+                        var primeiroNome = cli_nome_norm.split(" ")[0];
+                        var loteAlvo = (cli.lote || "").trim().toLowerCase();
+                        var matchLote = false;
+                        if (loteAlvo && loteAlvo !== "-") {
+                            var refNorm = col_referencia.replace(/[^a-z0-9]+/g, "");
+                            var loteNorm = loteAlvo.replace(/[^a-z0-9]+/g, "");
+                            if (refNorm.includes(loteNorm)) {
+                                matchLote = true;
+                            }
+                        }
                         
-                        if (!carnes.some(c => c.carne === col_id)) {
-                            carnes.push({
-                                carne: col_id,
-                                referencia: col_referencia,
-                                valor_parcela: valor_parcela,
-                                parcelas_geradas: total_geradas,
-                                parcelas_pagas: pagas,
-                                parcelas_restantes: parcelas_restantes,
-                                total_recebido: total_recebido,
-                                total_pendente: total_pendente,
-                                proximo_vencimento: col_prox_venc,
-                                ultimo_vencimento: col_ult_venc,
-                                status: col_status
-                            });
+                        if (!matchName && primeiroNome && col_cliente_norm.includes(primeiroNome) && matchLote) {
+                            matchName = true;
+                        }
+                        
+                        if (matchName) {
+                            matchedCliente = cli;
+                            break;
                         }
                     }
-                });
-
-                var totalPagina = wideappInfoTotalTabela();
-                var infoPagina = wideappInfoPagina();
-                paginasWideapp.push({
-                    termo: termoAtual,
-                    pagina: infoPagina.atual || page,
-                    paginas: infoPagina.total,
-                    totalWidePay: totalPagina.total,
-                    faixa: totalPagina.texto,
-                    coletadosPagina: foundRows.length
-                });
-                
-                var nextBtn = wideappBotaoPaginacao('next');
-                if (nextBtn && !wideappDisabled(nextBtn)) {
-                    nextBtn.click();
-                    page++;
-                    await new Promise(r => setTimeout(r, 3500));
-                } else {
-                    break;
+                    
+                    if (!matchedCliente) {
+                        totalIgnorados++;
+                        if (ignoradosLog.indexOf(col_cliente) === -1) {
+                            ignoradosLog.push(col_cliente);
+                        }
+                        return;
+                    }
+                    
+                    var col_id = tds[1].innerText.trim();
+                    var col_referencia_real = tds[8].innerText.trim();
+                    var col_valor = tds[9].innerText.trim();
+                    var col_parcelas = tds[10].innerText.trim();
+                    var col_recebimentos = tds[11].innerText.trim();
+                    var col_prox_venc = tds[12].innerText.trim();
+                    var col_ult_venc = tds[13].innerText.trim();
+                    var col_status = tds[15].innerText.trim();
+                    
+                    var pagas = 0;
+                    var total_geradas = parseInt(col_parcelas) || 24;
+                    var total_recebido = 0.0;
+                    
+                    var rec_match = col_recebimentos.match(/(\\d+)\\/(\\d+)\\s+R\\$\\s*([\\d\\.,]+)/);
+                    if (rec_match) {
+                        pagas = parseInt(rec_match[1]);
+                        total_geradas = parseInt(rec_match[2]);
+                        total_recebido = parseFloat(rec_match[3].replace(/\\./g, '').replace(',', '.'));
+                    } else {
+                        var parts = col_recebimentos.split('/');
+                        if (parts.length >= 2) {
+                            pagas = parseInt(parts[0].trim()) || 0;
+                            var right_parts = parts[1].split('R$');
+                            total_geradas = parseInt(right_parts[0].trim()) || total_geradas;
+                            if (right_parts.length >= 2) {
+                                total_recebido = parseFloat(right_parts[1].replace(/\\./g, '').replace(',', '.')) || 0.0;
+                            }
+                        }
+                    }
+                    
+                    var valor_parcela = parseFloat(col_valor.replace(/\\./g, '').replace(',', '.')) || 0.0;
+                    var parcelas_restantes = total_geradas - pagas;
+                    var total_pendente = parcelas_restantes * valor_parcela;
+                    
+                    var cli_lista = carnesPorCliente[matchedCliente.nome];
+                    if (!cli_lista.some(c => c.carne === col_id)) {
+                        cli_lista.push({
+                            carne: col_id,
+                            referencia: col_referencia_real,
+                            valor_parcela: valor_parcela,
+                            parcelas_geradas: total_geradas,
+                            parcelas_pagas: pagas,
+                            parcelas_restantes: parcelas_restantes,
+                            total_recebido: total_recebido,
+                            total_pendente: total_pendente,
+                            proximo_vencimento: col_prox_venc,
+                            ultimo_vencimento: col_ult_venc,
+                            status: col_status
+                        });
+                    }
+                    totalAceitos++;
                 }
+            });
+
+            var totalPagina = wideappInfoTotalTabela();
+            var infoPagina = wideappInfoPagina();
+            paginasWideapp.push({
+                termo: "bloco",
+                pagina: infoPagina.atual || page,
+                paginas: infoPagina.total,
+                totalWidePay: totalPagina.total,
+                faixa: totalPagina.texto,
+                coletadosPagina: totalAceitos
+            });
+            
+            var nextBtn = wideappBotaoPaginacao('next');
+            if (nextBtn && !wideappDisabled(nextBtn)) {
+                nextBtn.click();
+                page++;
+                await new Promise(r => setTimeout(r, 3500));
+            } else {
+                break;
             }
         }
 
@@ -470,21 +523,23 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         });
         var metaColeta = wideappValidarMetaColeta({
             tela: "Carnes",
-            filtro: queryTerms.join(" | "),
+            filtro: "bloco",
             registrosPorPagina: wideappRpp,
             totalWidePay: { total: totalInformado, texto: totalInfoFinal.texto },
             paginas: paginasWideapp,
-            totalColetadoUnico: carnes.length,
+            totalColetadoUnico: totalAceitos,
             erros: []
         });
         
         return {
-            nome_encontrado: nomeEncontrado,
-            carnes: carnes,
+            carnes_por_cliente: carnesPorCliente,
+            total_aceitos: totalAceitos,
+            total_ignorados: totalIgnorados,
+            clientes_ignorados: ignoradosLog,
             _wideapp_meta_coleta: metaColeta
         };
     }
-    """ % (coletor_paginado_js, termos_busca_carnes_js, cliente_nome)
+    """ % (coletor_paginado_js, clientes_js_string)
     
     eval_extract_carnes = await cdp_command(ws_url, "Runtime.evaluate", {
         "expression": f"({js_extract_carnes})()",
@@ -492,14 +547,17 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         "returnByValue": True
     })
     raw_data_carnes = eval_extract_carnes.get("result", {}).get("result", {}).get("value", {}) or {}
-    validar_coleta_paginada("Carnes", raw_data_carnes)
+    print(f"[Evidência] Extração em Bloco de Carnes WidePay concluída. "
+          f"{raw_data_carnes.get('total_aceitos', 0)} registros aceitos, "
+          f"{raw_data_carnes.get('total_ignorados', 0)} ignorados de outros clientes (ignorados: {raw_data_carnes.get('clientes_ignorados', [])})")
+    validar_coleta_paginada("Carnes_Bloco", raw_data_carnes)
     
     # 3. Navegar para Cobranças
     print("Navegando para a pagina de cobrancas...")
     await cdp_command(ws_url, "Page.navigate", {"url": "https://www.widepay.com/conta/recebimentos"})
     await asyncio.sleep(4)
     
-    print(f"Pesquisando Cobranças/Boletos para '{cliente_nome}'...")
+    print(f"Extração em Bloco (WidePay - Cobranças) iniciada...")
     
     js_extract_cobrancas = """
     async function() {
@@ -536,40 +594,6 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
 
         var wideappRpp = await wideappSelecionarMaiorRegistrosPorPagina("Cobrancas/Boletos");
         
-        function isDisabled(el) {
-            if (!el) return true;
-            var cls = (el.className || '').toString().toLowerCase();
-            return !!el.disabled || cls.includes('disabled') || el.getAttribute('aria-disabled') === 'true';
-        }
-
-        function botaoPaginacao(tipo) {
-            var botoes = Array.from(document.querySelectorAll('button, a, [role="button"]'));
-            return botoes.find(function(el) {
-                var txt = (el.innerText || el.textContent || el.value || '').toLowerCase().trim();
-                var id = (el.id || '').toLowerCase();
-                var cls = (el.className || '').toString().toLowerCase();
-                var aria = (el.getAttribute('aria-label') || '').toLowerCase();
-                var title = (el.getAttribute('title') || '').toLowerCase();
-                var temPrimeiro = !!el.querySelector('i.fa-angle-double-left, i.fa-step-backward, i.fa-fast-backward');
-                var temAnterior = !!el.querySelector('i.fa-angle-left, i.fa-chevron-left');
-                var temProximo = !!el.querySelector('i.fa-angle-right, i.fa-chevron-right, i.fa-step-forward, i.fa-fast-forward');
-                var temUltimo = !!el.querySelector('i.fa-angle-double-right, i.fa-step-forward, i.fa-fast-forward');
-                if (tipo === 'first') {
-                    return id.includes('first') || cls.includes('first') || aria.includes('primeira') || title.includes('primeira') || txt.includes('<<') || txt.includes('|<') || temPrimeiro;
-                }
-                if (tipo === 'prev') {
-                    return id.includes('prev') || id.includes('anterior') || cls.includes('prev') || aria.includes('anterior') || title.includes('anterior') || txt.includes('<') || temAnterior;
-                }
-                if (tipo === 'next') {
-                    return id.includes('next') || id.includes('proximo') || cls.includes('next') || aria.includes('proximo') || aria.includes('próximo') || title.includes('proximo') || title.includes('próximo') || txt.includes('>') || txt.includes('>>') || temProximo;
-                }
-                if (tipo === 'last') {
-                    return id.includes('last') || cls.includes('last') || aria.includes('ultima') || title.includes('ultima') || txt.includes('>|') || temUltimo;
-                }
-                return false;
-            });
-        }
-
         function marcadorPagina() {
             var totalWideapp = wideappInfoTotalTabela();
             if (totalWideapp && totalWideapp.texto) {
@@ -591,143 +615,156 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
             return String(window.location.href) + "|" + String(texto.length);
         }
 
-        var queryTerms = %s;
-        var cobrancas = [];
+        var clientesBloco = %s;
+        var cobrancasPorCliente = {};
+        clientesBloco.forEach(c => {
+            cobrancasPorCliente[c.nome] = [];
+        });
+        
+        var visitadas = [];
         var paginasWideapp = [];
+        var totalAceitos = 0;
+        var totalIgnorados = 0;
+        var ignoradosLog = [];
         var searchInput = document.getElementById("jab-1043-field") || document.querySelector('input[placeholder*="Pesquisar"], input[type="text"], input[type="search"]');
-        for (var termIndex = 0; termIndex < queryTerms.length; termIndex++) {
-            if (cobrancas.length > 0) {
+        if (searchInput) {
+            var termoBusca = "";
+            if (clientesBloco.length === 1) {
+                var tokens = clientesBloco[0].nome.split(" ").filter(Boolean);
+                termoBusca = tokens[0] || "";
+            }
+            searchInput.value = termoBusca;
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+            var searchBtn = document.getElementById("jab-1045") || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes("Buscar") || btn.className.includes("search"));
+            if (searchBtn) searchBtn.click();
+            else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+            await new Promise(r => setTimeout(r, 4500));
+        }
+        
+        await wideappIrPrimeiraPagina();
+        var page = 1;
+        
+        while (page <= 25) {
+            var marcador = marcadorPagina() + "|bloco";
+            if (visitadas.indexOf(marcador) !== -1) {
                 break;
             }
-            var termoAtual = queryTerms[termIndex];
-            var termoBuscar = termoAtual;
-            
-            // Loop de refinamento progressivo começando de 2 letras
-            for (var len = 2; len <= termoAtual.length; len++) {
-                var prefixo = termoAtual.substring(0, len);
-                if (searchInput) {
-                    searchInput.value = prefixo;
-                    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    searchInput.dispatchEvent(new Event('change', { bubbles: true }));
-                    var searchBtn = document.getElementById("jab-1045") || Array.from(document.querySelectorAll('button')).find(btn => btn.innerText.includes("Buscar") || btn.className.includes("search"));
-                    if (searchBtn) searchBtn.click();
-                    else searchInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                    await new Promise(r => setTimeout(r, 4000));
-                }
-                
-                var totalInfo = wideappInfoTotalTabela();
-                
-                // Verificar se a busca já está isolada para um único cliente na página
-                var trs = Array.from(document.querySelectorAll('tr'));
-                var nomesClientesDistintos = [];
-                trs.forEach(tr => {
-                    var tds = tr.querySelectorAll('td');
-                    if (tds.length >= 21) {
-                        var col_cliente = tds[4].innerText.trim();
-                        var col_cliente_norm = wideappNormalizarBusca(col_cliente);
-                        if (nomesClientesDistintos.indexOf(col_cliente_norm) === -1) {
-                            nomesClientesDistintos.push(col_cliente_norm);
-                        }
-                    }
-                });
-                
-                var buscaIsolada = (nomesClientesDistintos.length <= 1);
-                
-                if (totalInfo && totalInfo.total !== null && totalInfo.total > 15 && !buscaIsolada) {
-                    termoBuscar = prefixo;
-                } else {
-                    termoBuscar = prefixo;
-                    break;
-                }
-            }
-            
-            await wideappIrPrimeiraPagina();
+            visitadas.push(marcador);
 
-            var page = 1;
-            var visitadas = [];
-            while (page <= 10) {
-                var marcador = marcadorPagina() + "|" + termoBuscar;
-                if (visitadas.indexOf(marcador) !== -1) {
-                    break;
-                }
-                visitadas.push(marcador);
-
-                var trs = Array.from(document.querySelectorAll('tr'));
-                var foundRows = trs.filter(tr => {
-                    var text = tr.innerText.toLowerCase();
-                    return text.includes((termoBuscar || '').toLowerCase());
-                });
-                
-                foundRows.forEach(tr => {
-                    var tds = tr.querySelectorAll('td');
-                    if (tds.length >= 21) {
-                        var col_cliente = tds[4].innerText.trim();
-                        var col_cliente_norm = wideappNormalizarBusca(col_cliente);
+            var trs = Array.from(document.querySelectorAll('tr'));
+            
+            trs.forEach(tr => {
+                var tds = tr.querySelectorAll('td');
+                if (tds.length >= 21) {
+                    var col_cliente = tds[4].innerText.trim();
+                    var col_cliente_norm = wideappNormalizarBusca(col_cliente);
+                    var col_referencia = tds[10].innerText.trim().toLowerCase();
+                    
+                    var matchedCliente = null;
+                    for (var i = 0; i < clientesBloco.length; i++) {
+                        var cli = clientesBloco[i];
                         var matchName = false;
-                        for (var t = 0; t < queryTerms.length; t++) {
-                            if (col_cliente_norm.includes(queryTerms[t])) {
-                                matchName = true;
-                                break;
+                        var cli_nome_norm = wideappNormalizarBusca(cli.nome);
+                        if (col_cliente_norm.includes(cli_nome_norm)) {
+                            matchName = true;
+                        } else {
+                            var tokens = cli_nome_norm.split(" ").filter(Boolean);
+                            if (tokens.length >= 2) {
+                                var primeiros = tokens[0] + " " + tokens[1];
+                                if (col_cliente_norm.includes(primeiros)) {
+                                    matchName = true;
+                                }
                             }
                         }
-                        if (!matchName) return;
                         
-                        var col_id = tds[1].innerText.trim();
-                        var col_forma = tds[3].innerText.trim();
-                        var col_referencia = tds[10].innerText.trim();
-                        var col_valor = tds[11].innerText.trim();
-                        var col_recebido = tds[12].innerText.trim();
-                        var col_vencimento = tds[14].innerText.trim();
-                        var col_pagamento = tds[15].innerText.trim();
-                        var col_status = tds[20].innerText.trim();
+                        var primeiroNome = cli_nome_norm.split(" ")[0];
+                        var loteAlvo = (cli.lote || "").trim().toLowerCase();
                         
-                        var valor_original = parseFloat(col_valor.replace(/\\./g, '').replace(',', '.')) || 0.0;
-                        var valor_recebido = 0.0;
-                        if (col_recebido && col_recebido !== "-") {
-                            valor_recebido = parseFloat(col_recebido.replace(/\\./g, '').replace(',', '.')) || 0.0;
+                        var matchLote = false;
+                        if (loteAlvo && loteAlvo !== "-") {
+                            var refNorm = col_referencia.replace(/[^a-z0-9]+/g, "");
+                            var loteNorm = loteAlvo.replace(/[^a-z0-9]+/g, "");
+                            if (refNorm.includes(loteNorm)) {
+                                matchLote = true;
+                            }
                         }
                         
-                        var desc_lower = col_referencia.toLowerCase();
-                        var pertence_a_carne = desc_lower.includes("carne") || desc_lower.includes("carn");
-                        var avulsa = !pertence_a_carne;
+                        if (!matchName && primeiroNome && col_cliente_norm.includes(primeiroNome) && matchLote) {
+                            matchName = true;
+                        }
                         
-                        if (!cobrancas.some(c => c.id === col_id)) {
-                            cobrancas.push({
-                                id: col_id,
-                                forma: col_forma,
-                                cliente: col_cliente,
-                                descricao: col_referencia,
-                                valor_original: valor_original,
-                                valor_recebido: valor_recebido,
-                                vencimento: col_vencimento,
-                                pagamento: col_pagamento,
-                                status: col_status,
-                                pertence_a_carne: pertence_a_carne,
-                                avulsa: avulsa
-                            });
+                        if (matchName) {
+                            matchedCliente = cli;
+                            break;
                         }
                     }
-                });
-
-                var totalPagina = wideappInfoTotalTabela();
-                var infoPagina = wideappInfoPagina();
-                paginasWideapp.push({
-                    termo: termoAtual,
-                    pagina: infoPagina.atual || page,
-                    paginas: infoPagina.total,
-                    totalWidePay: totalPagina.total,
-                    faixa: totalPagina.texto,
-                    coletadosPagina: foundRows.length
-                });
-                
-                var nextBtn = wideappBotaoPaginacao('next');
-                if (nextBtn && !wideappDisabled(nextBtn)) {
-                    nextBtn.click();
-                    page++;
-                    await new Promise(r => setTimeout(r, 3500));
-                } else {
-                    break;
+                    
+                    if (!matchedCliente) {
+                        totalIgnorados++;
+                        if (ignoradosLog.indexOf(col_cliente) === -1) {
+                            ignoradosLog.push(col_cliente);
+                        }
+                        return;
+                    }
+                    
+                    var col_id = tds[1].innerText.trim();
+                    var col_forma = tds[3].innerText.trim();
+                    var col_referencia_real = tds[10].innerText.trim();
+                    var col_valor = tds[11].innerText.trim();
+                    var col_recebido = tds[12].innerText.trim();
+                    var col_vencimento = tds[14].innerText.trim();
+                    var col_pagamento = tds[15].innerText.trim();
+                    var col_status = tds[20].innerText.trim();
+                    
+                    var valor_original = parseFloat(col_valor.replace(/\\./g, '').replace(',', '.')) || 0.0;
+                    var valor_recebido = 0.0;
+                    if (col_recebido && col_recebido !== "-") {
+                        valor_recebido = parseFloat(col_recebido.replace(/\\./g, '').replace(',', '.')) || 0.0;
+                    }
+                    
+                    var desc_lower = col_referencia_real.toLowerCase();
+                    var pertence_a_carne = desc_lower.includes("carne") || desc_lower.includes("carn");
+                    var avulsa = !pertence_a_carne;
+                    
+                    var cli_lista = cobrancasPorCliente[matchedCliente.nome];
+                    if (!cli_lista.some(c => c.id === col_id)) {
+                        cli_lista.push({
+                            id: col_id,
+                            forma: col_forma,
+                            cliente: col_cliente,
+                            descricao: col_referencia_real,
+                            valor_original: valor_original,
+                            valor_recebido: valor_recebido,
+                            vencimento: col_vencimento,
+                            pagamento: col_pagamento,
+                            status: col_status,
+                            pertence_a_carne: pertence_a_carne,
+                            avulsa: avulsa
+                        });
+                    }
+                    totalAceitos++;
                 }
+            });
+
+            var totalPagina = wideappInfoTotalTabela();
+            var infoPagina = wideappInfoPagina();
+            paginasWideapp.push({
+                termo: "bloco",
+                pagina: infoPagina.atual || page,
+                paginas: infoPagina.total,
+                totalWidePay: totalPagina.total,
+                faixa: totalPagina.texto,
+                coletadosPagina: totalAceitos
+            });
+            
+            var nextBtn = wideappBotaoPaginacao('next');
+            if (nextBtn && !wideappDisabled(nextBtn)) {
+                nextBtn.click();
+                page++;
+                await new Promise(r => setTimeout(r, 3500));
+            } else {
+                break;
             }
         }
         var totalInformado = null;
@@ -738,16 +775,22 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         });
         var metaColeta = wideappValidarMetaColeta({
             tela: "Cobrancas/Boletos",
-            filtro: queryTerms.join(" | "),
+            filtro: "bloco",
             registrosPorPagina: wideappRpp,
             totalWidePay: { total: totalInformado, texto: "" },
             paginas: paginasWideapp,
-            totalColetadoUnico: cobrancas.length,
+            totalColetadoUnico: totalAceitos,
             erros: []
         });
-        return { registros: cobrancas, _wideapp_meta_coleta: metaColeta };
+        return {
+            cobrancas_por_cliente: cobrancasPorCliente,
+            total_aceitos: totalAceitos,
+            total_ignorados: totalIgnorados,
+            clientes_ignorados: ignoradosLog,
+            _wideapp_meta_coleta: metaColeta
+        };
     }
-    """ % (coletor_paginado_js, termos_busca_cobrancas_js)
+    """ % (coletor_paginado_js, clientes_js_string)
     
     eval_extract_cobrancas = await cdp_command(ws_url, "Runtime.evaluate", {
         "expression": f"({js_extract_cobrancas})()",
@@ -755,30 +798,52 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         "returnByValue": True
     })
     raw_data_cobrancas_result = eval_extract_cobrancas.get("result", {}).get("result", {}).get("value", {}) or {}
-    validar_coleta_paginada("Cobrancas/Boletos", raw_data_cobrancas_result)
-    raw_data_cobrancas = raw_data_cobrancas_result.get("registros") or []
+    print(f"[Evidência] Extração em Bloco de Cobranças WidePay concluída. "
+          f"{raw_data_cobrancas_result.get('total_aceitos', 0)} registros aceitos, "
+          f"{raw_data_cobrancas_result.get('total_ignorados', 0)} ignorados de outros clientes (ignorados: {raw_data_cobrancas_result.get('clientes_ignorados', [])})")
+    validar_coleta_paginada("Cobrancas_Bloco", raw_data_cobrancas_result)
     
-    nome_final = raw_data_carnes.get("nome_encontrado") or cliente_nome
-    
-    # Salvar evidência bruta JSON
-    JSON_OUTPUT_DIR = ROOT_DIR / "07_DADOS_TEMPORARIOS" / "WIDEPAY_CONSULTAS"
-    os.makedirs(JSON_OUTPUT_DIR, exist_ok=True)
-    nome_slug = nome_final.replace(" ", "_").upper()
-    caminho_json = JSON_OUTPUT_DIR / f"WIDEPAY_{nome_slug}.json"
-    
-    resultado_json = {
-        "cliente": nome_final,
-        "status_conexao": "LOGADO",
-        "carnes": raw_data_carnes.get("carnes") or [],
-        "cobrancas": raw_data_cobrancas,
-        "metadados_coleta_paginada": {
-            "carnes": raw_data_carnes.get("_wideapp_meta_coleta") or {},
-            "cobrancas": raw_data_cobrancas_result.get("_wideapp_meta_coleta") or {},
-        }
-    }
-    
-    with open(caminho_json, "w", encoding="utf-8") as f:
-        json.dump(resultado_json, f, indent=4, ensure_ascii=False)
+    # 4. Processar e estruturar resultados individuais para cada cliente do bloco
+    resultados_bloco = {}
+    for c in clientes_bloco:
+        c_nome = c["nome"]
+        c_lote = c.get("lote") or "-"
+        c_carnes = raw_data_carnes.get("carnes_por_cliente", {}).get(c_nome) or []
+        c_cobrancas = raw_data_cobrancas_result.get("cobrancas_por_cliente", {}).get(c_nome) or []
         
-    print(f"Dados brutos extraidos do WidePay salvos em {caminho_json}")
-    return resultado_json
+        # Salvar o JSON brutas individuais
+        JSON_OUTPUT_DIR = ROOT_DIR / "07_DADOS_TEMPORARIOS" / "WIDEPAY_CONSULTAS"
+        os.makedirs(JSON_OUTPUT_DIR, exist_ok=True)
+        nome_slug = c_nome.replace(" ", "_").upper()
+        caminho_json = JSON_OUTPUT_DIR / f"WIDEPAY_{nome_slug}.json"
+        
+        res_json = {
+            "cliente": c_nome,
+            "status_conexao": "LOGADO",
+            "carnes": c_carnes,
+            "cobrancas": c_cobrancas,
+            "metadados_coleta_paginada": {
+                "carnes": raw_data_carnes.get("_wideapp_meta_coleta") or {},
+                "cobrancas": raw_data_cobrancas_result.get("_wideapp_meta_coleta") or {},
+            }
+        }
+        with open(caminho_json, "w", encoding="utf-8") as f:
+            json.dump(res_json, f, indent=4, ensure_ascii=False)
+            
+        resultados_bloco[c_nome] = res_json
+        print(f"Dados brutos extraidos e salvos para {c_nome} em {caminho_json}")
+        
+    return resultados_bloco
+
+async def extrair_dados_cliente(ws_url, cliente_nome, cliente_lote=None, cliente_quadra=None):
+    """Envelopa a chamada individual para manter retrocompatibilidade."""
+    res_bloco = await extrair_dados_clientes_bloco(
+        ws_url,
+        [{"nome": cliente_nome, "lote": cliente_lote, "quadra": cliente_quadra}]
+    )
+    return res_bloco.get(cliente_nome) or {
+        "cliente": cliente_nome,
+        "status_conexao": "LOGADO",
+        "carnes": [],
+        "cobrancas": []
+    }
