@@ -227,6 +227,7 @@ async def main_async():
                 cliente_nome = cli["nome"]
                 dados_contrato = cli["dados_contrato"]
                 lote_final = cli["lote"]
+                lote_opcao = cli.get("lote_opcao")
                 
                 print(f"\n--- Processando auditoria individual: {cliente_nome} (Lote: {lote_final}) ---")
                 registrar_log("INFO", "INICIANDO_AUDITORIA", cliente_nome, f"Lote: {lote_final}")
