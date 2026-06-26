@@ -77,7 +77,7 @@ async def auditar_cliente_unico(ws_url, cliente_nome, lote_opcao=None):
         
         nome_busca = dados_contrato.get("cliente") or cliente_nome
         # 2. Extrair dados reais do WidePay via CDP
-        dados_raw_wp = await extrair_dados_cliente(ws_url, nome_busca)
+        dados_raw_wp = await extrair_dados_cliente(ws_url, nome_busca, lote_final, dados_contrato.get("quadra"))
         if dados_raw_wp.get("cliente"):
             dados_contrato["cliente"] = dados_raw_wp["cliente"]
         
@@ -125,6 +125,7 @@ async def main_async():
     parser.add_argument("--cliente", help="Nome do cliente especifico")
     parser.add_argument("--clientes", help="Lista de clientes separados por virgula (ex: 'Edmilson,Ana,Jose')")
     parser.add_argument("--lote", help="Lote especifico para desambiguacao")
+    parser.add_argument("--lotes", help="Lista de lotes correspondentes aos clientes, separados por virgula")
     parser.add_argument("--letra", help="Inicial do nome do cliente")
     parser.add_argument("--letra-fim", help="Letra final para intervalo (se --letra for usada)")
     parser.add_argument("--quadra", help="Filtrar por uma quadra especifica")
@@ -150,10 +151,11 @@ async def main_async():
         clientes_a_processar.append((args.cliente, args.lote))
     elif args.clientes:
         # Lista CSV de clientes: "Edmilson,Ana,Jose"
-        for nome in args.clientes.split(","):
-            nome = nome.strip()
-            if nome:
-                clientes_a_processar.append((nome, None))
+        nomes = [n.strip() for n in args.clientes.split(",") if n.strip()]
+        lotes = [l.strip() for l in args.lotes.split(",") if l.strip()] if args.lotes else []
+        for i, nome in enumerate(nomes):
+            lote = lotes[i] if i < len(lotes) else None
+            clientes_a_processar.append((nome, lote))
     elif args.letra:
         letra_ini = args.letra.lower()
         letra_fim = args.letra_fim.lower() if args.letra_fim else letra_ini
@@ -179,12 +181,102 @@ async def main_async():
         
     print(f"Total de clientes a processar: {len(clientes_a_processar)}")
     
+    # 3. Agrupar em blocos de até 3 clientes
+    tamanho_bloco = 3
+    blocos = [clientes_a_processar[i:i + tamanho_bloco] for i in range(0, len(clientes_a_processar), tamanho_bloco)]
+    
     resultados = []
-    for cliente_nome, lote in clientes_a_processar:
-        res = await auditar_cliente_unico(ws_url, cliente_nome, lote)
-        if res:
-            resultados.append(res)
-
+    from app.extrator_widepay import extrair_dados_clientes_bloco
+    
+    for bloco_idx, bloco in enumerate(blocos, start=1):
+        print(f"\n=======================================================")
+        print(f" PROCESSANDO BLOCO {bloco_idx}/{len(blocos)} ({len(bloco)} clientes)")
+        print(f"=======================================================")
+        
+        bloco_info = []
+        for cliente_nome, lote_opcao in bloco:
+            # Carregar dados do contrato local
+            dados_contrato = carregar_dados_contrato(cliente_nome, lote_opcao)
+            if not dados_contrato:
+                registrar_log("ERRO", "FALHA_CONTRATO", cliente_nome, "Contrato local nao localizado.")
+                dados_contrato = {
+                    'cliente': cliente_nome, 'lote': lote_opcao or '-', 'quadra': '-',
+                    'valor_parcela': 0.0, 'total_parcelas': 0, 'valor_total_contrato': 0.0
+                }
+            lote_final = dados_contrato.get("lote") or lote_opcao or "-"
+            nome_busca = dados_contrato.get("cliente") or cliente_nome
+            
+            bloco_info.append({
+                "nome": nome_busca,
+                "lote": lote_final,
+                "quadra": dados_contrato.get("quadra") or "-",
+                "dados_contrato": dados_contrato
+            })
+            
+        try:
+            # Executa a extração em bloco no WidePay
+            resultados_raw = await extrair_dados_clientes_bloco(ws_url, bloco_info)
+            
+            # Processar os resultados de cada cliente do bloco
+            for cli in bloco_info:
+                cliente_nome = cli["nome"]
+                dados_contrato = cli["dados_contrato"]
+                lote_final = cli["lote"]
+                
+                print(f"\n--- Processando auditoria individual: {cliente_nome} (Lote: {lote_final}) ---")
+                registrar_log("INFO", "INICIANDO_AUDITORIA", cliente_nome, f"Lote: {lote_final}")
+                
+                dados_raw_wp = resultados_raw.get(cliente_nome)
+                if not dados_raw_wp:
+                    registrar_log("ERRO", "FALHA_DADOS_WIDEPAY", cliente_nome, "Dados brutos do WidePay nao localizados.")
+                    dados_raw_wp = {
+                        "cliente": cliente_nome,
+                        "status_conexao": "LOGADO",
+                        "carnes": [],
+                        "cobrancas": []
+                    }
+                else:
+                    if dados_raw_wp.get("cliente"):
+                        dados_contrato["cliente"] = dados_raw_wp["cliente"]
+                
+                # Normalizar e de-duplicar lançamentos
+                valor_base = float(dados_contrato.get("valor_parcela") or 0.0)
+                dados_normalizados = normalizar_e_deduplicar(dados_raw_wp, valor_base)
+                
+                # Reconciliação financeira e cálculos
+                dados_calculados = calcular_resumo(dados_normalizados, dados_contrato)
+                
+                # Validação matemática de regras
+                status_val, notas, bloqueado = validar_conciliacao(dados_calculados, dados_contrato)
+                
+                print(f"Status da Auditoria: {status_val}")
+                for nota in notas:
+                    print(f"- {nota}")
+                    
+                # Gerar relatórios finais
+                pasta_entrega = preparar_diretorio_entrega(cliente_nome, lote_final)
+                data_sufixo = datetime.now().strftime("%Y%m%d_%H%M")
+                
+                arquivos = exportar_relatorios_finais(dados_contrato, dados_calculados, dados_normalizados, pasta_entrega, data_sufixo)
+                
+                registrar_log("SUCESSO", "AUDITORIA_CONCLUIDA", cliente_nome, f"Status: {status_val}; Arquivos gerados na pasta de entrega.")
+                
+                resultados.append({
+                    "cliente": cliente_nome,
+                    "lote": lote_final,
+                    "status": status_val,
+                    "bloqueado": bloqueado,
+                    "notas": "; ".join(notas),
+                    "caminho_entrega": str(pasta_entrega),
+                    "arquivos": arquivos
+                })
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            for cli in bloco_info:
+                registrar_log("ERRO", "FALHA_AUDITORIA", cli["nome"], str(e))
+                print(f"Erro na auditoria do cliente {cli['nome']}: {e}")
+                
     if not resultados:
         print("\nERRO: Nenhuma auditoria foi concluida com sucesso.")
         sys.exit(1)
