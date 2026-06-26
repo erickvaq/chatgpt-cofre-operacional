@@ -228,7 +228,6 @@ async def main_async():
                 dados_contrato = cli["dados_contrato"]
                 lote_final = cli["lote"]
                 lote_opcao = cli.get("lote_opcao")
-                print(f"[DEBUG_SCOPES] cli_lote_opcao={cli.get('lote_opcao')}, lote_opcao_val={lote_opcao}")
                 
                 print(f"\n--- Processando auditoria individual: {cliente_nome} (Lote: {lote_final}) ---")
                 registrar_log("INFO", "INICIANDO_AUDITORIA", cliente_nome, f"Lote: {lote_final}")
@@ -262,7 +261,6 @@ async def main_async():
                     
                 # Gerar relatórios finais
                 lote_entrega = lote_opcao if (lote_opcao and lote_opcao != "-") else lote_final
-                print(f"[DEBUG_SCOPES] lote_opcao={lote_opcao}, lote_final={lote_final}, lote_entrega={lote_entrega}")
                 pasta_entrega = preparar_diretorio_entrega(cliente_nome, lote_entrega)
                 data_sufixo = datetime.now().strftime("%Y%m%d_%H%M")
                 
