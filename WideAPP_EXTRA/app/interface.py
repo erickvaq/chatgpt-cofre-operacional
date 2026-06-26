@@ -4,6 +4,7 @@
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
+from pathlib import Path
 
 from app import config
 from app import indexador_clientes
@@ -33,6 +34,72 @@ class WideAppInterface:
         self.root = root
         self.root.title("WideAPP_EXTRA - Clientes, lotes e relatorios")
         self.root.geometry("1280x760")
+        
+        # Configurar Estilos do Tema Dark + Accent Green
+        style = ttk.Style(self.root)
+        style.theme_use("clam")
+        
+        bg_dark = "#181818"      # Cinza escuro quase preto
+        bg_card = "#242424"      # Cinza grafite intermediário
+        bg_active = "#333333"    # Cinza ativo / hover
+        fg_white = "#F3F3F3"     # Branco suave
+        fg_gray = "#A0A0A0"      # Cinza claro
+        green_accent = "#00E676" # Verde brilhante estilo Antigravity
+        green_dark = "#007A3E"   # Verde escuro / highlight
+        
+        self.root.configure(bg=bg_dark)
+        self.root.option_add("*TCombobox*Listbox.background", bg_card)
+        self.root.option_add("*TCombobox*Listbox.foreground", fg_white)
+        self.root.option_add("*TCombobox*Listbox.selectBackground", green_dark)
+        self.root.option_add("*TCombobox*Listbox.selectForeground", fg_white)
+        self.root.option_add("*TCombobox*Listbox.font", ("Segoe UI", 9))
+        
+        style.configure(".", background=bg_dark, foreground=fg_white, fieldbackground=bg_dark)
+        style.configure("TFrame", background=bg_dark)
+        style.configure("TLabel", background=bg_dark, foreground=fg_white, font=("Segoe UI", 9))
+        
+        style.configure("TButton", background=bg_card, foreground=fg_white, bordercolor=bg_active, font=("Segoe UI", 9, "bold"), padding=6)
+        style.map("TButton",
+            background=[("active", bg_active), ("disabled", "#222222")],
+            foreground=[("active", green_accent), ("disabled", "#666666")]
+        )
+        
+        style.configure("Accent.TButton", background=green_dark, foreground=fg_white, bordercolor=green_accent, font=("Segoe UI", 9, "bold"), padding=8)
+        style.map("Accent.TButton",
+            background=[("active", green_accent)],
+            foreground=[("active", bg_dark)]
+        )
+        
+        style.configure("TCombobox", fieldbackground=bg_card, background=bg_dark, foreground=fg_white, arrowcolor=green_accent, font=("Segoe UI", 9))
+        style.map("TCombobox",
+            fieldbackground=[("readonly", bg_card)],
+            selectbackground=[("readonly", green_dark)],
+            selectforeground=[("readonly", fg_white)]
+        )
+        
+        style.configure("TEntry", fieldbackground=bg_card, foreground=fg_white, insertcolor=fg_white, font=("Segoe UI", 9))
+        
+        style.configure("Treeview", 
+            background=bg_card, 
+            foreground=fg_white, 
+            fieldbackground=bg_card, 
+            rowheight=26,
+            font=("Segoe UI", 9)
+        )
+        style.configure("Treeview.Heading", 
+            background=bg_dark, 
+            foreground=green_accent, 
+            font=("Segoe UI", 9, "bold")
+        )
+        style.map("Treeview",
+            background=[("selected", green_dark)],
+            foreground=[("selected", fg_white)]
+        )
+        
+        style.configure("TProgressbar", thickness=12, troughcolor=bg_card, background=green_accent)
+        style.configure("TLabelframe", background=bg_dark, foreground=green_accent, font=("Segoe UI", 9, "bold"), bordercolor=bg_active)
+        style.configure("TLabelframe.Label", background=bg_dark, foreground=green_accent)
+
         self.registros = indexador_clientes.carregar_cache()
         self.filtrados = []
         self.selecionados = set()
@@ -40,13 +107,17 @@ class WideAppInterface:
         self.ultima_pasta = config.OUTPUT_DIR
         self.ultimos = {"xlsx": [], "pdf": [], "html": [], "md": [], "json": [], "log": []}
         self.ultimo_grupo = "SELECIONADOS"
+        self.xlsx_map = {}
+        self._context_iid = None
         self._montar()
         self.aplicar_filtro()
+        self.atualizar_combo_xlsx()
 
     def _montar(self):
         topo = ttk.Frame(self.root, padding=8)
         topo.pack(fill="x")
         ttk.Button(topo, text="Atualizar lista de clientes e contratos", command=self.atualizar_async).pack(side="left")
+        ttk.Button(topo, text="Atualizar informações da WidePay", command=self.atualizar_widepay_async).pack(side="left", padx=(6, 0))
         ttk.Label(topo, text="Pesquisar cliente").pack(side="left", padx=(12, 4))
         self.busca_var = tk.StringVar()
         busca = ttk.Entry(topo, textvariable=self.busca_var, width=36)
@@ -68,15 +139,31 @@ class WideAppInterface:
         botoes.pack(fill="x")
         ttk.Button(botoes, text="Selecionar todos", command=self.selecionar_todos).pack(side="left")
         ttk.Button(botoes, text="Limpar selecao", command=self.limpar_selecao).pack(side="left", padx=4)
-        self.btn_gerar_sel = ttk.Button(botoes, text="Gerar relatorio dos selecionados", command=self.gerar_selecionados)
+        self.btn_gerar_sel = ttk.Button(botoes, text="Gerar relatorio dos selecionados", command=self.gerar_selecionados, style="Accent.TButton")
         self.btn_gerar_sel.pack(side="left", padx=12)
-        self.btn_gerar_todos = ttk.Button(botoes, text="Gerar relatorio de todos os clientes ativos", command=self.gerar_todos_ativos)
+        self.btn_gerar_todos = ttk.Button(botoes, text="Gerar relatorio de todos os clientes ativos", command=self.gerar_todos_ativos, style="Accent.TButton")
         self.btn_gerar_todos.pack(side="left")
-        ttk.Button(botoes, text="Abrir pasta local", command=self.abrir_pasta_execucao).pack(side="right")
-        ttk.Button(botoes, text="Abrir pasta no Drive", command=self.abrir_drive).pack(side="right", padx=4)
-        ttk.Button(botoes, text="Abrir XLSX", command=self.abrir_ultimo).pack(side="right", padx=4)
-        ttk.Button(botoes, text="Abrir PDF", command=lambda: self.abrir_tipo("pdf")).pack(side="right", padx=4)
-        ttk.Button(botoes, text="Abrir HTML", command=lambda: self.abrir_tipo("html")).pack(side="right", padx=4)
+        
+        # Frame para organizador de abridores
+        abridores = ttk.Frame(botoes)
+        abridores.pack(side="right")
+        
+        # Linha superior: botões
+        botoes_linha = ttk.Frame(abridores)
+        botoes_linha.pack(side="top", anchor="e")
+        ttk.Button(botoes_linha, text="Abrir pasta local", command=self.abrir_pasta_execucao).pack(side="left", padx=2)
+        ttk.Button(botoes_linha, text="Abrir pasta no Drive", command=self.abrir_drive).pack(side="left", padx=2)
+        ttk.Button(botoes_linha, text="Abrir HTML", command=lambda: self.abrir_tipo("html")).pack(side="left", padx=2)
+        ttk.Button(botoes_linha, text="Abrir PDF", command=lambda: self.abrir_tipo("pdf")).pack(side="left", padx=2)
+        ttk.Button(botoes_linha, text="Abrir XLSX", command=self.abrir_ultimo).pack(side="left", padx=2)
+        
+        # Linha inferior: combobox de planilhas de largura 75 para visualização completa
+        xlsx_linha = ttk.Frame(abridores)
+        xlsx_linha.pack(side="top", fill="x", anchor="e", pady=(4, 0))
+        ttk.Label(xlsx_linha, text="Planilhas recentes:").pack(side="left", padx=2)
+        self.xlsx_combo = ttk.Combobox(xlsx_linha, state="readonly", width=75)
+        self.xlsx_combo.pack(side="left", padx=2, fill="x", expand=True)
+        self.xlsx_combo.bind("<<ComboboxSelected>>", self.abrir_xlsx_selecionado)
 
         meio = ttk.Frame(self.root, padding=8)
         meio.pack(fill="both", expand=True)
@@ -84,27 +171,59 @@ class WideAppInterface:
         for key, label, width in COLUNAS:
             self.tree.heading(key, text=label)
             self.tree.column(key, width=width, anchor="w")
+        
+        scroll_y = ttk.Scrollbar(meio, orient="vertical", command=self.tree.yview)
+        scroll_x = ttk.Scrollbar(meio, orient="horizontal", command=self.tree.xview)
+        scroll_y.pack(side="right", fill="y")
+        scroll_x.pack(side="bottom", fill="x")
+
         self.tree.pack(side="left", fill="both", expand=True)
+        self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
         self.tree.bind("<ButtonRelease-1>", lambda _e: self.sincronizar_selecao_tree())
-        scroll = ttk.Scrollbar(meio, orient="vertical", command=self.tree.yview)
-        scroll.pack(side="right", fill="y")
-        self.tree.configure(yscrollcommand=scroll.set)
+        self.tree.bind("<Button-3>", self.mostrar_menu_contexto)
+        self.tree.bind("<Double-1>", lambda _e: self.abrir_pasta_cliente_selecionado())
+        self.tree.bind("<MouseWheel>", self._rolar_tree)
+        self.tree.bind("<Shift-MouseWheel>", self._rolar_tree_horizontal)
+
+        # Progresso da execução
+        progresso_frame = ttk.Frame(self.root, padding=(8, 0, 8, 8))
+        progresso_frame.pack(fill="x", expand=False)
+        
+        self.progress_label = ttk.Label(progresso_frame, text="Aguardando início...")
+        self.progress_label.pack(side="top", fill="x", pady=(0, 4))
+        
+        self.progress = ttk.Progressbar(progresso_frame, orient="horizontal", mode="determinate")
+        self.progress.pack(side="top", fill="x")
 
         rodape = ttk.PanedWindow(self.root, orient="horizontal")
         rodape.pack(fill="both", expand=False, padx=8, pady=(0, 8))
+        
         logs_frame = ttk.LabelFrame(rodape, text="Logs/status")
         links_frame = ttk.LabelFrame(rodape, text="Links Google Drive")
         rodape.add(logs_frame, weight=3)
         rodape.add(links_frame, weight=2)
-        self.logs = tk.Text(logs_frame, height=8, wrap="word")
+        
+        logs_scroll = ttk.Scrollbar(logs_frame, orient="vertical")
+        logs_scroll.pack(side="right", fill="y")
+        self.logs = tk.Text(logs_frame, height=8, wrap="word", yscrollcommand=logs_scroll.set)
         self.logs.pack(fill="both", expand=True)
-        self.links = tk.Text(links_frame, height=8, wrap="word")
+        self.logs.configure(bg="#242424", fg="#F3F3F3", insertbackground="#F3F3F3", selectbackground="#007A3E", selectforeground="#F3F3F3", font=("Consolas", 9))
+        logs_scroll.config(command=self.logs.yview)
+        
+        links_scroll = ttk.Scrollbar(links_frame, orient="vertical")
+        links_scroll.pack(side="right", fill="y")
+        self.links = tk.Text(links_frame, height=8, wrap="word", yscrollcommand=links_scroll.set)
         self.links.pack(fill="both", expand=True)
+        self.links.configure(bg="#242424", fg="#F3F3F3", insertbackground="#F3F3F3", selectbackground="#007A3E", selectforeground="#F3F3F3", font=("Consolas", 9))
+        links_scroll.config(command=self.links.yview)
         self.log("Interface iniciada.")
         if not self.registros:
             self.log("Cache vazio. Clique em Atualizar lista de clientes e contratos.")
 
     def log(self, msg):
+        if threading.current_thread() is not threading.main_thread():
+            self.root.after(0, lambda m=msg: self.log(m))
+            return
         self.logs.insert("end", msg + "\n")
         self.logs.see("end")
         self.root.update_idletasks()
@@ -117,13 +236,14 @@ class WideAppInterface:
         result = indexador_clientes.indexar_clientes(validar_widepay=True, log_callback=self.log)
         self.registros = result["registros"]
         self.root.after(0, self.aplicar_filtro)
+        self.root.after(0, self.atualizar_combo_xlsx)
         self.log(f"Clientes/lotes indexados: {len(self.registros)}")
 
     def aplicar_filtro(self):
         self.filtrados = pesquisa_clientes.filtrar(self.registros, self.busca_var.get(), self.status_var.get())
         self.tree.delete(*self.tree.get_children())
         for idx, item in enumerate(self.filtrados):
-            values = [item.get(key, "") for key, _label, _width in COLUNAS]
+            values = [self._valor_grade(item, key) for key, _label, _width in COLUNAS]
             iid = str(idx)
             self.tree.insert("", "end", iid=iid, values=values)
             if self._chave(item) in self.selecionados:
@@ -132,6 +252,12 @@ class WideAppInterface:
 
     def _chave(self, item):
         return f"{item.get('cliente')}|{item.get('lote')}|{item.get('pasta_local')}"
+
+    def _valor_grade(self, item, key):
+        valor = item.get(key, "")
+        if key == "cliente":
+            return indexador_clientes.limpar_nome_cliente(str(valor))
+        return valor
 
     def sincronizar_selecao_tree(self):
         self.selecionados = set()
@@ -153,6 +279,23 @@ class WideAppInterface:
     def _selecionados_registros(self):
         chaves = set(self.selecionados)
         return [item for item in self.registros if self._chave(item) in chaves]
+
+    def _registro_contexto_ou_primeiro(self):
+        if self._context_iid is not None and str(self._context_iid) in self.tree.get_children():
+            try:
+                return self.filtrados[int(self._context_iid)]
+            except Exception:
+                pass
+        registros = self._selecionados_registros()
+        return registros[0] if registros else None
+
+    def _rolar_tree(self, event):
+        self.tree.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        return "break"
+
+    def _rolar_tree_horizontal(self, event):
+        self.tree.xview_scroll(int(-1 * (event.delta / 120)), "units")
+        return "break"
 
     def gerar_todos_ativos(self):
         registros = [r for r in self.registros if r.get("contrato") == "Encontrado"]
@@ -176,18 +319,43 @@ class WideAppInterface:
     def _gerar_thread(self, registros, grupo):
         self.root.after(0, lambda: self.btn_gerar_sel.configure(state="disabled"))
         self.root.after(0, lambda: self.btn_gerar_todos.configure(state="disabled"))
+        self.root.after(0, lambda: self.progress.configure(value=0))
+        self.root.after(0, lambda: self.progress_label.configure(text="Iniciando execução da pipeline..."))
         self.log("Processando cliente...")
         self.log("Pipeline em execucao...")
         try:
-            resultado = pipeline_runner.executar_lote(registros, grupo=grupo, log_callback=self.log)
+            resultado = pipeline_runner.executar_lote(
+                registros,
+                grupo=grupo,
+                log_callback=self.log,
+                progress_callback=self.atualizar_progresso
+            )
             self.log("CODIGO SAIDA: 0")
             self.log("Relatorio gerado com sucesso.")
+            self.root.after(0, self.atualizar_combo_xlsx)
         except Exception as exc:
             self.log(f"ERRO_PIPELINE: {exc}")
+            self.root.after(0, lambda: self.progress_label.configure(text=f"Erro na pipeline: {exc}"))
             self.root.after(0, lambda: self.btn_gerar_sel.configure(state="normal"))
             self.root.after(0, lambda: self.btn_gerar_todos.configure(state="normal"))
-            messagebox.showerror("WideAPP_EXTRA", f"Erro na pipeline:\n{exc}")
+            self.root.after(0, lambda: messagebox.showerror("WideAPP_EXTRA", f"Erro na pipeline:\n{exc}"))
             return
+
+        falhas = resultado.get("falhas") or []
+        if falhas:
+            resumo_falhas = "\n".join(
+                f"- {item.get('cliente')} lote {item.get('lote')}: {item.get('erro')}"
+                for item in falhas[:5]
+            )
+            self.log(f"FALHAS_PARCIAIS: {len(falhas)} cliente(s)")
+            self.root.after(
+                0,
+                lambda: messagebox.showwarning(
+                    "WideAPP_EXTRA",
+                    f"Relatorios gerados para {len(resultado.get('resultados', []))} cliente(s), "
+                    f"mas {len(falhas)} falharam:\n{resumo_falhas}"
+                )
+            )
 
         self.ultimos = {"xlsx": [], "pdf": [], "html": [], "md": [], "json": [], "log": []}
         for res in resultado["resultados"]:
@@ -208,6 +376,10 @@ class WideAppInterface:
                             from datetime import datetime as dt_parser
                             with open(json_paths[0], "r", encoding="utf-8") as jf:
                                 metrics = json.load(jf)
+                            
+                            c_name_real = metrics.get("contrato", {}).get("cliente")
+                            if c_name_real:
+                                r["cliente"] = c_name_real
                             
                             parcelas = metrics.get("calculos", {}).get("parcelas_pagas_equivalentes", "")
                             if parcelas != "":
@@ -276,7 +448,11 @@ class WideAppInterface:
         abrir(self.ultimos[tipo][0])
 
     def abrir_pasta_execucao(self):
-        abrir_pasta(self.ultima_pasta)
+        if self.ultima_pasta and Path(self.ultima_pasta).exists():
+            abrir_pasta(self.ultima_pasta)
+            self.log(f"Pasta local aberta: {self.ultima_pasta}")
+        else:
+            messagebox.showinfo("WideAPP_EXTRA", f"Pasta local nao encontrada: {self.ultima_pasta}")
 
     def abrir_drive(self):
         destino = drive_uploader.abrir_destino_drive(self.ultimo_grupo)
@@ -284,9 +460,165 @@ class WideAppInterface:
             messagebox.showinfo("WideAPP_EXTRA", "Destino Drive nao configurado.")
             return
         if hasattr(destino, "exists"):
-            abrir_pasta(destino)
+            if destino.exists():
+                abrir_pasta(destino)
+                self.log(f"Pasta Drive aberta: {destino}")
+            else:
+                messagebox.showinfo("WideAPP_EXTRA", f"Pasta Drive nao encontrada: {destino}")
         else:
             self.links.insert("end", f"Destino Drive remoto: {destino}\n")
+
+    def atualizar_progresso(self, pct, tempo_restante_segundos):
+        def _update():
+            self.progress["value"] = pct
+            if pct >= 100.0:
+                self.progress_label.configure(text="Execução concluída com sucesso! (100%)")
+            else:
+                tempo_str = f"{int(tempo_restante_segundos)}s" if tempo_restante_segundos > 0 else "calculando..."
+                self.progress_label.configure(text=f"Processando pipeline... {pct:.1f}% concluído. Tempo restante estimado: {tempo_str}")
+            self.root.update_idletasks()
+        self.root.after(0, _update)
+
+    def obter_xlsx_recentes(self):
+        from pathlib import Path
+        arquivos = []
+        if config.OUTPUT_DIR.exists():
+            for p in config.OUTPUT_DIR.rglob("*.xlsx"):
+                if p.is_file() and not p.name.startswith("~$"):
+                    arquivos.append(p)
+        planilhas_dir = config.ROOT_DIR / "03_PLANILHAS"
+        if planilhas_dir.exists():
+            for p in planilhas_dir.rglob("*.xlsx"):
+                if p.is_file() and not p.name.startswith("~$"):
+                    arquivos.append(p)
+        drive_dir = Path(config.DRIVE_LOCAL_DIR)
+        if drive_dir.exists():
+            for p in drive_dir.rglob("*.xlsx"):
+                if p.is_file() and not p.name.startswith("~$"):
+                    arquivos.append(p)
+        unicos = {}
+        for p in arquivos:
+            try:
+                resolvido = p.resolve()
+                unicos[resolvido] = p
+            except Exception:
+                unicos[p] = p
+        lista_ordenada = list(unicos.values())
+        lista_ordenada.sort(key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+        return lista_ordenada
+
+    def atualizar_combo_xlsx(self):
+        try:
+            self.xlsx_map = {}
+            items = []
+            from datetime import datetime
+            xlsx_files = self.obter_xlsx_recentes()
+            for p in xlsx_files[:40]:
+                try:
+                    mtime = p.stat().st_mtime
+                    dt_str = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    dt_str = "Desconhecido"
+                display_name = f"{dt_str} - {p.name}"
+                items.append(display_name)
+                self.xlsx_map[display_name] = p
+            self.xlsx_combo.configure(values=items)
+            if items:
+                self.xlsx_combo.set("Selecione para abrir...")
+            else:
+                self.xlsx_combo.set("Nenhuma planilha encontrada")
+        except Exception as e:
+            self.log(f"Erro ao atualizar dropdown de planilhas: {e}")
+
+    def abrir_xlsx_selecionado(self, event=None):
+        selected = self.xlsx_combo.get()
+        path = self.xlsx_map.get(selected)
+        if path and path.exists():
+            self.log(f"Abrindo planilha selecionada: {path.name}")
+            abrir(path)
+
+    def mostrar_menu_contexto(self, event):
+        row_id = self.tree.identify_row(event.y)
+        if row_id:
+            self._context_iid = row_id
+            if row_id not in self.tree.selection():
+                self.tree.selection_set(row_id)
+            self.sincronizar_selecao_tree()
+            
+            menu = tk.Menu(self.root, tearoff=0, bg="#242424", fg="#F3F3F3", activebackground="#007A3E", activeforeground="#F3F3F3")
+            menu.add_command(label="Gerar relatório do(s) selecionado(s)", command=self.gerar_selecionados)
+            menu.add_command(label="Abrir pasta do cliente no Explorer", command=self.abrir_pasta_cliente_selecionado)
+            menu.add_command(label="Abrir planilha recente do cliente", command=self.abrir_planilha_cliente_selecionado)
+            menu.add_separator()
+            menu.add_command(label="Atualizar lista de clientes e contratos", command=self.atualizar_async)
+            menu.add_command(label="Atualizar informações da WidePay (selecionados)", command=self.atualizar_widepay_selecionados_async)
+            
+            menu.post(event.x_root, event.y_root)
+
+    def abrir_pasta_cliente_selecionado(self):
+        reg = self._registro_contexto_ou_primeiro()
+        if not reg:
+            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado.")
+            return
+        pasta = reg.get("pasta_local")
+        if pasta and Path(pasta).exists():
+            self.log(f"SKILL CARREGADA: widepay-abertura-externa")
+            self.log(f"EXECUÇÃO EXTERNA: abrir pasta do cliente {reg.get('cliente')}")
+            abrir_pasta(pasta)
+            self.log(f"VISUALIZADOR PADRÃO: pasta aberta no Explorer")
+        else:
+            messagebox.showwarning("WideAPP_EXTRA", f"Pasta do cliente nao encontrada: {pasta}")
+
+    def abrir_planilha_cliente_selecionado(self):
+        reg = self._registro_contexto_ou_primeiro()
+        if not reg:
+            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado.")
+            return
+        cliente = reg.get("cliente", "")
+        lote = reg.get("lote", "")
+        slug_c = indexador_clientes.slug_busca(cliente).upper().replace(" ", "_")
+        
+        pasta_relatorios = config.OUTPUT_DIR
+        encontrado = None
+        if pasta_relatorios.exists():
+            arquivos = []
+            for p in pasta_relatorios.rglob("*.xlsx"):
+                if p.is_file() and not p.name.startswith("~$"):
+                    name_upper = p.name.upper()
+                    if slug_c in name_upper or (lote and lote.upper() in name_upper):
+                        arquivos.append(p)
+            if arquivos:
+                arquivos.sort(key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+                encontrado = arquivos[0]
+                
+        if encontrado:
+            self.log(f"SKILL CARREGADA: widepay-abertura-externa")
+            self.log(f"EXECUÇÃO EXTERNA: abrindo planilha recente do cliente {cliente}: {encontrado.name}")
+            abrir(encontrado)
+            self.log(f"VISUALIZADOR PADRÃO: planilha aberta no Excel")
+        else:
+            messagebox.showwarning("WideAPP_EXTRA", f"Nenhum relatorio XLSX encontrado para {cliente} no diretorio {pasta_relatorios}")
+
+    def atualizar_widepay_async(self):
+        registros = [r for r in self.registros if r.get("contrato") == "Encontrado"]
+        if not registros:
+            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente com contrato confirmado para atualizar do WidePay.")
+            return
+        if not messagebox.askyesno("Atualizar WidePay", f"Deseja baixar e atualizar as informacoes de pagamentos do WidePay para os {len(registros)} clientes confirmados? Isso sincronizara nomes e parcelas pagas."):
+            return
+        self.ultimo_grupo = "WIDEPAY_ATUALIZACAO"
+        threading.Thread(target=self._gerar_thread, args=(registros, "WIDEPAY_ATUALIZACAO"), daemon=True).start()
+
+    def atualizar_widepay_selecionados_async(self):
+        registros = self._selecionados_registros()
+        confirmados = [r for r in registros if r.get("contrato") == "Encontrado"]
+        if not confirmados:
+            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado com contrato confirmado.")
+            return
+        if not messagebox.askyesno("Atualizar WidePay", f"Deseja baixar e atualizar as informacoes de pagamentos do WidePay para os {len(confirmados)} clientes selecionados?"):
+            return
+        self.ultimo_grupo = "WIDEPAY_SELECIONADOS"
+        threading.Thread(target=self._gerar_thread, args=(confirmados, "WIDEPAY_SELECIONADOS"), daemon=True).start()
 
 
 def abrir_interface():

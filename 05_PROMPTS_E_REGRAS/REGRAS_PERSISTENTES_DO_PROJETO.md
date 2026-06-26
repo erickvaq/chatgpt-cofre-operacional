@@ -632,3 +632,39 @@ O fluxo obrigatório consolidado para arquivos finais passa a ser:
 6. responder no chat com: nome do arquivo completo, caminho local, link do Google Drive (arquivo completo), link do commit no GitHub, e links dos registros no GitHub.
 
 A versão sanitizada pode continuar existindo apenas como espelho seguro de texto (Markdown) para constar no GitHub público, mas ELA NUNCA PODE SUBSTITUIR a entrega do arquivo completo via Google Drive. Se o arquivo completo não for enviado para o Drive com link clicável, a entrega NÃO ESTÁ CONCLUÍDA.
+---
+
+## REGRA 14 - COLETA WIDEPAY COM REGISTROS POR PAGINA, PAGINACAO COMPLETA E VALIDACAO TOTAL
+# Adicionada em: 2026-06-25 - regra permanente
+
+Toda coleta de dados do WidePay feita pela `WideAPP_EXTRA`, pelo pipeline financeiro ou por scripts de apoio deve usar registros por pagina, paginacao completa e validacao total antes de aprovar relatorio.
+
+Esta regra vale para cobrancas, boletos, carnes, recebimentos, pagamentos recebidos, XLSX, PDF, HTML, MD, JSON, logs, evidencias e validacao matematica.
+
+Funcionamento obrigatorio:
+1. ao abrir tabela do WidePay, localizar o controle `Registros por pagina`;
+2. selecionar o maior valor disponivel, preferencialmente 100;
+3. aguardar recarregamento da tabela;
+4. registrar em log cliente pesquisado, tela, filtro, valor selecionado, total exibido pelo WidePay, pagina atual, quantidade de paginas e quantidade coletada por pagina;
+5. coletar todos os registros visiveis da pagina atual;
+6. verificar se existe proxima pagina;
+7. avancar ate a ultima pagina quando houver paginacao;
+8. mesmo usando 100 registros por pagina, nunca presumir que acabou sem validar se existe proxima pagina;
+9. deduplicar por chave segura combinando cliente, referencia, vencimento, valor, valor recebido, status e identificador/link quando existir;
+10. comparar total coletado contra total exibido pelo WidePay.
+
+Se o WidePay mostrar `Exibindo 26 a 36 de 36 registros`, a aplicacao deve entender que existem 36 registros no total, nao apenas os visiveis da pagina atual.
+
+Erro bloqueante obrigatorio:
+
+```text
+COLETA_INCOMPLETA_PAGINACAO_OU_REGISTROS_POR_PAGINA_WIDEPAY
+```
+
+Nenhum relatorio pode ser aprovado quando nao houve tentativa de aumentar registros por pagina, nao houve validacao de paginacao, nao houve conferencia do total exibido pelo WidePay, total coletado nao bate com total informado pelo WidePay ou alguma pagina foi ignorada.
+
+O modulo oficial dessa regra na `WideAPP_EXTRA` e:
+
+```text
+WideAPP_EXTRA/app/coletor_tabelas_paginadas.py
+```

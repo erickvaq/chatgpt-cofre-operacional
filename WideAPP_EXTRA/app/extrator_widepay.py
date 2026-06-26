@@ -279,6 +279,27 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
 
         var wideappRpp = await wideappSelecionarMaiorRegistrosPorPagina("Carnes");
         
+        function marcadorPagina() {
+            var totalWideapp = wideappInfoTotalTabela();
+            if (totalWideapp && totalWideapp.texto) {
+                return totalWideapp.texto;
+            }
+            var paginaWideapp = wideappInfoPagina();
+            if (paginaWideapp && paginaWideapp.texto) {
+                return paginaWideapp.texto;
+            }
+            var texto = document.body.innerText || '';
+            var m = texto.match(/Página\\s+(\\d+)\\s+de\\s+(\\d+)/i) || texto.match(/Pagina\\s+(\\d+)\\s+de\\s+(\\d+)/i);
+            if (m) {
+                return m[1] + "/" + m[2];
+            }
+            var atual = document.querySelector('[aria-current="page"], .active, .current');
+            if (atual) {
+                return (atual.innerText || atual.textContent || atual.value || '').trim();
+            }
+            return String(window.location.href) + "|" + String(texto.length);
+        }
+        
         var queryTerms = %s;
         var carnes = [];
         var nomeEncontrado = "%s";
@@ -287,6 +308,9 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         
         var searchInput = document.getElementById("jab-1036-field");
         for (var termIndex = 0; termIndex < queryTerms.length; termIndex++) {
+            if (carnes.length > 0) {
+                break;
+            }
             var termoAtual = queryTerms[termIndex];
             var termoBuscar = termoAtual;
             
@@ -304,7 +328,24 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
                 }
                 
                 var totalInfo = wideappInfoTotalTabela();
-                if (totalInfo && totalInfo.total !== null && totalInfo.total > 15) {
+                
+                // Verificar se a busca já está isolada para um único cliente na página
+                var trs = Array.from(document.querySelectorAll('tr'));
+                var nomesClientesDistintos = [];
+                trs.forEach(tr => {
+                    var tds = tr.querySelectorAll('td');
+                    if (tds.length >= 16) {
+                        var col_cliente = tds[2].innerText.trim();
+                        var col_cliente_norm = wideappNormalizarBusca(col_cliente);
+                        if (nomesClientesDistintos.indexOf(col_cliente_norm) === -1) {
+                            nomesClientesDistintos.push(col_cliente_norm);
+                        }
+                    }
+                });
+                
+                var buscaIsolada = (nomesClientesDistintos.length <= 1);
+                
+                if (totalInfo && totalInfo.total !== null && totalInfo.total > 15 && !buscaIsolada) {
                     termoBuscar = prefixo;
                 } else {
                     termoBuscar = prefixo;
@@ -443,7 +484,7 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
             _wideapp_meta_coleta: metaColeta
         };
     }
-    """ % (coletor_paginado_js, termos_busca_carnes_js, cliente_nome, termos_busca_carnes_js)
+    """ % (coletor_paginado_js, termos_busca_carnes_js, cliente_nome)
     
     eval_extract_carnes = await cdp_command(ws_url, "Runtime.evaluate", {
         "expression": f"({js_extract_carnes})()",
@@ -555,6 +596,9 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
         var paginasWideapp = [];
         var searchInput = document.getElementById("jab-1043-field") || document.querySelector('input[placeholder*="Pesquisar"], input[type="text"], input[type="search"]');
         for (var termIndex = 0; termIndex < queryTerms.length; termIndex++) {
+            if (cobrancas.length > 0) {
+                break;
+            }
             var termoAtual = queryTerms[termIndex];
             var termoBuscar = termoAtual;
             
@@ -572,7 +616,24 @@ async def extrair_dados_cliente(ws_url, cliente_nome):
                 }
                 
                 var totalInfo = wideappInfoTotalTabela();
-                if (totalInfo && totalInfo.total !== null && totalInfo.total > 15) {
+                
+                // Verificar se a busca já está isolada para um único cliente na página
+                var trs = Array.from(document.querySelectorAll('tr'));
+                var nomesClientesDistintos = [];
+                trs.forEach(tr => {
+                    var tds = tr.querySelectorAll('td');
+                    if (tds.length >= 21) {
+                        var col_cliente = tds[4].innerText.trim();
+                        var col_cliente_norm = wideappNormalizarBusca(col_cliente);
+                        if (nomesClientesDistintos.indexOf(col_cliente_norm) === -1) {
+                            nomesClientesDistintos.push(col_cliente_norm);
+                        }
+                    }
+                });
+                
+                var buscaIsolada = (nomesClientesDistintos.length <= 1);
+                
+                if (totalInfo && totalInfo.total !== null && totalInfo.total > 15 && !buscaIsolada) {
                     termoBuscar = prefixo;
                 } else {
                     termoBuscar = prefixo;

@@ -75,8 +75,9 @@ async def auditar_cliente_unico(ws_url, cliente_nome, lote_opcao=None):
             
         lote_final = dados_contrato.get("lote") or lote_opcao or "-"
         
+        nome_busca = dados_contrato.get("cliente") or cliente_nome
         # 2. Extrair dados reais do WidePay via CDP
-        dados_raw_wp = await extrair_dados_cliente(ws_url, cliente_nome)
+        dados_raw_wp = await extrair_dados_cliente(ws_url, nome_busca)
         if dados_raw_wp.get("cliente"):
             dados_contrato["cliente"] = dados_raw_wp["cliente"]
         
@@ -113,6 +114,8 @@ async def auditar_cliente_unico(ws_url, cliente_nome, lote_opcao=None):
         }
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         registrar_log("ERRO", "FALHA_AUDITORIA", cliente_nome, str(e))
         print(f"Erro na auditoria do cliente {cliente_nome}: {e}")
         return None

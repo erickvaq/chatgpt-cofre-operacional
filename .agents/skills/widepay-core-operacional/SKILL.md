@@ -69,6 +69,16 @@ Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`
 * Se nao houver referencia clara, marcar `REFERENCIA NAO IDENTIFICADA` e nao inventar parcela.
 * Relatorio final deve conter a tabela `Pagamentos Recebidos Interpretados`.
 
+## 5.3 Coleta WidePay com registros por pagina, paginacao completa e validacao total
+* Toda coleta de carnes, cobrancas, boletos, recebimentos e pagamentos na `WideAPP_EXTRA` deve passar pelo coletor central `WideAPP_EXTRA/app/coletor_tabelas_paginadas.py`.
+* Antes de coletar uma tabela do WidePay, localizar `Registros por pagina`, selecionar o maior valor disponivel, preferencialmente 100, e aguardar o recarregamento.
+* Mesmo com 100 registros por pagina, nunca presumir fim da coleta: validar botoes de primeira/proxima/ultima pagina e percorrer ate a ultima pagina.
+* Registrar no log cliente pesquisado, tela, filtro usado, valor de registros por pagina, total exibido pelo WidePay, pagina atual, total de paginas e quantidade coletada por pagina.
+* Deduplicar por chave segura com cliente, referencia, vencimento, valor, valor recebido, status e identificador/link quando existir.
+* Comparar total coletado contra total exibido pelo WidePay. Se aparecer `Exibindo 26 a 36 de 36 registros`, o total esperado e 36, nao 11.
+* Se a coleta ficar incompleta, bloquear o relatorio final com `COLETA_INCOMPLETA_PAGINACAO_OU_REGISTROS_POR_PAGINA_WIDEPAY`.
+* Nenhum XLSX, PDF, HTML, MD ou JSON pode ser marcado aprovado sem tentativa de aumentar registros por pagina, validacao de paginacao e conferencia do total exibido pelo WidePay.
+
 ## 6. Rotinas e scripts relacionados
 * `python 03_SCRIPTS\buscar_cliente.py <nome>`
 * `python 03_SCRIPTS\consultar_widepay_cdp.py --cliente <nome>`
@@ -98,6 +108,7 @@ ensure_widepay_logged_in(): iniciado
 * **ERRO 11:** Pedir login manual sem antes tentar usar usuario/senha ja salvos no navegador dedicado.
 * **ERRO 12:** Gerar relatorio final sem interpretar individualmente todos os recebimentos `Recebido` do WidePay.
 * **ERRO 13:** Usar regra fixa de outro cliente para calcular parcelas pagas equivalentes.
+* **ERRO 14:** Coletar apenas a primeira pagina do WidePay ou aprovar relatorio sem validar registros por pagina, paginacao completa e total coletado contra total exibido.
 
 ## 9. CritÃ©rios de validaÃ§Ã£o
 * Normalizacao rigorosa de nomes (remover termos como "Contrato", "Copia", "Leo/Leo").

@@ -64,6 +64,31 @@ Antes de qualquer auditoria real, a aplicacao valida:
 
 Se a validacao falhar, a execucao e cancelada e o motivo aparece no terminal e no log.
 
+## Coleta paginada obrigatoria no WidePay
+
+A `WideAPP_EXTRA` nao aprova relatorio quando a coleta do WidePay fica limitada a primeira pagina.
+
+Antes de coletar carnes, cobrancas, boletos ou recebimentos, a aplicacao deve:
+
+- tentar selecionar o maior valor em `Registros por pagina`, preferencialmente 100;
+- percorrer todas as paginas disponiveis;
+- registrar quantidade coletada por pagina;
+- ler o total exibido pelo WidePay, por exemplo `Exibindo 26 a 36 de 36 registros`;
+- deduplicar os registros coletados;
+- comparar total coletado contra total exibido pelo WidePay.
+
+Se a conferencia falhar, o pipeline bloqueia o relatorio com:
+
+```text
+COLETA_INCOMPLETA_PAGINACAO_OU_REGISTROS_POR_PAGINA_WIDEPAY
+```
+
+O modulo responsavel por essa trava e:
+
+```text
+WideAPP_EXTRA\app\coletor_tabelas_paginadas.py
+```
+
 ## Logs
 
 Cada abertura gera um log em:

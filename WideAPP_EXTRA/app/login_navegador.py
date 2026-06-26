@@ -4,6 +4,7 @@ import sys
 import subprocess
 import time
 import urllib.request
+import urllib.parse
 import json
 from pathlib import Path
 
@@ -65,6 +66,61 @@ def abrir_nova_aba(target_url):
         print(f"Erro ao abrir nova aba: {e}")
         return None
 
+def _aba_widepay_valida(aba):
+    url = (aba.get("url") or "").lower()
+    if "widepay.com" not in url:
+        return False
+    if "/conta/acessar" in url or "/conta/login" in url:
+        return False
+    return True
+
+def selecionar_aba_widepay(abas, preferir_valida=True):
+    candidatos = [aba for aba in abas if aba.get("type") == "page" and "widepay.com" in (aba.get("url") or "")]
+    if preferir_valida:
+        for aba in candidatos:
+            if _aba_widepay_valida(aba):
+                return aba
+    return candidatos[0] if candidatos else None
+
+def validar_sessao_widepay(ws_url):
+    async def _validar():
+        import websockets
+        async with websockets.connect(ws_url) as ws:
+            async def cdp(method, params=None):
+                nonlocal ws
+                msg = {"id": 1, "method": method, "params": params or {}}
+                await ws.send(json.dumps(msg))
+                while True:
+                    resp = json.loads(await ws.recv())
+                    if resp.get("id") == 1:
+                        return resp
+
+            loc = await cdp("Runtime.evaluate", {"expression": "window.location.href", "returnByValue": True})
+            url = loc.get("result", {}).get("result", {}).get("value", "")
+            body = await cdp("Runtime.evaluate", {"expression": "document.body.innerText", "returnByValue": True})
+            texto = (body.get("result", {}).get("result", {}).get("value", "") or "").lower()
+            erro = any(p in texto for p in ["usuario ou senha incorretos", "senha incorreta", "acessar conta", "esqueci minha senha"])
+            login = "/conta/acessar" in url or "/conta/login" in url or "acessar conta" in texto
+            return {
+                "url": url,
+                "texto": texto[:500],
+                "login": login,
+                "erro": erro,
+                "valida": not login and not erro,
+            }
+
+    try:
+        import asyncio
+        return asyncio.run(_validar())
+    except RuntimeError:
+        # Já existe loop ativo em alguns ambientes; cria execução isolada simples.
+        import asyncio as _asyncio
+        loop = _asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(_validar())
+        finally:
+            loop.close()
+
 def iniciar_navegador_wmi():
     browser_exe = localizar_chrome()
     if not browser_exe:
@@ -120,10 +176,7 @@ def garantir_navegador_conectado():
     # Localizar aba WidePay ou abrir nova
     abas = obter_abas()
     wp_aba = None
-    for aba in abas:
-        if aba.get("type") == "page" and "widepay.com" in aba.get("url", ""):
-            wp_aba = aba
-            break
+    wp_aba = selecionar_aba_widepay(abas, preferir_valida=True)
             
     if not wp_aba:
         print("Aba do WidePay nao encontrada. Abrindo nova aba...")
@@ -132,10 +185,7 @@ def garantir_navegador_conectado():
             raise RuntimeError("Nao foi possivel abrir nova aba no WidePay.")
         time.sleep(3)
         abas = obter_abas()
-        for aba in abas:
-            if aba.get("type") == "page" and "widepay.com" in aba.get("url", ""):
-                wp_aba = aba
-                break
+        wp_aba = selecionar_aba_widepay(abas, preferir_valida=True)
                 
     if not wp_aba:
         raise RuntimeError("Falha ao localizar aba do WidePay apos tentativa de criacao.")

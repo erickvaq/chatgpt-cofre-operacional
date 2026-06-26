@@ -50,10 +50,10 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
     // ── Digita '500' no campo e confirma com Enter + clique no botão ──────────
     // O campo começa em 25 (padrão do WidePay) e NÃO aceita só .value = '500';
     // é necessário simular digitação real para o framework reagir.
-    async function aplicar500(inputRpp, botaoConfirma) {
+    async function aplicar100(inputRpp, botaoConfirma) {
         resultado.encontrado = true;
-        resultado.valoresDisponiveis = [500];
-        resultado.valorSelecionado = 500;
+        resultado.valoresDisponiveis = [100];
+        resultado.valorSelecionado = 100;
 
         // 1. Focar e selecionar todo o conteúdo atual
         inputRpp.focus();
@@ -72,12 +72,12 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
         inputRpp.value = '';
         var digitado = false;
         try {
-            digitado = document.execCommand('insertText', false, '500');
+            digitado = document.execCommand('insertText', false, '100');
         } catch(e) {}
 
         // 4. Fallback direto caso execCommand não funcione
-        if (!digitado || inputRpp.value !== '500') {
-            inputRpp.value = '500';
+        if (!digitado || inputRpp.value !== '100') {
+            inputRpp.value = '100';
             inputRpp.dispatchEvent(new Event('input',  { bubbles: true }));
             inputRpp.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -101,7 +101,7 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
     }
 
     var botoes    = Array.from(document.querySelectorAll('button, a, [role="button"]'));
-    var inputsText = Array.from(document.querySelectorAll('input[type="text"], input:not([type])'));
+    var inputsText = Array.from(document.querySelectorAll('input[type="text"], input[type="number"], input:not([type])'));
 
     // ── Estratégia 1: botão localizado por title / aria-label / texto ─────────
     var botaoRpp = botoes.find(function(el) {
@@ -124,27 +124,48 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
     if (botaoRpp) {
         // Tentar input dentro do mesmo .input-group ou container pai imediato
         var container = botaoRpp.closest('.input-group') || botaoRpp.parentElement;
-        var inputRpp  = container ? container.querySelector('input[type="text"], input:not([type])') : null;
+        var inputRpp  = container ? container.querySelector('input[type="text"], input[type="number"], input:not([type])') : null;
 
         // Se não achou no container direto, buscar input imediatamente anterior no DOM
         if (!inputRpp) {
             var prev = botaoRpp.previousElementSibling;
             while (prev) {
                 if (prev.tagName === 'INPUT') { inputRpp = prev; break; }
-                var found = prev.querySelector('input[type="text"], input:not([type])');
+                var found = prev.querySelector('input[type="text"], input[type="number"], input:not([type])');
                 if (found) { inputRpp = found; break; }
                 prev = prev.previousElementSibling;
             }
         }
 
         if (inputRpp) {
-            await aplicar500(inputRpp, botaoRpp);
+            await aplicar100(inputRpp, botaoRpp);
             return resultado;
         }
     }
 
     // ── Estratégia 3: input numérico em input-group com botão adjacente ───────
     // Padrão visual WidePay: [↺] [25] [🗄]  — campo começa em 25
+    if (botaoRpp) {
+        var todosInputs = Array.from(document.querySelectorAll('input'));
+        var rectBotao = botaoRpp.getBoundingClientRect();
+        var candidatos = todosInputs
+            .map(function(inp) {
+                var rect = inp.getBoundingClientRect();
+                var valor = valorNumero((inp.value || '').trim());
+                var visivel = !!(inp.offsetWidth || inp.offsetHeight || inp.getClientRects().length);
+                var distancia = Math.abs(rect.top - rectBotao.top) + Math.abs(rect.left - rectBotao.left);
+                return { inp: inp, valor: valor, visivel: visivel, distancia: distancia };
+            })
+            .filter(function(item) {
+                return item.visivel && item.valor !== null && item.valor >= 1 && item.valor <= 9999;
+            })
+            .sort(function(a, b) { return a.distancia - b.distancia; });
+        if (candidatos.length) {
+            await aplicar100(candidatos[0].inp, botaoRpp);
+            return resultado;
+        }
+    }
+
     var inputAchado = null;
     var botaoAchado = null;
     for (var i = 0; i < inputsText.length; i++) {
@@ -161,7 +182,7 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
         break;
     }
     if (inputAchado) {
-        await aplicar500(inputAchado, botaoAchado);
+        await aplicar100(inputAchado, botaoAchado);
         return resultado;
     }
 
@@ -324,7 +345,19 @@ function wideappValidarMetaColeta(meta) {
         meta.erros.push('Nenhuma pagina foi registrada na coleta');
     }
     if (meta.totalWidePay && meta.totalWidePay.total !== null && meta.totalColetadoUnico < meta.totalWidePay.total) {
-        meta.erros.push('Total coletado menor que total exibido pelo WidePay');
+        var paginacaoCompleta = false;
+        var rppVal = (meta.registrosPorPagina && meta.registrosPorPagina.valorSelecionado) || 25;
+        if (meta.totalWidePay.total <= rppVal) {
+            paginacaoCompleta = true;
+        } else if (meta.paginas && meta.paginas.length > 0) {
+            var ultimaPag = meta.paginas[meta.paginas.length - 1];
+            if (ultimaPag.paginas && ultimaPag.pagina >= ultimaPag.paginas) {
+                paginacaoCompleta = true;
+            }
+        }
+        if (!paginacaoCompleta) {
+            meta.erros.push('Total coletado menor que total exibido pelo WidePay');
+        }
     }
     if (meta.totalWidePay && meta.totalWidePay.total !== null && meta.totalColetadoUnico >= meta.totalWidePay.total) {
         meta.erros = meta.erros.filter(e => e !== 'Registros por pagina nao foi localizado/selecionado');

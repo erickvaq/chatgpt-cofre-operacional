@@ -22,6 +22,17 @@ TIPOS = {
 }
 
 
+PROGRESS_STEPS = [
+    ("Verificando se o WidePay requer login", 10, 22),
+    ("WidePay ja esta logado", 15, 20),
+    ("Pesquisando Carnes para", 30, 17),
+    ("Navegando para a pagina de cobrancas", 55, 11),
+    ("Pesquisando Cobranças/Boletos", 70, 7),
+    ("Dados brutos extraidos", 85, 4),
+    ("Status da Auditoria", 95, 2),
+]
+
+
 def slug(texto):
     base = slug_busca(texto).upper().replace(" ", "_")
     return re.sub(r"_+", "_", base).strip("_") or "CLIENTE"
@@ -56,7 +67,7 @@ def classificar_arquivos(paths):
     return result
 
 
-def executar_cliente(registro, log_callback=None):
+def executar_cliente(registro, log_callback=None, progress_callback=None, cliente_index=1, total_clientes=1):
     cliente = registro.get("cliente", "").strip()
     lote    = registro.get("lote", "").strip()
     if registro.get("contrato") != "Encontrado":
@@ -81,6 +92,7 @@ def executar_cliente(registro, log_callback=None):
     proc = subprocess.Popen(
         args,
         cwd=str(config.ROOT_DIR),
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -91,8 +103,15 @@ def executar_cliente(registro, log_callback=None):
     with open(log_path, "a", encoding="utf-8") as f:
         for line in proc.stdout or []:
             f.write(line)
+            stripped = line.rstrip()
             if log_callback:
-                log_callback(line.rstrip())
+                log_callback(stripped)
+            if progress_callback:
+                for text, percent, rem_sec in PROGRESS_STEPS:
+                    if text in stripped:
+                        pct = ((cliente_index - 1) + (percent / 100.0)) / total_clientes * 100.0
+                        tot_rem = rem_sec + (total_clientes - cliente_index) * 25
+                        progress_callback(pct, tot_rem)
     code = proc.wait()
     log(f"CODIGO_SAIDA: {code}")
     if code != 0:
@@ -117,7 +136,7 @@ def executar_cliente(registro, log_callback=None):
     }
 
 
-def executar_lote(registros, grupo="SELECIONADOS", log_callback=None):
+def executar_lote(registros, grupo="SELECIONADOS", log_callback=None, progress_callback=None):
     """Processa N clientes selecionados.
 
     Quando ha mais de um cliente confirmado usa --clientes CSV num unico
@@ -139,84 +158,44 @@ def executar_lote(registros, grupo="SELECIONADOS", log_callback=None):
     resultados     = []
     arquivos_upload = []
 
-    if total == 1:
-        # Caminho simples: um unico cliente via --cliente
-        log(f"[1/1] Processando {confirmados[0].get('cliente')}...")
-        res = executar_cliente(confirmados[0], log_callback=log_callback)
-        resultados.append(res)
-        for path in res["todos_arquivos"]:
-            arquivos_upload.append({
-                "cliente": res["cliente"],
-                "lote":    res["lote"],
-                "arquivo": path.name,
-                "caminho_local": str(path),
-            })
-    else:
-        # Multiplos clientes: passa --clientes CSV num unico subprocesso
-        # para aproveitar a mesma sessao CDP/Chrome ja aberta.
-        nomes_csv = ",".join(r.get("cliente", "").strip() for r in confirmados)
-        inicio    = datetime.now().timestamp()
-        log_path  = config.LOG_DIR / f"pipeline_LOTE_{grupo}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        args      = [str(config.VENV_PYTHON), str(config.EXECUTOR), "--clientes", nomes_csv]
-
-        log(f"EXECUCAO_LOTE: {' '.join(args)}")
-        proc = subprocess.Popen(
-            args,
-            cwd=str(config.ROOT_DIR),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
-        )
-        with open(log_path, "a", encoding="utf-8") as f:
-            for i, line in enumerate(proc.stdout or []):
-                f.write(line)
-                stripped = line.rstrip()
-                # Detectar inicio de auditoria individual para log de progresso
-                if "AUDITANDO CLIENTE:" in stripped:
-                    nome_atual = stripped.split("AUDITANDO CLIENTE:")[-1].strip().strip("=").strip()
-                    idx = next(
-                        (j + 1 for j, r in enumerate(confirmados)
-                         if nome_atual.lower() in r.get("cliente", "").lower()),
-                        "?"
-                    )
-                    log(f"[{idx}/{total}] {nome_atual}")
-                elif stripped:
-                    log(stripped)
-
-        code = proc.wait()
-        log(f"CODIGO_SAIDA_LOTE: {code}")
-        if code != 0:
-            raise RuntimeError(f"Pipeline em lote falhou; veja {log_path}")
-
-        # Coletar artefatos gerados desde o inicio
-        arquivos_todos = arquivos_relevantes_desde(inicio)
-        arquivos_todos.append(log_path)
-        classificados  = classificar_arquivos(arquivos_todos)
-
-        # Montar resultados por cliente (melhor esforco via nome no caminho)
-        for registro in confirmados:
-            cliente = registro.get("cliente", "").strip()
-            lote    = registro.get("lote", "").strip()
-            slug_c  = slug(cliente)
-            arqs_cliente = [p for p in arquivos_todos if slug_c in p.stem.upper()]
-            class_c = classificar_arquivos(arqs_cliente) if arqs_cliente else classificados
-            resultados.append({
-                "cliente": cliente,
-                "lote":    lote,
-                "log":     log_path,
-                "arquivos": class_c,
-                "todos_arquivos": arqs_cliente,
-            })
-            for path in arqs_cliente:
+    falhas = []
+    if total >= 1:
+        for idx, registro in enumerate(confirmados, start=1):
+            log(f"[{idx}/{total}] Processando {registro.get('cliente')} lote {registro.get('lote')}...")
+            if progress_callback:
+                pct_inicio = ((idx - 1) / total) * 100.0
+                progress_callback(pct_inicio, (total - idx + 1) * 25)
+            try:
+                res = executar_cliente(
+                    registro,
+                    log_callback=log_callback,
+                    progress_callback=progress_callback,
+                    cliente_index=idx,
+                    total_clientes=total,
+                )
+            except Exception as exc:
+                falhas.append({
+                    "cliente": registro.get("cliente", ""),
+                    "lote": registro.get("lote", ""),
+                    "erro": str(exc),
+                })
+                log(f"ERRO_CLIENTE: {registro.get('cliente')} lote {registro.get('lote')}: {exc}")
+                continue
+            resultados.append(res)
+            if progress_callback:
+                pct_fim = (idx / total) * 100.0
+                progress_callback(pct_fim, (total - idx) * 25)
+            for path in res["todos_arquivos"]:
                 arquivos_upload.append({
-                    "cliente": cliente,
-                    "lote":    lote,
+                    "cliente": res["cliente"],
+                    "lote":    res["lote"],
                     "arquivo": path.name,
                     "caminho_local": str(path),
                 })
+
+    if not resultados:
+        detalhe = "; ".join(f"{f['cliente']} lote {f['lote']}: {f['erro']}" for f in falhas)
+        raise RuntimeError(f"Nenhum cliente foi concluido com sucesso. Falhas: {detalhe}")
 
     consolidado = None
     if len(confirmados) > 1:
@@ -228,10 +207,13 @@ def executar_lote(registros, grupo="SELECIONADOS", log_callback=None):
             "caminho_local": str(consolidado),
         })
 
+    if progress_callback:
+        progress_callback(100.0, 0)
     drive = drive_uploader.enviar_arquivos(arquivos_upload, grupo)
     return {
         "resultados":      resultados,
         "ignorados":       ignorados,
+        "falhas":          falhas,
         "consolidado":     consolidado,
         "drive":           drive,
         "arquivos_upload": arquivos_upload,

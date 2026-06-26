@@ -105,7 +105,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         registrar_log(script_chamador, "ERRO", len(unicos), f"Duplicidade nas regras: {duplicadas}")
         sys.exit(1)
 
-    esperados = list(range(1, 14))
+    esperados = list(range(1, 15))
     if unicos != esperados:
         print(f"ERRO: Numeracao das regras inconsistente. Esperado {esperados}, encontrado {unicos}.")
         registrar_log(script_chamador, "ERRO", len(unicos), f"Numeracao inconsistente: {unicos}")
@@ -124,6 +124,7 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         9: ("painel operacional publico sempre limpo e verificado", "github normal"),
         10: ("github como procedimento padrao de conferencia", "procedimento padrao obrigatorio"),
         11: ("acesso conferivel ao conteudo dos arquivos", "versao sanitizada conferivel no github"),
+        14: ("coleta widepay com registros por pagina, paginacao completa e validacao total", "total coletado contra total exibido pelo widepay"),
     }
 
     erros = []
@@ -172,6 +173,12 @@ def executar_precheck(script_chamador="Script Desconhecido"):
         erros.append("Tabela obrigatoria de pagamentos recebidos interpretados nao foi encontrada nas regras")
     if "nunca usar o caso edmilson" not in conteudo_norm:
         erros.append("Bloqueio contra regra fixa baseada no caso Edmilson nao foi encontrado")
+    if "coleta widepay com registros por pagina, paginacao completa e validacao total" not in conteudo_norm:
+        erros.append("Regra de coleta paginada do WidePay nao foi encontrada")
+    if "coleta_incompleta_paginacao_ou_registros_por_pagina_widepay" not in conteudo_norm:
+        erros.append("Erro bloqueante de coleta paginada incompleta nao foi encontrado nas regras")
+    if "total coletado" not in conteudo_norm or "total exibido pelo widepay" not in conteudo_norm:
+        erros.append("Regra de coleta paginada nao valida total coletado contra total exibido pelo WidePay")
 
     caminho_procedimento = os.path.join(PROJETO_ROOT, "05_PROMPTS_E_REGRAS", "PROCEDIMENTO_WIDEPAY_CHROME_CDP_WMI.md")
     if not os.path.exists(caminho_procedimento):
@@ -209,6 +216,8 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                 ("alias e erros de digitacao comuns", "A skill nao aceita aliases comuns do cliente"),
                 ("interpretacao individual de pagamentos widepay", "A skill nao reforca interpretacao individual de pagamentos WidePay"),
                 ("pagamentos recebidos interpretados", "A skill nao exige a tabela de pagamentos interpretados"),
+                ("coleta widepay com registros por pagina", "A skill nao reforca coleta paginada do WidePay"),
+                ("coleta_incompleta_paginacao_ou_registros_por_pagina_widepay", "A skill nao registra erro bloqueante de paginacao incompleta"),
             ],
         ),
         (
@@ -240,6 +249,25 @@ def executar_precheck(script_chamador="Script Desconhecido"):
                     erros.append(msg)
         except Exception as es:
             erros.append(f"Erro ao ler {rotulo_skill}: {es}")
+
+    coletor_paginado = os.path.join(PROJETO_ROOT, "WideAPP_EXTRA", "app", "coletor_tabelas_paginadas.py")
+    if not os.path.exists(coletor_paginado):
+        erros.append("Modulo WideAPP_EXTRA/app/coletor_tabelas_paginadas.py nao foi encontrado")
+    else:
+        try:
+            with open(coletor_paginado, "r", encoding="utf-8") as fc:
+                coletor_norm = normalizar_texto(fc.read())
+            for termo, msg in [
+                ("wideappselecionarmaiorregistrosporpagina", "Coletor paginado nao seleciona registros por pagina"),
+                ("wideappinfototaltabela", "Coletor paginado nao le o total exibido pelo WidePay"),
+                ("wideappbotaopaginacao", "Coletor paginado nao centraliza botoes de paginacao"),
+                ("wideappvalidarmetacoleta", "Coletor paginado nao valida metadados finais"),
+                ("coleta_incompleta_paginacao_ou_registros_por_pagina_widepay", "Coletor paginado nao define erro bloqueante"),
+            ]:
+                if termo not in coletor_norm:
+                    erros.append(msg)
+        except Exception as ec:
+            erros.append(f"Erro ao ler coletor_tabelas_paginadas.py: {ec}")
 
     scripts_a_validar = [
         (
