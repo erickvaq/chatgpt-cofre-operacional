@@ -96,16 +96,20 @@ async def auditar_cliente_unico(ws_url, cliente_nome, lote_opcao=None):
             print(f"- {nota}")
             
         # 6. Gerar relatórios finais
-        pasta_entrega = preparar_diretorio_entrega(cliente_nome, lote_final)
+        lote_entrega = lote_opcao if (lote_opcao and lote_opcao != "-") else lote_final
+        pasta_entrega = preparar_diretorio_entrega(cliente_nome, lote_entrega)
         data_sufixo = datetime.now().strftime("%Y%m%d_%H%M")
         
-        arquivos = exportar_relatorios_finais(dados_contrato, dados_calculados, dados_normalizados, pasta_entrega, data_sufixo)
+        dados_contrato_copia = dados_contrato.copy()
+        dados_contrato_copia["lote"] = lote_entrega
+        
+        arquivos = exportar_relatorios_finais(dados_contrato_copia, dados_calculados, dados_normalizados, pasta_entrega, data_sufixo)
         
         registrar_log("SUCESSO", "AUDITORIA_CONCLUIDA", cliente_nome, f"Status: {status_val}; Arquivos gerados na pasta de entrega.")
         
         return {
             "cliente": cliente_nome,
-            "lote": lote_final,
+            "lote": lote_entrega,
             "status": status_val,
             "bloqueado": bloqueado,
             "notas": "; ".join(notas),
@@ -209,6 +213,7 @@ async def main_async():
             bloco_info.append({
                 "nome": nome_busca,
                 "lote": lote_final,
+                "lote_opcao": lote_opcao,
                 "quadra": dados_contrato.get("quadra") or "-",
                 "dados_contrato": dados_contrato
             })
@@ -254,16 +259,20 @@ async def main_async():
                     print(f"- {nota}")
                     
                 # Gerar relatórios finais
-                pasta_entrega = preparar_diretorio_entrega(cliente_nome, lote_final)
+                lote_entrega = lote_opcao if (lote_opcao and lote_opcao != "-") else lote_final
+                pasta_entrega = preparar_diretorio_entrega(cliente_nome, lote_entrega)
                 data_sufixo = datetime.now().strftime("%Y%m%d_%H%M")
                 
-                arquivos = exportar_relatorios_finais(dados_contrato, dados_calculados, dados_normalizados, pasta_entrega, data_sufixo)
+                dados_contrato_copia = dados_contrato.copy()
+                dados_contrato_copia["lote"] = lote_entrega
+                
+                arquivos = exportar_relatorios_finais(dados_contrato_copia, dados_calculados, dados_normalizados, pasta_entrega, data_sufixo)
                 
                 registrar_log("SUCESSO", "AUDITORIA_CONCLUIDA", cliente_nome, f"Status: {status_val}; Arquivos gerados na pasta de entrega.")
                 
                 resultados.append({
                     "cliente": cliente_nome,
-                    "lote": lote_final,
+                    "lote": lote_entrega,
                     "status": status_val,
                     "bloqueado": bloqueado,
                     "notas": "; ".join(notas),
