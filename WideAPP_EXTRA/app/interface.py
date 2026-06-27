@@ -341,6 +341,36 @@ class WideAppInterface:
         self.links.configure(bg="#242424", fg="#F3F3F3", insertbackground="#F3F3F3", selectbackground="#007A3E", selectforeground="#F3F3F3", font=("Consolas", 9))
         links_scroll.config(command=self.links.yview)
         self.log("Interface iniciada.")
+        
+        # Metadados de Diagnóstico de Inicialização
+        import sys
+        import subprocess
+        from datetime import datetime
+        
+        main_path = Path(sys.argv[0]).resolve()
+        interface_path = Path(__file__).resolve()
+        
+        try:
+            mtime = datetime.fromtimestamp(interface_path.stat().st_mtime).strftime("%d/%m/%Y %H:%M:%S")
+        except Exception:
+            mtime = "Desconhecida"
+            
+        try:
+            commit_version = subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"], 
+                cwd=str(interface_path.parent), 
+                text=True, 
+                stderr=subprocess.DEVNULL
+            ).strip()
+        except Exception:
+            commit_version = "Sem Git"
+            
+        self.log(f"[DIAGNOSTICO] Entrada: {main_path}")
+        self.log(f"[DIAGNOSTICO] Modulo UI: {interface_path}")
+        self.log(f"[DIAGNOSTICO] Modificacao UI: {mtime}")
+        self.log(f"[DIAGNOSTICO] Versao Git: {commit_version}")
+        self.log(f"[DIAGNOSTICO] Cache JSON: {config.CLIENTES_JSON}")
+        
         if not self.registros:
             self.log("Cache vazio. Clique em Atualizar lista de clientes e contratos.")
 
