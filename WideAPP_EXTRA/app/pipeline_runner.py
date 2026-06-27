@@ -111,7 +111,11 @@ def arquivos_relevantes_desde(inicio):
             if path.suffix.lower() not in TIPOS:
                 continue
             try:
-                if path.stat().st_mtime >= inicio:
+                # Para arquivos na pasta final de relatórios gerados (OUTPUT_DIR),
+                # aceitamos independente de timestamp para evitar problemas com modelos de arquivo antigos.
+                if base == config.OUTPUT_DIR:
+                    encontrados.append(path)
+                elif path.stat().st_mtime >= (inicio - 120):
                     encontrados.append(path)
             except OSError:
                 continue
