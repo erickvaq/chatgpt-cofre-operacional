@@ -406,7 +406,7 @@ class WideAppInterface:
         self.log(f"[DIAGNOSTICO] Cache JSON: {config.CLIENTES_JSON}")
         
         if not self.registros:
-            self.log("Cache vazio. Clique em Atualizar lista de clientes e contratos.")
+            self.log("Cache vazio. Clique em Atualizar clientes.")
 
     def _label(self, parent, text, size=10, weight="normal", color=None, bg=None):
         return tk.Label(
@@ -669,7 +669,7 @@ class WideAppInterface:
         self.root.update_idletasks()
 
     def atualizar_async(self):
-        self.log("Atualizacao iniciada...")
+        self.log("Atualizacao incremental de clientes iniciada...")
         threading.Thread(target=self._atualizar, daemon=True).start()
 
     def _atualizar(self):
@@ -677,7 +677,7 @@ class WideAppInterface:
         self.registros = result["registros"]
         self.root.after(0, self.aplicar_filtro)
         self.root.after(0, self.atualizar_combo_xlsx)
-        self.log(f"Clientes/lotes indexados: {len(self.registros)}")
+        self.log(f"Clientes/lotes atualizados incrementalmente: {len(self.registros)}")
 
     def _obter_imagem_barrinha_legacy(self, boletos_atrasados):
         """Gera e retorna uma imagem de barrinha colorida dinamicamente baseada nos boletos vencidos."""
@@ -1169,7 +1169,7 @@ class WideAppInterface:
             menu.add_command(label="Abrir pasta do cliente no Explorer", command=self.abrir_pasta_cliente_selecionado)
             menu.add_command(label="Abrir planilha recente do cliente", command=self.abrir_planilha_cliente_selecionado)
             menu.add_separator()
-            menu.add_command(label="Atualizar lista de clientes e contratos", command=self.atualizar_async)
+            menu.add_command(label="Atualizar clientes", command=self.atualizar_async)
             menu.add_command(label="Atualizar informações da WidePay (selecionados)", command=self.atualizar_widepay_selecionados_async)
             
             menu.post(event.x_root, event.y_root)

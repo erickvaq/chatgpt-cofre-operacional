@@ -10,7 +10,12 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from app import config
-from app.leitor_contratos import extrair_texto_docx, extrair_texto_pdf, extrair_nome_cliente
+from app.leitor_contratos import (
+    extrair_texto_docx,
+    extrair_texto_pdf,
+    extrair_nome_cliente,
+    parsear_dados_contrato,
+)
 
 
 LOTE_RE = re.compile(r"\b([A-H]\s*[-.]?\s*\d{1,3}[A-Z]?)\b", re.IGNORECASE)
@@ -32,6 +37,10 @@ PERSISTIR_CAMPOS = (
     "parcelas_resumo",
     "contrato_resumo",
     "contrato_modalidade",
+    "valor_base_parcela",
+    "valor_total_contratado",
+    "entrada_valor",
+    "origem_contrato",
     "valor_total_pago",
     "ultima_parcela_paga",
     "ultimo_vencimento_pago",
@@ -45,6 +54,7 @@ PERSISTIR_CAMPOS = (
     "observacoes",
     "divergencias",
     "boletos_atrasados",
+    "origem_dados",
 )
 
 PRESERVAR_EM_REINDEXACAO = (
@@ -57,6 +67,10 @@ PRESERVAR_EM_REINDEXACAO = (
     "parcelas_resumo",
     "contrato_resumo",
     "contrato_modalidade",
+    "valor_base_parcela",
+    "valor_total_contratado",
+    "entrada_valor",
+    "origem_contrato",
     "valor_total_pago",
     "ultima_parcela_paga",
     "ultimo_vencimento_pago",
@@ -71,7 +85,18 @@ PRESERVAR_EM_REINDEXACAO = (
     "observacoes",
     "divergencias",
     "boletos_atrasados",
+    "origem_dados",
 )
+
+
+CAMPOS_NUNCA_ESVAZIAR = set(PERSISTIR_CAMPOS) | {
+    "cliente",
+    "lote",
+    "quadra",
+    "contrato",
+    "contrato_arquivo",
+    "pasta_local",
+}
 
 
 def normalizar(texto):
@@ -104,6 +129,19 @@ def decimal(valor, default=0.0):
         return float(valor)
     except (TypeError, ValueError):
         return default
+
+
+def valor_preenchido(valor):
+    if valor is None:
+        return False
+    if isinstance(valor, str):
+        return valor.strip() not in ("", "-", "None", "NAO CONFIRMADO", "Nao encontrado")
+    return True
+
+
+def aplicar_se_preenchido(registro, campo, valor):
+    if valor_preenchido(valor):
+        registro[campo] = valor
 
 
 def formatar_moeda(valor):
@@ -366,6 +404,10 @@ def normalizar_registro_cache(registro):
     item.setdefault("parcelas_resumo", "")
     item.setdefault("contrato_resumo", "")
     item.setdefault("contrato_modalidade", "")
+    item.setdefault("valor_base_parcela", "")
+    item.setdefault("valor_total_contratado", "")
+    item.setdefault("entrada_valor", "")
+    item.setdefault("origem_contrato", "")
     item.setdefault("valor_total_pago", "")
     item.setdefault("ultima_parcela_paga", "")
     item.setdefault("ultimo_vencimento_pago", "")
@@ -381,6 +423,7 @@ def normalizar_registro_cache(registro):
     item.setdefault("divergencias", "")
     item.setdefault("pasta_local", "")
     item.setdefault("boletos_atrasados", "")
+    item.setdefault("origem_dados", "")
 
     if not item.get("contrato_modalidade"):
         item["contrato_modalidade"] = inferir_modalidade_contrato(
@@ -396,6 +439,8 @@ def normalizar_registro_cache(registro):
     item["status_atraso_cor"] = item.get("status_atraso_cor") or classificar_status_atraso(item["status_atraso_qtd"])
     item["status_atraso_rotulo"] = item.get("status_atraso_rotulo") or rotulo_status_atraso(item["status_atraso_qtd"])
     item["status_atraso_origem"] = item.get("status_atraso_origem") or ("WidePay/cache" if item.get("ultima_atualizacao_widepay") else "Pendente WidePay")
+    if not item.get("origem_dados"):
+        item["origem_dados"] = "Contrato local + cache" if item.get("ultima_atualizacao_widepay") else "Contrato local"
     return item
 
 
@@ -433,12 +478,19 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
     valor_total_pago = round(decimal(calculos.get("total_pago_consolidado")), 2)
 
     item["status"] = status_val
-    item["parcelas_pagas_identificadas"] = parcelas_pagas if total_parcelas > 0 or parcelas_pagas > 0 else ""
-    item["parcelas_total_contrato"] = total_parcelas if total_parcelas > 0 else ""
-    item["parcelas_restantes"] = parcelas_restantes if total_parcelas > 0 else ""
-    item["valor_total_pago"] = valor_total_pago if valor_total_pago > 0 else ""
+    if total_parcelas > 0 or parcelas_pagas > 0:
+        item["parcelas_pagas_identificadas"] = parcelas_pagas
+    if total_parcelas > 0:
+        item["parcelas_total_contrato"] = total_parcelas
+        item["parcelas_restantes"] = parcelas_restantes
+    if valor_total_pago > 0:
+        item["valor_total_pago"] = valor_total_pago
     item["ultima_atualizacao_widepay"] = atualizado_iso
     item["data_atualizacao"] = atualizado_iso
+    aplicar_se_preenchido(item, "valor_base_parcela", contrato.get("valor_parcela"))
+    aplicar_se_preenchido(item, "valor_total_contratado", contrato.get("valor_total_contrato"))
+    aplicar_se_preenchido(item, "entrada_valor", contrato.get("entrada"))
+    item["origem_dados"] = "Contrato local + WidePay"
     item["contrato_modalidade"] = inferir_modalidade_contrato(
         item.get("contrato_arquivo"),
         item.get("pasta_local"),
@@ -453,8 +505,12 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
         observacoes.append("Relatorio bloqueado")
     if notas:
         observacoes.extend(notas[:2])
-    item["observacoes"] = " | ".join(observacoes) if observacoes else "Relatorio gerado"
-    item["divergencias"] = " | ".join(notas[2:]) if len(notas) > 2 else ""
+    if observacoes:
+        item["observacoes"] = " | ".join(observacoes)
+    elif not item.get("observacoes"):
+        item["observacoes"] = "Relatorio gerado"
+    if len(notas) > 2:
+        item["divergencias"] = " | ".join(notas[2:])
 
     pagamentos = calculos.get("pagamentos_interpretados") or []
     ultimo_pgto = None
@@ -513,7 +569,9 @@ def mesclar_registro_indexado(
     agora,
     registro_anterior=None,
     cliente_padrao="",
+    dados_contrato=None,
 ):
+    dados_contrato = dados_contrato or {}
     if registro_anterior:
         registro = dict(registro_anterior)
     else:
@@ -525,13 +583,31 @@ def mesclar_registro_indexado(
 
     registro["selecionado"] = bool(registro.get("selecionado", False))
     registro["cliente"] = cliente_padrao or registro.get("cliente") or ""
-    registro["lote"] = lote
-    registro["quadra"] = quadra
+    lote_contrato = dados_contrato.get("lote")
+    quadra_contrato = dados_contrato.get("quadra")
+    registro["lote"] = lote_contrato if valor_preenchido(lote_contrato) else lote
+    registro["quadra"] = quadra_contrato if valor_preenchido(quadra_contrato) else quadra
+    if (
+        registro_anterior
+        and registro_anterior.get("contrato") == "Encontrado"
+        and contrato_status != "Encontrado"
+    ):
+        contrato_status = "Encontrado"
+        contrato_path = registro_anterior.get("contrato_arquivo") or contrato_path
+        if not dados_contrato and contrato_path:
+            dados_contrato = ler_dados_contrato_arquivo(contrato_path, registro.get("cliente"))
     registro["contrato"] = contrato_status
     registro["contrato_arquivo"] = contrato_path
     registro["origem"] = origem
     registro["pasta_local"] = str(pasta)
-    registro["contrato_modalidade"] = registro.get("contrato_modalidade") or inferir_modalidade_contrato(contrato_path, str(pasta))
+    registro["contrato_modalidade"] = inferir_modalidade_contrato(contrato_path, str(pasta), dados_contrato)
+    aplicar_se_preenchido(registro, "parcelas_total_contrato", dados_contrato.get("total_parcelas"))
+    aplicar_se_preenchido(registro, "valor_base_parcela", dados_contrato.get("valor_parcela"))
+    aplicar_se_preenchido(registro, "valor_total_contratado", dados_contrato.get("valor_total_contrato"))
+    aplicar_se_preenchido(registro, "entrada_valor", dados_contrato.get("entrada"))
+    if dados_contrato:
+        registro["origem_contrato"] = "Contrato local"
+        registro["origem_dados"] = "Contrato local + cache preservado"
 
     if not registro.get("status"):
         registro["status"] = "Pendente validacao WidePay" if contrato_status == "Encontrado" else "Sem contrato confirmado"
@@ -604,6 +680,40 @@ def obter_nome_real_contrato(contrato_path, nome_sugerido):
         pass
     return nome_sugerido
 
+
+def ler_dados_contrato_arquivo(contrato_path, nome_sugerido):
+    dados = {}
+    if not contrato_path:
+        return dados
+    try:
+        p = Path(contrato_path)
+        texto = ""
+        if p.exists():
+            ext = p.suffix.lower()
+            if ext == ".docx":
+                texto = extrair_texto_docx(p)
+            elif ext == ".pdf":
+                texto = extrair_texto_pdf(p)
+            elif ext == ".txt":
+                texto = p.read_text(encoding="utf-8", errors="ignore")
+
+        if not texto:
+            convertidos_dir = config.ROOT_DIR / "01_DOCUMENTOS_CONVERTIDOS"
+            if convertidos_dir.exists():
+                slug_sug = slug_busca(nome_sugerido)
+                for txt_path in convertidos_dir.glob("*.txt"):
+                    if slug_sug in slug_busca(txt_path.stem):
+                        texto = txt_path.read_text(encoding="utf-8", errors="ignore")
+                        if texto:
+                            break
+
+        if texto:
+            dados = parsear_dados_contrato(texto, nome_sugerido) or {}
+    except Exception:
+        return {}
+    return dados
+
+
 def carregar_metricas_historicas_locais(cliente, lote):
     """Busca no diretório de entrega o relatório JSON de métricas mais recente do cliente, usando busca flexível."""
     try:
@@ -655,6 +765,117 @@ def carregar_metricas_historicas_locais(cliente, lote):
         return None, None
 
 
+def chave_registro_cache(registro):
+    pasta = str(registro.get("pasta_local") or "").strip().lower()
+    lote = str(registro.get("lote") or "-").strip().upper()
+    cliente = slug_busca(registro.get("cliente") or "")
+    if pasta:
+        return ("pasta", pasta, lote)
+    return ("cliente_lote", cliente, lote)
+
+
+def deduplicar_preservando_ordem(registros):
+    unicos = {}
+    ordem = []
+    for registro in registros:
+        chave = chave_registro_cache(registro)
+        if chave not in unicos:
+            ordem.append(chave)
+        unicos[chave] = registro
+    return [unicos[chave] for chave in ordem]
+
+
+def montar_metricas_resumo_widepay(dados_raw_wp, dados_contrato):
+    from app.calculadora_financeira import calcular_resumo
+    from app.normalizador_pagamentos import normalizar_e_deduplicar
+
+    valor_base = float(dados_contrato.get("valor_parcela") or 0.0)
+    dados_normalizados = normalizar_e_deduplicar(dados_raw_wp, valor_base)
+    dados_calculados = calcular_resumo(dados_normalizados, dados_contrato)
+    return {
+        "contrato": dados_contrato,
+        "calculos": dados_calculados,
+        "normalizado": dados_normalizados,
+    }
+
+
+def atualizar_resumo_widepay_incremental(registros, log_callback=None):
+    confirmados = [r for r in registros if r.get("contrato") == "Encontrado"]
+    if not confirmados:
+        return registros
+
+    def log(msg):
+        if log_callback:
+            log_callback(msg)
+
+    try:
+        import asyncio
+        from app.extrator_widepay import extrair_dados_clientes_bloco
+        from app.login_navegador import garantir_navegador_conectado
+
+        ws_url = garantir_navegador_conectado()
+
+        async def _coletar():
+            atualizados_por_chave = {}
+            for idx in range(0, len(confirmados), 3):
+                bloco = confirmados[idx:idx + 3]
+                payload = []
+                contrato_por_nome = {}
+                for reg in bloco:
+                    dados_contrato = {
+                        "cliente": reg.get("cliente"),
+                        "lote": reg.get("lote"),
+                        "quadra": reg.get("quadra"),
+                        "valor_parcela": decimal(reg.get("valor_base_parcela")),
+                        "total_parcelas": inteiro(reg.get("parcelas_total_contrato")),
+                        "valor_total_contrato": decimal(reg.get("valor_total_contratado")),
+                        "entrada": decimal(reg.get("entrada_valor")),
+                    }
+                    nome = dados_contrato["cliente"] or reg.get("cliente") or ""
+                    contrato_por_nome[nome] = (reg, dados_contrato)
+                    payload.append({
+                        "nome": nome,
+                        "lote": dados_contrato.get("lote") or "-",
+                        "quadra": dados_contrato.get("quadra") or "-",
+                    })
+                log(f"WidePay leve: coletando bloco {idx // 3 + 1} com {len(payload)} cliente(s).")
+                resultado_bloco = await extrair_dados_clientes_bloco(ws_url, payload)
+                for nome, dados_raw in (resultado_bloco or {}).items():
+                    reg, dados_contrato = contrato_por_nome.get(nome, ({}, {}))
+                    if not reg:
+                        continue
+                    metrics = montar_metricas_resumo_widepay(dados_raw, dados_contrato)
+                    atualizado = aplicar_metricas_registro(reg, metrics)
+                    atualizado["origem_dados"] = "Contrato local + WidePay leve"
+                    atualizados_por_chave[chave_registro_cache(reg)] = atualizado
+            return atualizados_por_chave
+
+        try:
+            atualizados = asyncio.run(_coletar())
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            try:
+                atualizados = loop.run_until_complete(_coletar())
+            finally:
+                loop.close()
+
+        return [atualizados.get(chave_registro_cache(r), r) for r in registros]
+    except Exception as exc:
+        log(f"Atualizacao WidePay falhou: {exc}. Mantendo dados anteriores.")
+        mantidos = []
+        agora = datetime.now().isoformat(timespec="seconds")
+        for reg in registros:
+            item = normalizar_registro_cache(reg)
+            if item.get("contrato") == "Encontrado":
+                obs = item.get("observacoes") or ""
+                aviso = "Atualizacao falhou - mantidos dados anteriores"
+                item["observacoes"] = aviso if not obs else f"{obs} | {aviso}"
+                if not item.get("ultima_atualizacao_widepay"):
+                    item["data_atualizacao"] = item.get("data_atualizacao") or agora
+            mantidos.append(item)
+        return mantidos
+
+
 def indexar_clientes(validar_widepay=False, log_callback=None):
     config.ensure_dirs()
     agora = datetime.now()
@@ -699,8 +920,10 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
         # do cache anterior seguem preservados por mesclar_registro_indexado().
         chave_res = (str(pasta).lower(), lote)
         r_antigo = cache_anterior.get(chave_res)
+        dados_contrato = {}
         if contrato_status == "Encontrado" and contrato_path:
-            cliente = obter_nome_real_contrato(contrato_path, cliente_sugerido)
+            dados_contrato = ler_dados_contrato_arquivo(contrato_path, cliente_sugerido)
+            cliente = dados_contrato.get("cliente") or obter_nome_real_contrato(contrato_path, cliente_sugerido)
         elif r_antigo and r_antigo.get("cliente"):
             cliente = r_antigo["cliente"]
         quadra = extrair_quadra(pasta.name, lote)
@@ -720,6 +943,7 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
             agora=agora,
             registro_anterior=r_antigo,
             cliente_padrao=cliente,
+            dados_contrato=dados_contrato,
         )
         
         # Restauração automática de histórico físico
@@ -729,6 +953,22 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
                 registro = aplicar_metricas_registro(registro, metrics_data, atualizado_em=mtime_iso)
 
         registros.append(registro)
+
+    chaves_atuais = {chave_registro_cache(r) for r in registros}
+    for antigo in carregar_cache():
+        chave_antiga = chave_registro_cache(antigo)
+        if chave_antiga in chaves_atuais:
+            continue
+        preservado = normalizar_registro_cache(antigo)
+        obs = preservado.get("observacoes") or ""
+        aviso = "Nao localizado nesta varredura - mantido do cache anterior"
+        preservado["observacoes"] = aviso if not obs else f"{obs} | {aviso}"
+        registros.append(preservado)
+        chaves_atuais.add(chave_antiga)
+
+    registros = deduplicar_preservando_ordem(registros)
+    if validar_widepay:
+        registros = atualizar_resumo_widepay_incremental(registros, log_callback=log)
 
     registros.sort(key=lambda r: (slug_busca(r["cliente"]), r["lote"]))
     salvar_cache(registros)
@@ -761,6 +1001,10 @@ def salvar_xlsx(registros):
         "contrato",
         "contrato_resumo",
         "contrato_modalidade",
+        "valor_base_parcela",
+        "valor_total_contratado",
+        "entrada_valor",
+        "origem_contrato",
         "origem",
         "parcelas_pagas_identificadas",
         "parcelas_total_contrato",
@@ -779,6 +1023,7 @@ def salvar_xlsx(registros):
         "status_atraso_origem",
         "observacoes",
         "divergencias",
+        "origem_dados",
         "pasta_local",
     ]
     ws.append(headers)
