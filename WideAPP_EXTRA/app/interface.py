@@ -842,8 +842,9 @@ class WideAppInterface:
         if key == "cliente":
             return indexador_clientes.limpar_nome_cliente(str(valor))
         if key == "lote":
-            lote = str(item.get("lote") or "-").strip() or "-"
-            quadra = str(item.get("quadra") or "-").strip() or "-"
+            lote_can = item.get("chave_lote_canonica") or indexador_clientes.chave_lote_canonica(item)
+            lote = str(lote_can or item.get("lote") or "-").strip() or "-"
+            quadra = str((lote_can[:1] if lote_can else item.get("quadra")) or "-").strip() or "-"
             return f"{lote} / {quadra}"
         if key == "contrato_resumo":
             return indexador_clientes.deduzir_resumo_contrato(item)

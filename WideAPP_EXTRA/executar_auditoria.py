@@ -33,6 +33,12 @@ from app.calculadora_financeira import calcular_resumo
 from app.validador_matematico import validar_conciliacao
 from app.gerador_relatorios import exportar_relatorios_finais
 from app.rastreabilidade import registrar_log, preparar_diretorio_entrega
+from app.widepay_boletos_cache import (
+    cache_recente,
+    mesclar_cache as mesclar_cache_boletos_widepay,
+    montar_raw_cliente,
+    registros_de_resultado_bloco,
+)
 
 def obter_todos_clientes_cadastrados():
     import re
@@ -76,8 +82,21 @@ async def auditar_cliente_unico(ws_url, cliente_nome, lote_opcao=None):
         lote_final = dados_contrato.get("lote") or lote_opcao or "-"
         
         nome_busca = dados_contrato.get("cliente") or cliente_nome
-        # 2. Extrair dados reais do WidePay via CDP
-        dados_raw_wp = await extrair_dados_cliente(ws_url, nome_busca, lote_final, dados_contrato.get("quadra"))
+        # 2. Usar cache global recente antes de navegar novamente no WidePay
+        dados_raw_wp = None
+        if cache_recente(30):
+            dados_raw_wp = montar_raw_cliente(nome_busca, lote_final, dados_contrato.get("quadra"))
+            if dados_raw_wp:
+                print("CACHE_WIDEPAY_GLOBAL: usando banco interno recente; navegacao individual dispensada.")
+        if not dados_raw_wp:
+            dados_raw_wp = await extrair_dados_cliente(ws_url, nome_busca, lote_final, dados_contrato.get("quadra"))
+            mesclar_cache_boletos_widepay(
+                registros_de_resultado_bloco({nome_busca: dados_raw_wp}),
+                {
+                    "inicio_coleta": datetime.now().isoformat(timespec="seconds"),
+                    "origem": "Relatorio individual / coleta complementar",
+                },
+            )
         if dados_raw_wp.get("cliente"):
             dados_contrato["cliente"] = dados_raw_wp["cliente"]
         
@@ -219,8 +238,36 @@ async def main_async():
             })
             
         try:
-            # Executa a extração em bloco no WidePay
-            resultados_raw = await extrair_dados_clientes_bloco(ws_url, bloco_info)
+            # Usa cache global recente quando todos os clientes/lotes do bloco ja existem nele.
+            resultados_raw = {}
+            faltantes_cache = []
+            if cache_recente(30):
+                for cli in bloco_info:
+                    raw_cache = montar_raw_cliente(
+                        cli["nome"],
+                        cli["lote"],
+                        cli.get("quadra"),
+                    )
+                    if raw_cache:
+                        resultados_raw[cli["nome"]] = raw_cache
+                    else:
+                        faltantes_cache.append(cli)
+                if resultados_raw:
+                    print(f"CACHE_WIDEPAY_GLOBAL: {len(resultados_raw)} cliente(s) atendido(s) pelo banco interno recente.")
+            else:
+                faltantes_cache = list(bloco_info)
+
+            if faltantes_cache:
+                print(f"CACHE_WIDEPAY_GLOBAL: {len(faltantes_cache)} cliente(s) exigem coleta real/complementar.")
+                resultados_coleta = await extrair_dados_clientes_bloco(ws_url, faltantes_cache)
+                resultados_raw.update(resultados_coleta)
+                mesclar_cache_boletos_widepay(
+                    registros_de_resultado_bloco(resultados_raw),
+                    {
+                        "inicio_coleta": datetime.now().isoformat(timespec="seconds"),
+                        "origem": "Pipeline em bloco / coleta global ou complementar",
+                    },
+                )
             
             # Processar os resultados de cada cliente do bloco
             for cli in bloco_info:

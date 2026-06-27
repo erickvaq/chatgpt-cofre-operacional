@@ -16,11 +16,20 @@ from app.leitor_contratos import (
     extrair_nome_cliente,
     parsear_dados_contrato,
 )
+from app.widepay_boletos_cache import (
+    chave_lote_canonica,
+    normalizar_lote_quadra,
+    registros_de_resultado_bloco,
+    salvar_cache as salvar_cache_boletos_widepay,
+)
 
 
 LOTE_RE = re.compile(r"\b([A-H]\s*[-.]?\s*\d{1,3}[A-Z]?)\b", re.IGNORECASE)
 QUADRA_RE = re.compile(r"\bquadra\s*([A-H])\b", re.IGNORECASE)
-CONTRATO_A_VISTA_RE = re.compile(r"\b(a\s+vista|avista|pagamento\s+a\s+vista)\b", re.IGNORECASE)
+CONTRATO_A_VISTA_RE = re.compile(
+    r"\b(a\s+vista|avista|pagamento\s+a\s+vista|pagamento\s+avista|quitad[oa]?|quitacao|integralmente\s+pago|valor\s+integral|sem\s+parcelamento|parcela\s+unica)\b",
+    re.IGNORECASE,
+)
 CONTRATO_QUITADO_RE = re.compile(r"\b(quitad[oa]?|quitacao|sem parcelas pendentes)\b", re.IGNORECASE)
 PASTA_IGNORADA_RE = re.compile(r"\b(backup|bkp|nova pasta|temporari[oa])\b", re.IGNORECASE)
 COMPENSACAO_ATRASO_RE = re.compile(r"\b(atras[oa]s?|atrazos?|ref(?:erente)?|referencia)\b", re.IGNORECASE)
@@ -190,6 +199,32 @@ def parse_data(valor):
     return None
 
 
+def meses_desde_data(valor):
+    data = parse_data(valor)
+    if not data:
+        return None
+    hoje = datetime.now().date()
+    return (hoje.year - data.year) * 12 + (hoje.month - data.month) - (1 if hoje.day < data.day else 0)
+
+
+def sem_pagamento_recente_parcelado(registro, meses_limite=8):
+    modalidade = registro.get("contrato_modalidade") or inferir_modalidade_contrato(
+        registro.get("contrato_arquivo"),
+        registro.get("pasta_local"),
+    )
+    if modalidade != "parcelado":
+        return False
+    total = inteiro(registro.get("parcelas_total_contrato"))
+    pagas = inteiro(registro.get("parcelas_pagas_identificadas"))
+    meses_sem_pagamento = meses_desde_data(registro.get("ultimo_vencimento_pago"))
+    return (
+        meses_sem_pagamento is not None
+        and meses_sem_pagamento >= meses_limite
+        and total > 0
+        and pagas < total
+    )
+
+
 def classificar_status_atraso(qtd):
     qtd = inteiro(qtd)
     if qtd <= 3:
@@ -322,6 +357,8 @@ def deduzir_situacao_final(registro):
 
     if status == "ERRO":
         return "Bloqueado"
+    if sem_pagamento_recente_parcelado(registro):
+        return "Bloqueado"
     if status == "PENDENTE":
         if total > 0 and pagas >= total:
             return "Quitado com alerta"
@@ -351,9 +388,7 @@ def deduzir_resumo_contrato(registro):
     restantes = inteiro(registro.get("parcelas_restantes"))
 
     if modalidade == "a_vista":
-        if pagas >= max(total, 1) and max(total, 1) > 0:
-            return "A VISTA"
-        return "PAGAMENTO A VISTA"
+        return "A VISTA"
     if modalidade == "quitado":
         return "QUITADO"
     if total > 0 and pagas >= total:
@@ -378,9 +413,7 @@ def deduzir_resumo_parcelas(registro):
     pagas = inteiro(registro.get("parcelas_pagas_identificadas"))
 
     if modalidade == "a_vista":
-        if pagas >= max(total, 1) and max(total, 1) > 0:
-            return "A VISTA / quitado"
-        return "A VISTA"
+        return "A VISTA / quitado"
     if modalidade == "quitado":
         return "QUITADO"
     if total <= 0:
@@ -398,6 +431,7 @@ def normalizar_registro_cache(registro):
     item.setdefault("cliente", "")
     item.setdefault("lote", "-")
     item.setdefault("quadra", "-")
+    item.setdefault("chave_lote_canonica", "")
     item.setdefault("status", "Pendente validacao WidePay" if item.get("contrato") == "Encontrado" else "Sem contrato confirmado")
     item.setdefault("contrato", "Nao encontrado")
     item.setdefault("contrato_arquivo", "")
@@ -434,10 +468,42 @@ def normalizar_registro_cache(registro):
             item.get("contrato_arquivo"),
             item.get("pasta_local"),
         )
+    if item.get("contrato_modalidade") == "a_vista":
+        item["contrato_resumo"] = "A VISTA"
+        item["parcelas_resumo"] = "A VISTA / quitado"
+        item["parcelas_restantes"] = 0
+        item["parcelas_total_contrato"] = item.get("parcelas_total_contrato") or 1
+    else:
+        total_contrato = inteiro(item.get("parcelas_total_contrato"))
+        pagas_contrato = inteiro(item.get("parcelas_pagas_identificadas"))
+        if total_contrato > 0 and pagas_contrato >= 0:
+            item["parcelas_restantes"] = max(0, total_contrato - pagas_contrato)
+    item["chave_lote_canonica"] = normalizar_lote_quadra(
+        item.get("lote"),
+        item.get("quadra"),
+        item.get("referencia"),
+        item.get("pasta_local"),
+    ) or item.get("chave_lote_canonica") or ""
+    situacao_calculada = deduzir_situacao_final(item)
+    if situacao_calculada == "Bloqueado" or not item.get("situacao_final"):
+        item["situacao_final"] = situacao_calculada
     item["contrato_resumo"] = deduzir_resumo_contrato(item)
     item["parcelas_resumo"] = deduzir_resumo_parcelas(item)
-    if not item.get("situacao_final"):
-        item["situacao_final"] = deduzir_situacao_final(item)
+    if sem_pagamento_recente_parcelado(item):
+        meses_sem_pagamento = meses_desde_data(item.get("ultimo_vencimento_pago"))
+        aviso = f"Sem pagamento recebido ha mais de 8 meses ({meses_sem_pagamento} meses)"
+        obs = item.get("observacoes") or ""
+        if aviso not in obs:
+            item["observacoes"] = f"{obs} | {aviso}" if obs else aviso
+        item["status_atraso_cor"] = "vermelho"
+        item["status_atraso_rotulo"] = "Sem pagamento recente"
+        item["status_atraso_origem"] = "WidePay/cache"
+        item["status_atraso_qtd"] = max(inteiro(item.get("status_atraso_qtd")), 6)
+    elif item.get("contrato_modalidade") == "parcelado" and item.get("situacao_final") == "Bloqueado":
+        item["status_atraso_cor"] = "vermelho"
+        item["status_atraso_rotulo"] = item.get("status_atraso_rotulo") or "Bloqueado"
+        item["status_atraso_origem"] = item.get("status_atraso_origem") or "WidePay/cache"
+        item["status_atraso_qtd"] = max(inteiro(item.get("status_atraso_qtd")), 6)
     item["status_atraso_qtd"] = inteiro(item.get("status_atraso_qtd", item.get("boletos_atrasados", 0)))
     item["boletos_atrasados"] = item["status_atraso_qtd"]
     item["status_atraso_cor"] = item.get("status_atraso_cor") or classificar_status_atraso(item["status_atraso_qtd"])
@@ -771,11 +837,57 @@ def carregar_metricas_historicas_locais(cliente, lote):
 
 def chave_registro_cache(registro):
     pasta = str(registro.get("pasta_local") or "").strip().lower()
-    lote = str(registro.get("lote") or "-").strip().upper()
+    lote = chave_lote_canonica(registro) or str(registro.get("lote") or "-").strip().upper()
     cliente = slug_busca(registro.get("cliente") or "")
     if pasta:
         return ("pasta", pasta, lote)
     return ("cliente_lote", cliente, lote)
+
+
+def pontuar_completude(registro):
+    pontos = 0
+    if registro.get("contrato") == "Encontrado":
+        pontos += 100
+    if valor_preenchido(registro.get("cliente")):
+        pontos += 15
+    if chave_lote_canonica(registro):
+        pontos += 15
+    if registro.get("contrato_modalidade") not in ("", "nao_confirmado", "NAO CONFIRMADO", None):
+        pontos += 10
+    for campo in (
+        "valor_total_contratado",
+        "valor_total_pago",
+        "parcelas_total_contrato",
+        "parcelas_pagas_identificadas",
+        "ultima_atualizacao_widepay",
+        "contrato_arquivo",
+    ):
+        if valor_preenchido(registro.get(campo)):
+            pontos += 5
+    return pontos
+
+
+def mesclar_duplicados(principal, candidato):
+    if pontuar_completude(candidato) > pontuar_completude(principal):
+        principal, candidato = dict(candidato), principal
+    else:
+        principal = dict(principal)
+
+    for campo, valor in candidato.items():
+        if campo in ("observacoes", "divergencias") and valor_preenchido(valor):
+            atual = principal.get(campo)
+            if valor and valor != atual:
+                principal[campo] = f"{atual} | {valor}" if atual else valor
+            continue
+        if not valor_preenchido(principal.get(campo)) and valor_preenchido(valor):
+            principal[campo] = valor
+
+    chave_can = chave_lote_canonica(principal) or chave_lote_canonica(candidato)
+    if chave_can:
+        principal["chave_lote_canonica"] = chave_can
+        principal["lote"] = chave_can
+        principal["quadra"] = chave_can[:1]
+    return normalizar_registro_cache(principal)
 
 
 def deduplicar_preservando_ordem(registros):
@@ -785,7 +897,9 @@ def deduplicar_preservando_ordem(registros):
         chave = chave_registro_cache(registro)
         if chave not in unicos:
             ordem.append(chave)
-        unicos[chave] = registro
+            unicos[chave] = registro
+        else:
+            unicos[chave] = mesclar_duplicados(unicos[chave], registro)
     return [unicos[chave] for chave in ordem]
 
 
@@ -842,12 +956,26 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None):
                     "quadra": dados_contrato.get("quadra") or "-",
                 })
             
-            log(f"WidePay eficiente: coletando todos os {len(payload)} cliente(s) simultaneamente via busca global.")
+            inicio_coleta = datetime.now().isoformat(timespec="seconds")
+            log(f"WidePay global: coletando boletos/carnes de {len(payload)} cliente(s) em uma varredura paginada.")
             try:
                 resultado_bloco = await extrair_dados_clientes_bloco(ws_url, payload)
             except Exception as e:
                 log(f"Erro na extracao em lote: {e}")
                 resultado_bloco = {}
+            boletos_cache = registros_de_resultado_bloco(resultado_bloco)
+            metadados_cache = {
+                "inicio_coleta": inicio_coleta,
+                "fim_coleta": datetime.now().isoformat(timespec="seconds"),
+                "total_paginas": "",
+                "total_registros_coletados": len(boletos_cache),
+                "total_carnes": sum(1 for b in boletos_cache if b.get("fonte") == "carne"),
+                "total_cobrancas": sum(1 for b in boletos_cache if b.get("fonte") == "cobranca"),
+                "total_clientes_reconhecidos": len({b.get("cliente_normalizado") for b in boletos_cache if b.get("cliente_normalizado")}),
+                "origem": "Atualizar clientes / coleta global WidePay",
+            }
+            salvar_cache_boletos_widepay(boletos_cache, metadados_cache)
+            log(f"Banco interno WidePay salvo: {len(boletos_cache)} boleto(s)/carne(s) em {config.WIDEPAY_BOLETOS_CACHE_JSON}.")
                 
             for nome_achado, dados_raw in (resultado_bloco or {}).items():
                 reg, dados_contrato = contrato_por_nome.get(nome_achado, (None, None))
@@ -918,7 +1046,7 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
     cache_anterior = {}
     try:
         for r in carregar_cache():
-            chave_cache = (str(r.get("pasta_local")).lower(), r.get("lote"))
+            chave_cache = (str(r.get("pasta_local")).lower(), chave_lote_canonica(r) or r.get("lote"))
             cache_anterior[chave_cache] = r
     except Exception:
         pass
@@ -929,7 +1057,8 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
         
         # O nome exibido deve priorizar o contrato local confirmado. Os dados financeiros
         # do cache anterior seguem preservados por mesclar_registro_indexado().
-        chave_res = (str(pasta).lower(), lote)
+        lote_canonico = normalizar_lote_quadra(lote, "", pasta.name, str(pasta)) or lote
+        chave_res = (str(pasta).lower(), lote_canonico)
         r_antigo = cache_anterior.get(chave_res)
         dados_contrato = {}
         if contrato_status == "Encontrado" and contrato_path:
@@ -938,7 +1067,7 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
         elif r_antigo and r_antigo.get("cliente"):
             cliente = r_antigo["cliente"]
         quadra = extrair_quadra(pasta.name, lote)
-        chave = (slug_busca(cliente), lote if lote != "-" else str(pasta).lower())
+        chave = (slug_busca(cliente), lote_canonico if lote_canonico != "-" else str(pasta).lower())
         if chave in vistos:
             continue
         vistos.add(chave)
@@ -1008,6 +1137,7 @@ def salvar_xlsx(registros):
         "cliente",
         "lote",
         "quadra",
+        "chave_lote_canonica",
         "status",
         "contrato",
         "contrato_resumo",
