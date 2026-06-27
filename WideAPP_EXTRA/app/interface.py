@@ -23,6 +23,7 @@ COLUNAS = [
     ("parcelas_resumo", "Parcelas", 110),
     ("situacao_final", "Situacao", 140),
     ("ultima_atualizacao_widepay", "Atualizado em", 125),
+    ("valor_total_contratado", "Valor Lote", 110),
     ("valor_total_pago", "Total pago", 100),
     ("observacoes", "Observacoes", 160),
 ]
@@ -852,7 +853,7 @@ class WideAppInterface:
             return item.get("situacao_final") or indexador_clientes.deduzir_situacao_final(item)
         if key == "ultima_atualizacao_widepay":
             return indexador_clientes.formatar_data_hora(item.get("ultima_atualizacao_widepay") or item.get("data_atualizacao"))
-        if key == "valor_total_pago":
+        if key in ("valor_total_pago", "valor_total_contratado"):
             return indexador_clientes.formatar_moeda(valor)
         return valor
 

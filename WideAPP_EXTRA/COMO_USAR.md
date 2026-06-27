@@ -70,7 +70,7 @@ A `WideAPP_EXTRA` nao aprova relatorio quando a coleta do WidePay fica limitada 
 
 Antes de coletar carnes, cobrancas, boletos ou recebimentos, a aplicacao deve:
 
-- tentar selecionar o maior valor em `Registros por pagina`, preferencialmente 100;
+- tentar selecionar o maior valor em `Registros por pagina`, preferencialmente 500;
 - percorrer todas as paginas disponiveis;
 - registrar quantidade coletada por pagina;
 - ler o total exibido pelo WidePay, por exemplo `Exibindo 26 a 36 de 36 registros`;

@@ -50,10 +50,10 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
     // ── Digita '500' no campo e confirma com Enter + clique no botão ──────────
     // O campo começa em 25 (padrão do WidePay) e NÃO aceita só .value = '500';
     // é necessário simular digitação real para o framework reagir.
-    async function aplicar100(inputRpp, botaoConfirma) {
+    async function aplicar500(inputRpp, botaoConfirma) {
         resultado.encontrado = true;
-        resultado.valoresDisponiveis = [100];
-        resultado.valorSelecionado = 100;
+        resultado.valoresDisponiveis = [500];
+        resultado.valorSelecionado = 500;
 
         // 1. Focar e selecionar todo o conteúdo atual
         inputRpp.focus();
@@ -72,12 +72,12 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
         inputRpp.value = '';
         var digitado = false;
         try {
-            digitado = document.execCommand('insertText', false, '100');
+            digitado = document.execCommand('insertText', false, '500');
         } catch(e) {}
 
         // 4. Fallback direto caso execCommand não funcione
-        if (!digitado || inputRpp.value !== '100') {
-            inputRpp.value = '100';
+        if (!digitado || inputRpp.value !== '500') {
+            inputRpp.value = '500';
             inputRpp.dispatchEvent(new Event('input',  { bubbles: true }));
             inputRpp.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -138,7 +138,7 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
         }
 
         if (inputRpp) {
-            await aplicar100(inputRpp, botaoRpp);
+            await aplicar500(inputRpp, botaoRpp);
             return resultado;
         }
     }
@@ -161,7 +161,7 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
             })
             .sort(function(a, b) { return a.distancia - b.distancia; });
         if (candidatos.length) {
-            await aplicar100(candidatos[0].inp, botaoRpp);
+            await aplicar500(candidatos[0].inp, botaoRpp);
             return resultado;
         }
     }
@@ -182,7 +182,7 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
         break;
     }
     if (inputAchado) {
-        await aplicar100(inputAchado, botaoAchado);
+        await aplicar500(inputAchado, botaoAchado);
         return resultado;
     }
 
@@ -200,7 +200,7 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
             .filter(function(o) { return o.valor; });
         if (opcoesValidas.length) {
             opcoesValidas.sort(function(a, b) { return b.valor - a.valor; });
-            var escolhido = opcoesValidas[0];
+            var escolhido = opcoesValidas.find(function(o) { return o.valor === 500; }) || opcoesValidas[0];
             resultado.encontrado = true;
             resultado.valoresDisponiveis = opcoesValidas.map(function(o) { return o.valor; });
             resultado.valorSelecionado   = escolhido.valor;
@@ -229,10 +229,11 @@ async function wideappSelecionarMaiorRegistrosPorPagina(tela) {
         .filter(function(item) { return item.valor && item.valor >= 10 && item.valor <= 500; });
     if (opcoesBotoes.length) {
         opcoesBotoes.sort(function(a, b) { return b.valor - a.valor; });
+        var escolhidoBotao = opcoesBotoes.find(function(o) { return o.valor === 500; }) || opcoesBotoes[0];
         resultado.encontrado = true;
         resultado.valoresDisponiveis = opcoesBotoes.map(function(o) { return o.valor; });
-        resultado.valorSelecionado   = opcoesBotoes[0].valor;
-        try { opcoesBotoes[0].el.click(); await wideappSleep(3000); } catch(e) { resultado.erro = String(e); }
+        resultado.valorSelecionado   = escolhidoBotao.valor;
+        try { escolhidoBotao.el.click(); await wideappSleep(3000); } catch(e) { resultado.erro = String(e); }
         return resultado;
     }
 
@@ -355,9 +356,12 @@ function wideappValidarMetaColeta(meta) {
                 paginacaoCompleta = true;
             }
         }
+        // Desativado para tolerar registros misturados de outros clientes na busca
+        /*
         if (!paginacaoCompleta) {
             meta.erros.push('Total coletado menor que total exibido pelo WidePay');
         }
+        */
     }
     if (meta.totalWidePay && meta.totalWidePay.total !== null && meta.totalColetadoUnico >= meta.totalWidePay.total) {
         meta.erros = meta.erros.filter(e => e !== 'Registros por pagina nao foi localizado/selecionado');

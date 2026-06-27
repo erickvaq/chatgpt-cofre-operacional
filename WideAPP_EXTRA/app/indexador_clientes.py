@@ -360,7 +360,7 @@ def deduzir_resumo_contrato(registro):
         return "CONTRATO QUITADO"
     if total > 0 and pagas > 0 and restantes == 0:
         return "SEM PARCELAS PENDENTES"
-    if total > 0:
+    if total > 0 or modalidade == "parcelado":
         return "Parcelado"
     return "NAO CONFIRMADO"
 
@@ -381,7 +381,11 @@ def deduzir_resumo_parcelas(registro):
         if pagas >= max(total, 1) and max(total, 1) > 0:
             return "A VISTA / quitado"
         return "A VISTA"
+    if modalidade == "quitado":
+        return "QUITADO"
     if total <= 0:
+        if modalidade == "parcelado":
+            return f"{pagas} / ? pagas"
         return "NAO CONFIRMADO"
     if pagas >= total:
         return f"{pagas} / {total} quitado"
@@ -817,37 +821,44 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None):
 
         async def _coletar():
             atualizados_por_chave = {}
-            for idx in range(0, len(confirmados), 3):
-                bloco = confirmados[idx:idx + 3]
-                payload = []
-                contrato_por_nome = {}
-                for reg in bloco:
-                    dados_contrato = {
-                        "cliente": reg.get("cliente"),
-                        "lote": reg.get("lote"),
-                        "quadra": reg.get("quadra"),
-                        "valor_parcela": decimal(reg.get("valor_base_parcela")),
-                        "total_parcelas": inteiro(reg.get("parcelas_total_contrato")),
-                        "valor_total_contrato": decimal(reg.get("valor_total_contratado")),
-                        "entrada": decimal(reg.get("entrada_valor")),
-                    }
-                    nome = dados_contrato["cliente"] or reg.get("cliente") or ""
-                    contrato_por_nome[nome] = (reg, dados_contrato)
-                    payload.append({
-                        "nome": nome,
-                        "lote": dados_contrato.get("lote") or "-",
-                        "quadra": dados_contrato.get("quadra") or "-",
-                    })
-                log(f"WidePay leve: coletando bloco {idx // 3 + 1} com {len(payload)} cliente(s).")
+            payload = []
+            contrato_por_nome = {}
+            for reg in confirmados:
+                dados_contrato = {
+                    "cliente": reg.get("cliente"),
+                    "lote": reg.get("lote"),
+                    "quadra": reg.get("quadra"),
+                    "valor_parcela": decimal(reg.get("valor_base_parcela")),
+                    "total_parcelas": inteiro(reg.get("parcelas_total_contrato")),
+                    "valor_total_contrato": decimal(reg.get("valor_total_contratado")),
+                    "entrada": decimal(reg.get("entrada_valor")),
+                }
+                nome = dados_contrato["cliente"] or reg.get("cliente") or ""
+                contrato_por_nome[nome] = (reg, dados_contrato)
+                contrato_por_nome[normalizar(nome).lower()] = (reg, dados_contrato)
+                payload.append({
+                    "nome": nome,
+                    "lote": dados_contrato.get("lote") or "-",
+                    "quadra": dados_contrato.get("quadra") or "-",
+                })
+            
+            log(f"WidePay eficiente: coletando todos os {len(payload)} cliente(s) simultaneamente via busca global.")
+            try:
                 resultado_bloco = await extrair_dados_clientes_bloco(ws_url, payload)
-                for nome, dados_raw in (resultado_bloco or {}).items():
-                    reg, dados_contrato = contrato_por_nome.get(nome, ({}, {}))
-                    if not reg:
-                        continue
-                    metrics = montar_metricas_resumo_widepay(dados_raw, dados_contrato)
-                    atualizado = aplicar_metricas_registro(reg, metrics)
-                    atualizado["origem_dados"] = "Contrato local + WidePay leve"
-                    atualizados_por_chave[chave_registro_cache(reg)] = atualizado
+            except Exception as e:
+                log(f"Erro na extracao em lote: {e}")
+                resultado_bloco = {}
+                
+            for nome_achado, dados_raw in (resultado_bloco or {}).items():
+                reg, dados_contrato = contrato_por_nome.get(nome_achado, (None, None))
+                if not reg:
+                    reg, dados_contrato = contrato_por_nome.get(normalizar(nome_achado).lower(), (None, None))
+                if not reg:
+                    continue
+                metrics = montar_metricas_resumo_widepay(dados_raw, dados_contrato)
+                atualizado = aplicar_metricas_registro(reg, metrics)
+                atualizado["origem_dados"] = "Contrato local + WidePay global"
+                atualizados_por_chave[chave_registro_cache(reg)] = atualizado
             return atualizados_por_chave
 
         try:

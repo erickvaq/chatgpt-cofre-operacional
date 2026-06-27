@@ -643,7 +643,7 @@ Esta regra vale para cobrancas, boletos, carnes, recebimentos, pagamentos recebi
 
 Funcionamento obrigatorio:
 1. ao abrir tabela do WidePay, localizar o controle `Registros por pagina`;
-2. selecionar o maior valor disponivel, preferencialmente 100;
+2. selecionar o maior valor disponivel, preferencialmente 500;
 3. aguardar recarregamento da tabela;
 4. registrar em log cliente pesquisado, tela, filtro, valor selecionado, total exibido pelo WidePay, pagina atual, quantidade de paginas e quantidade coletada por pagina;
 5. coletar todos os registros visiveis da pagina atual;

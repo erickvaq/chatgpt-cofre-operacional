@@ -653,7 +653,7 @@ def gerar_relatorio_excel(dados_wp, dados_cliente, valor_parcela,
     print(f"  Parcelas restantes: {max(0, total_parcelas_contrato - parcelas_pagas_equiv)}")
     print(f"  Alertas: {len(alertas)}")
     if tem_falha:
-        print("  ⚠ ENTREGA BLOQUEADA: validacao matematica falhou")
+        print("  ALERTA: ENTREGA BLOQUEADA - validacao matematica falhou")
     return not tem_falha
 
 

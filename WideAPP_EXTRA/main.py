@@ -5,6 +5,7 @@ import argparse
 import importlib
 import subprocess
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -221,8 +222,23 @@ class WideApp:
             self.log("INTERFACE: validacao basica falhou")
             return 1
         self.log("INTERFACE: abrindo interface visual")
-        abrir_interface()
-        return 0
+        try:
+            abrir_interface()
+            self.log("INTERFACE: encerrada normalmente")
+            return 0
+        except Exception as exc:
+            self.log(f"INTERFACE_ERRO: {exc}")
+            self.log(traceback.format_exc())
+            try:
+                import tkinter as tk
+                from tkinter import messagebox
+                root = tk.Tk()
+                root.withdraw()
+                messagebox.showerror("WideAPP_EXTRA", f"Falha ao abrir interface:\n{exc}")
+                root.destroy()
+            except Exception:
+                pass
+            return 1
 
     def atualizar_clientes(self, validar_widepay=True):
         from app.indexador_clientes import indexar_clientes

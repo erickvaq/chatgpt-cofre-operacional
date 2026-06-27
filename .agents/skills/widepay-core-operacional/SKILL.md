@@ -71,8 +71,8 @@ Palavras-chave: `buscar cliente`, `auditar lote`, `WidePay`, `conferir parcelas`
 
 ## 5.3 Coleta WidePay com registros por pagina, paginacao completa e validacao total
 * Toda coleta de carnes, cobrancas, boletos, recebimentos e pagamentos na `WideAPP_EXTRA` deve passar pelo coletor central `WideAPP_EXTRA/app/coletor_tabelas_paginadas.py`.
-* Antes de coletar uma tabela do WidePay, localizar `Registros por pagina`, selecionar o maior valor disponivel, preferencialmente 100, e aguardar o recarregamento.
-* Mesmo com 100 registros por pagina, nunca presumir fim da coleta: validar botoes de primeira/proxima/ultima pagina e percorrer ate a ultima pagina.
+* Antes de coletar uma tabela do WidePay, localizar `Registros por pagina`, selecionar o maior valor disponivel, preferencialmente 500, e aguardar o recarregamento.
+* Mesmo com 500 registros por pagina, nunca presumir fim da coleta: validar botoes de primeira/proxima/ultima pagina e percorrer ate a ultima pagina.
 * Registrar no log cliente pesquisado, tela, filtro usado, valor de registros por pagina, total exibido pelo WidePay, pagina atual, total de paginas e quantidade coletada por pagina.
 * Deduplicar por chave segura com cliente, referencia, vencimento, valor, valor recebido, status e identificador/link quando existir.
 * Comparar total coletado contra total exibido pelo WidePay. Se aparecer `Exibindo 26 a 36 de 36 registros`, o total esperado e 36, nao 11.

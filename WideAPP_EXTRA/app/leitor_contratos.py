@@ -75,20 +75,31 @@ def extrair_texto_pdf(caminho_pdf):
         return ""
 
 def extrair_nome_cliente(texto, nome_sugerido):
-    # Procurar por padrão "2-[NOME COM COMPRADOR]" ou "2. [NOME]"
-    match = re.search(r'2-\s*([A-Za-zÀ-ÿ\s\'\.\-]+?),\s*(?:brasileir|estrangeir|solteir|casad|divorciad|portador|inscrit|residente|cpf|rg)', texto, re.IGNORECASE)
+    if not texto:
+        return nome_sugerido.upper()
+
+    # Padrão 1: "2-[NOME COM COMPRADOR]" ou "2. [NOME]" ou "2 - [NOME]"
+    match = re.search(r'2-?\s*([A-Za-zÀ-ÿ\s\'\.\-]+?),\s*(?:brasileir|estrangeir|solteir|casad|divorciad|portador|inscrit|residente|cpf|rg)', texto, re.IGNORECASE)
     if match:
         nome = match.group(1).strip()
         nome = re.sub(r'\s+', ' ', nome)
-        if len(nome.split()) >= 2 and len(nome) > 5:
+        if len(nome.split()) >= 2 and len(nome) > 5 and not "vendedor" in nome.lower():
             return nome.upper()
             
-    # Padrão alternativo: COMPRADOR: [NOME]
-    match = re.search(r'(?:promissario comprador|comprador|compradora|cessionario)\s*:\s*([A-Za-zÀ-ÿ\s\'\.\-]+?),\s*(?:brasileir|estrangeir|solteir|casad|divorciad|portador|inscrit|residente|cpf|rg)', texto, re.IGNORECASE)
+    # Padrão 2: de outro lado [NOME COMPRADOR] (comum em distratos e redações livres)
+    match = re.search(r'de\s+outro\s+lado\s+([A-Za-zÀ-ÿ\s\'\.\-]+?),\s*(?:brasileir|estrangeir|solteir|casad|divorciad|portador|inscrit|residente|cpf|rg)', texto, re.IGNORECASE)
     if match:
         nome = match.group(1).strip()
         nome = re.sub(r'\s+', ' ', nome)
-        if len(nome.split()) >= 2 and len(nome) > 5:
+        if len(nome.split()) >= 2 and len(nome) > 5 and not "vendedor" in nome.lower():
+            return nome.upper()
+
+    # Padrão 3: COMPRADOR: [NOME] ou COMPRADORA: [NOME] ou CESSIONARIO: [NOME] ou DISTRATANTE COMPRADOR: [NOME]
+    match = re.search(r'(?:promissario comprador|comprador|compradora|cessionario|distratante comprador)\s*(?::|e|de|a)?\s*([A-Za-zÀ-ÿ\s\'\.\-]+?),\s*(?:brasileir|estrangeir|solteir|casad|divorciad|portador|inscrit|residente|cpf|rg)', texto, re.IGNORECASE)
+    if match:
+        nome = match.group(1).strip()
+        nome = re.sub(r'\s+', ' ', nome)
+        if len(nome.split()) >= 2 and len(nome) > 5 and not "vendedor" in nome.lower():
             return nome.upper()
             
     return nome_sugerido.upper()

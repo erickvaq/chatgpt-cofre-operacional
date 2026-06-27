@@ -5,6 +5,7 @@ title WideAPP_EXTRA - Aplicacao Independente
 
 set "APP_DIR=%~dp0"
 set "PYTHON_EXE=%APP_DIR%.venv\Scripts\python.exe"
+set "PYTHONW_EXE=%APP_DIR%.venv\Scripts\pythonw.exe"
 set "MAIN_PY=%APP_DIR%main.py"
 
 echo ========================================================
@@ -26,6 +27,11 @@ if not exist "%MAIN_PY%" (
     echo %MAIN_PY%
     pause
     exit /b 1
+)
+
+if "%~1"=="" if exist "%PYTHONW_EXE%" (
+    start "" "%PYTHONW_EXE%" "%MAIN_PY%"
+    exit /b 0
 )
 
 "%PYTHON_EXE%" "%MAIN_PY%" %*
