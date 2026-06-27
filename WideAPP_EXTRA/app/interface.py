@@ -17,6 +17,7 @@ from app.abridor_arquivos import abrir_pasta, abrir
 
 
 COLUNAS = [
+    ("cliente", "Cliente", 220),
     ("lote", "Lote", 60),
     ("quadra", "Quadra", 60),
     ("contrato_resumo", "Contrato", 140),
@@ -289,8 +290,8 @@ class WideAppInterface:
         meio = ttk.Frame(self.root, padding=8)
         meio.pack(fill="both", expand=True)
         self.tree = ttk.Treeview(meio, columns=[c[0] for c in COLUNAS], show="tree headings", selectmode="extended")
-        self.tree.heading("#0", text="Cliente")
-        self.tree.column("#0", width=220, anchor="w")
+        self.tree.heading("#0", text="STATUS")
+        self.tree.column("#0", width=80, anchor="center")
         for key, label, width in COLUNAS:
             self.tree.heading(key, text=label)
             self.tree.column(key, width=width, anchor="w")
@@ -433,11 +434,12 @@ class WideAppInterface:
             values = [self._valor_grade(item, key) for key, _label, _width in COLUNAS]
             iid = str(idx)
             
-            nome_cliente = indexador_clientes.limpar_nome_cliente(item.get("cliente", ""))
             vencidos = item.get("boletos_atrasados")
             img_barrinha = self.obter_imagem_barrinha(vencidos)
             
-            self.tree.insert("", "end", iid=iid, text=nome_cliente, image=img_barrinha, values=values)
+            # A coluna #0 exibe apenas o ícone da barrinha na coluna STATUS.
+            # O texto da coluna #0 fica vazio (""), e o nome do cliente vai no values.
+            self.tree.insert("", "end", iid=iid, text="", image=img_barrinha, values=values)
             if self._chave(item) in self.selecionados:
                 self.tree.selection_add(iid)
         self.log(f"Filtro aplicado: {len(self.filtrados)} resultado(s).")

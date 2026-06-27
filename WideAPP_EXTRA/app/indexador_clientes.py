@@ -377,9 +377,20 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
         if valor_ultimo is not None:
             item["valor_ultimo_pagamento"] = formatar_moeda(valor_ultimo)
 
-    # Contagem de boletos vencidos no WidePay
-    vencidos = sum(1 for cob in cobrancas if str(cob.get("status", "")).lower() == "vencido")
-    item["boletos_atrasados"] = vencidos
+    # Contagem de boletos vencidos no WidePay com abatimento/compensação por avulsos de atraso recebidos
+    vencidos_list = [cob for cob in cobrancas if str(cob.get("status", "")).lower() == "vencido"]
+    
+    compensacoes = 0
+    for cob in cobrancas:
+        status_lower = str(cob.get("status", "")).lower()
+        # Se o boleto avulso foi pago (recebido) e indica pagamento de atrasos
+        if status_lower == "recebido" and cob.get("classificacao") == "avulso":
+            desc_lower = str(cob.get("descricao", "")).lower()
+            if any(term in desc_lower for term in ["atraso", "atrazos", "ref", "referente"]):
+                compensacoes += 1
+                
+    boletos_atrasados = max(0, len(vencidos_list) - compensacoes)
+    item["boletos_atrasados"] = boletos_atrasados
 
     return item
 
