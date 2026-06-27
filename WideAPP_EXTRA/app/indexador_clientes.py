@@ -15,9 +15,53 @@ from app.leitor_contratos import extrair_texto_docx, extrair_texto_pdf, extrair_
 
 LOTE_RE = re.compile(r"\b([A-H]\s*[-.]?\s*\d{1,3}[A-Z]?)\b", re.IGNORECASE)
 QUADRA_RE = re.compile(r"\bquadra\s*([A-H])\b", re.IGNORECASE)
+CONTRATO_A_VISTA_RE = re.compile(r"\b(a\s+vista|avista|pagamento\s+a\s+vista)\b", re.IGNORECASE)
+CONTRATO_QUITADO_RE = re.compile(r"\b(quitad[oa]?|quitacao|sem parcelas pendentes)\b", re.IGNORECASE)
+PASTA_IGNORADA_RE = re.compile(r"\b(backup|bkp|nova pasta|temporari[oa])\b", re.IGNORECASE)
 REMOVE_WORDS_RE = re.compile(
     r"\b(contrato|copia|final|corrigido|previa|carne\d*|apart\d*|agua|viva|leandro|meirelles|leo|docx|pdf|txt|html|md)\b",
     re.IGNORECASE,
+)
+
+PERSISTIR_CAMPOS = (
+    "status",
+    "parcelas_pagas_identificadas",
+    "parcelas_total_contrato",
+    "parcelas_restantes",
+    "parcelas_resumo",
+    "contrato_resumo",
+    "contrato_modalidade",
+    "valor_total_pago",
+    "ultima_parcela_paga",
+    "ultimo_vencimento_pago",
+    "valor_ultimo_pagamento",
+    "ultima_atualizacao_widepay",
+    "situacao_final",
+    "observacoes",
+    "divergencias",
+    "boletos_atrasados",
+)
+
+PRESERVAR_EM_REINDEXACAO = (
+    "selecionado",
+    "cliente",
+    "status",
+    "parcelas_pagas_identificadas",
+    "parcelas_total_contrato",
+    "parcelas_restantes",
+    "parcelas_resumo",
+    "contrato_resumo",
+    "contrato_modalidade",
+    "valor_total_pago",
+    "ultima_parcela_paga",
+    "ultimo_vencimento_pago",
+    "valor_ultimo_pagamento",
+    "data_atualizacao",
+    "ultima_atualizacao_widepay",
+    "situacao_final",
+    "observacoes",
+    "divergencias",
+    "boletos_atrasados",
 )
 
 
@@ -30,6 +74,53 @@ def normalizar(texto):
 
 def slug_busca(texto):
     return re.sub(r"[^a-z0-9]+", " ", normalizar(texto).lower()).strip()
+
+
+def inteiro(valor, default=0):
+    if valor in (None, ""):
+        return default
+    try:
+        return int(float(str(valor).replace(",", ".")))
+    except (TypeError, ValueError):
+        return default
+
+
+def decimal(valor, default=0.0):
+    if valor in (None, ""):
+        return default
+    try:
+        if isinstance(valor, str):
+            limpo = valor.replace("R$", "").replace(".", "").replace(",", ".").strip()
+            return float(limpo)
+        return float(valor)
+    except (TypeError, ValueError):
+        return default
+
+
+def formatar_moeda(valor):
+    if valor in (None, ""):
+        return ""
+    numero = decimal(valor, None)
+    if numero is None:
+        return str(valor)
+    return f"R$ {numero:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def formatar_data_hora(valor):
+    if not valor:
+        return "Nunca atualizado"
+    bruto = str(valor).strip()
+    for parser in (datetime.fromisoformat,):
+        try:
+            return parser(bruto).strftime("%d/%m/%Y %H:%M")
+        except ValueError:
+            pass
+    for fmt in ("%d/%m/%Y %H:%M", "%d/%m/%Y", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(bruto, fmt).strftime("%d/%m/%Y %H:%M")
+        except ValueError:
+            pass
+    return bruto
 
 
 def extrair_lote(nome):
@@ -74,6 +165,270 @@ def detectar_contrato(pasta):
     return "Encontrado", str(principal)
 
 
+def inferir_modalidade_contrato(contrato_path="", pasta_local="", dados_contrato=None):
+    dados_contrato = dados_contrato or {}
+    total_parcelas = inteiro(dados_contrato.get("total_parcelas"))
+    if total_parcelas == 1:
+        return "a_vista"
+    referencia = normalizar(" ".join(filter(None, [str(contrato_path), str(pasta_local)]))).lower()
+    if CONTRATO_A_VISTA_RE.search(referencia):
+        return "a_vista"
+    if CONTRATO_QUITADO_RE.search(referencia):
+        return "quitado"
+    if contrato_path:
+        return "parcelado"
+    return "nao_confirmado"
+
+
+def deduzir_situacao_final(registro):
+    contrato_status = registro.get("contrato")
+    if contrato_status != "Encontrado":
+        return "Sem contrato confirmado"
+
+    status = str(registro.get("status") or "").strip().upper()
+    total = inteiro(registro.get("parcelas_total_contrato"))
+    pagas = inteiro(registro.get("parcelas_pagas_identificadas"))
+    atualizado = bool(registro.get("ultima_atualizacao_widepay"))
+
+    if status == "ERRO":
+        return "Bloqueado"
+    if status == "PENDENTE":
+        if total > 0 and pagas >= total:
+            return "Quitado com alerta"
+        if atualizado and total > 0:
+            return "Em andamento com alerta"
+        return "Pendente de validacao"
+    if total > 0 and pagas >= total:
+        return "Quitado"
+    if atualizado and total > 0:
+        return "Em andamento"
+    if atualizado:
+        return "Atualizado"
+    return "Pendente de auditoria"
+
+
+def deduzir_resumo_contrato(registro):
+    contrato_status = registro.get("contrato")
+    if contrato_status != "Encontrado":
+        return "NAO CONFIRMADO"
+
+    modalidade = registro.get("contrato_modalidade") or inferir_modalidade_contrato(
+        registro.get("contrato_arquivo"),
+        registro.get("pasta_local"),
+    )
+    total = inteiro(registro.get("parcelas_total_contrato"))
+    pagas = inteiro(registro.get("parcelas_pagas_identificadas"))
+    restantes = inteiro(registro.get("parcelas_restantes"))
+
+    if modalidade == "a_vista":
+        if pagas >= max(total, 1) and max(total, 1) > 0:
+            return "A VISTA"
+        return "PAGAMENTO A VISTA"
+    if modalidade == "quitado":
+        return "QUITADO"
+    if total > 0 and pagas >= total:
+        return "CONTRATO QUITADO"
+    if total > 0 and pagas > 0 and restantes == 0:
+        return "SEM PARCELAS PENDENTES"
+    if total > 0:
+        return "Parcelado"
+    return "NAO CONFIRMADO"
+
+
+def deduzir_resumo_parcelas(registro):
+    contrato_status = registro.get("contrato")
+    if contrato_status != "Encontrado":
+        return "NAO CONFIRMADO"
+
+    modalidade = registro.get("contrato_modalidade") or inferir_modalidade_contrato(
+        registro.get("contrato_arquivo"),
+        registro.get("pasta_local"),
+    )
+    total = inteiro(registro.get("parcelas_total_contrato"))
+    pagas = inteiro(registro.get("parcelas_pagas_identificadas"))
+
+    if modalidade == "a_vista":
+        if pagas >= max(total, 1) and max(total, 1) > 0:
+            return "A VISTA / quitado"
+        return "A VISTA"
+    if total <= 0:
+        return "NAO CONFIRMADO"
+    if pagas >= total:
+        return f"{pagas} / {total} quitado"
+    return f"{pagas} / {total} pagas"
+
+
+def normalizar_registro_cache(registro):
+    item = dict(registro or {})
+    item.setdefault("selecionado", False)
+    item.setdefault("cliente", "")
+    item.setdefault("lote", "-")
+    item.setdefault("quadra", "-")
+    item.setdefault("status", "Pendente validacao WidePay" if item.get("contrato") == "Encontrado" else "Sem contrato confirmado")
+    item.setdefault("contrato", "Nao encontrado")
+    item.setdefault("contrato_arquivo", "")
+    item.setdefault("origem", "Contrato local")
+    item.setdefault("parcelas_pagas_identificadas", "")
+    item.setdefault("parcelas_total_contrato", "")
+    item.setdefault("parcelas_restantes", "")
+    item.setdefault("parcelas_resumo", "")
+    item.setdefault("contrato_resumo", "")
+    item.setdefault("contrato_modalidade", "")
+    item.setdefault("valor_total_pago", "")
+    item.setdefault("ultima_parcela_paga", "")
+    item.setdefault("ultimo_vencimento_pago", "")
+    item.setdefault("valor_ultimo_pagamento", "")
+    item.setdefault("data_atualizacao", "")
+    item.setdefault("ultima_atualizacao_widepay", "")
+    item.setdefault("situacao_final", "")
+    item.setdefault("observacoes", "")
+    item.setdefault("divergencias", "")
+    item.setdefault("pasta_local", "")
+    item.setdefault("boletos_atrasados", "")
+
+    if not item.get("contrato_modalidade"):
+        item["contrato_modalidade"] = inferir_modalidade_contrato(
+            item.get("contrato_arquivo"),
+            item.get("pasta_local"),
+        )
+    item["contrato_resumo"] = deduzir_resumo_contrato(item)
+    item["parcelas_resumo"] = deduzir_resumo_parcelas(item)
+    if not item.get("situacao_final"):
+        item["situacao_final"] = deduzir_situacao_final(item)
+    return item
+
+
+def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
+    if not metrics:
+        return normalizar_registro_cache(registro)
+
+    item = normalizar_registro_cache(registro)
+    contrato = metrics.get("contrato") or {}
+    calculos = metrics.get("calculos") or {}
+    normalizado = metrics.get("normalizado") or {}
+    cobrancas = normalizado.get("cobrancas") or []
+    atualizado_iso = atualizado_em or datetime.now().isoformat(timespec="seconds")
+
+    try:
+        from app.validador_matematico import validar_conciliacao
+
+        status_val, notas, bloqueado = validar_conciliacao(calculos, contrato)
+    except Exception:
+        status_val, notas, bloqueado = "PENDENTE", [], False
+
+    cliente_real = contrato.get("cliente")
+    if cliente_real:
+        item["cliente"] = cliente_real
+    lote_real = contrato.get("lote")
+    if lote_real and item.get("lote") in ("", "-", None):
+        item["lote"] = lote_real
+    quadra_real = contrato.get("quadra")
+    if quadra_real:
+        item["quadra"] = quadra_real
+
+    total_parcelas = inteiro(calculos.get("total_parcelas_contrato") or contrato.get("total_parcelas"))
+    parcelas_pagas = inteiro(calculos.get("parcelas_pagas_equivalentes"))
+    parcelas_restantes = inteiro(calculos.get("parcelas_restantes"))
+    valor_total_pago = round(decimal(calculos.get("total_pago_consolidado")), 2)
+
+    item["status"] = status_val
+    item["parcelas_pagas_identificadas"] = parcelas_pagas if total_parcelas > 0 or parcelas_pagas > 0 else ""
+    item["parcelas_total_contrato"] = total_parcelas if total_parcelas > 0 else ""
+    item["parcelas_restantes"] = parcelas_restantes if total_parcelas > 0 else ""
+    item["valor_total_pago"] = valor_total_pago if valor_total_pago > 0 else ""
+    item["ultima_atualizacao_widepay"] = atualizado_iso
+    item["data_atualizacao"] = atualizado_iso
+    item["contrato_modalidade"] = inferir_modalidade_contrato(
+        item.get("contrato_arquivo"),
+        item.get("pasta_local"),
+        contrato,
+    )
+    item["situacao_final"] = deduzir_situacao_final(item)
+    item["contrato_resumo"] = deduzir_resumo_contrato(item)
+    item["parcelas_resumo"] = deduzir_resumo_parcelas(item)
+
+    observacoes = []
+    if bloqueado:
+        observacoes.append("Relatorio bloqueado")
+    if notas:
+        observacoes.extend(notas[:2])
+    item["observacoes"] = " | ".join(observacoes) if observacoes else "Relatorio gerado"
+    item["divergencias"] = " | ".join(notas[2:]) if len(notas) > 2 else ""
+
+    pagamentos = calculos.get("pagamentos_interpretados") or []
+    ultimo_pgto = None
+    ultima_data = None
+    for pagamento in pagamentos:
+        data_ref = pagamento.get("pagamento") or pagamento.get("vencimento")
+        if not data_ref:
+            continue
+        try:
+            dt = datetime.strptime(str(data_ref), "%d/%m/%Y")
+        except ValueError:
+            continue
+        if ultima_data is None or dt > ultima_data:
+            ultima_data = dt
+            ultimo_pgto = pagamento
+
+    if ultimo_pgto:
+        item["ultimo_vencimento_pago"] = ultimo_pgto.get("vencimento", "")
+        item["ultima_parcela_paga"] = ultimo_pgto.get("descricao", "")
+        valor_ultimo = ultimo_pgto.get("valor_recebido")
+        if valor_ultimo is not None:
+            item["valor_ultimo_pagamento"] = formatar_moeda(valor_ultimo)
+
+    # Contagem de boletos vencidos no WidePay
+    vencidos = sum(1 for cob in cobrancas if str(cob.get("status", "")).lower() == "vencido")
+    item["boletos_atrasados"] = vencidos
+
+    return item
+
+
+def mesclar_registro_indexado(
+    pasta,
+    lote,
+    quadra,
+    contrato_status,
+    contrato_path,
+    origem,
+    widepay_status,
+    agora,
+    registro_anterior=None,
+    cliente_padrao="",
+):
+    if registro_anterior:
+        registro = dict(registro_anterior)
+    else:
+        registro = {}
+
+    for campo in PRESERVAR_EM_REINDEXACAO:
+        if registro_anterior and campo in registro_anterior:
+            registro[campo] = registro_anterior.get(campo)
+
+    registro["selecionado"] = bool(registro.get("selecionado", False))
+    registro["cliente"] = registro.get("cliente") or cliente_padrao
+    registro["lote"] = lote
+    registro["quadra"] = quadra
+    registro["contrato"] = contrato_status
+    registro["contrato_arquivo"] = contrato_path
+    registro["origem"] = origem
+    registro["pasta_local"] = str(pasta)
+    registro["contrato_modalidade"] = registro.get("contrato_modalidade") or inferir_modalidade_contrato(contrato_path, str(pasta))
+
+    if not registro.get("status"):
+        registro["status"] = "Pendente validacao WidePay" if contrato_status == "Encontrado" else "Sem contrato confirmado"
+    elif contrato_status != "Encontrado" and registro.get("status") == "Pendente validacao WidePay":
+        registro["status"] = "Sem contrato confirmado"
+
+    if registro.get("observacoes") in (None, ""):
+        registro["observacoes"] = widepay_status
+
+    if not registro.get("data_atualizacao"):
+        registro["data_atualizacao"] = agora.isoformat(timespec="seconds")
+
+    return normalizar_registro_cache(registro)
+
+
 def iterar_pastas_cliente():
     base = config.CONTRATOS_DIR
     if not base.exists():
@@ -81,6 +436,12 @@ def iterar_pastas_cliente():
     candidatos = []
     for path in base.rglob("*"):
         if not path.is_dir():
+            continue
+        try:
+            partes_relativas = path.relative_to(base).parts
+        except ValueError:
+            partes_relativas = path.parts
+        if any(PASTA_IGNORADA_RE.search(normalizar(parte).lower()) for parte in partes_relativas):
             continue
         nome = path.name.strip()
         if not nome or nome.lower().startswith(("_", ".")) or "backup" in nome.lower():
@@ -126,6 +487,57 @@ def obter_nome_real_contrato(contrato_path, nome_sugerido):
         pass
     return nome_sugerido
 
+def carregar_metricas_historicas_locais(cliente, lote):
+    """Busca no diretório de entrega o relatório JSON de métricas mais recente do cliente, usando busca flexível."""
+    try:
+        import re
+        from app.rastreabilidade import re_slug
+        cli_slug = re_slug(cliente)
+        lot_slug = re_slug(lote)
+        
+        primeira_palavra = cli_slug.split("_")[0]
+        
+        # Limpar o lote (ex: "05", "5")
+        num_lote = re.sub(r"[^0-9]", "", lot_slug)
+        
+        pasta_candidata = None
+        if config.OUTPUT_DIR.exists():
+            for p in config.OUTPUT_DIR.iterdir():
+                if not p.is_dir() or not p.name.endswith("_FINAL"):
+                    continue
+                name_upper = p.name.upper()
+                # A pasta deve conter a primeira palavra do cliente
+                if primeira_palavra in name_upper:
+                    # E o lote deve coincidir em slug completo ou parte numérica
+                    if lot_slug in name_upper or (num_lote and num_lote.lstrip("0") in name_upper):
+                        # A pasta deve conter de fato arquivos de métricas
+                        if list(p.glob("METRICAS_*.json")):
+                            pasta_candidata = p
+                            break
+                        
+        if not pasta_candidata:
+            pasta_candidata = config.OUTPUT_DIR / f"{cli_slug}_LOTE_{lot_slug}_FINAL"
+            
+        if not pasta_candidata.exists():
+            return None, None
+            
+        arquivos = list(pasta_candidata.glob("METRICAS_*.json"))
+        if not arquivos:
+            return None, None
+            
+        # Pegar o arquivo mais recentemente modificado
+        arquivos.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        mais_recente = arquivos[0]
+        
+        with open(mais_recente, "r", encoding="utf-8") as f:
+            metrics_data = json.load(f)
+            
+        mtime_iso = datetime.fromtimestamp(mais_recente.stat().st_mtime).isoformat(timespec="seconds")
+        return metrics_data, mtime_iso
+    except Exception:
+        return None, None
+
+
 def indexar_clientes(validar_widepay=False, log_callback=None):
     config.ensure_dirs()
     agora = datetime.now()
@@ -166,10 +578,10 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
         cliente_sugerido = limpar_nome_cliente(pasta.name)
         cliente = cliente_sugerido
         
-        # Se temos cache anterior para esta pasta e lote, e o status era APROVADO, preserva o nome obtido
+        # Se temos cache anterior para esta pasta e lote, preserva dados financeiros persistidos
         chave_res = (str(pasta).lower(), lote)
         r_antigo = cache_anterior.get(chave_res)
-        if r_antigo and r_antigo.get("status") == "APROVADO" and r_antigo.get("cliente"):
+        if r_antigo and r_antigo.get("cliente"):
             cliente = r_antigo["cliente"]
         elif contrato_status == "Encontrado" and contrato_path:
             cliente = obter_nome_real_contrato(contrato_path, cliente_sugerido)
@@ -179,27 +591,25 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
             continue
         vistos.add(chave)
         origem = "Contrato local"
-        status = "Pendente validacao WidePay"
-        if contrato_status != "Encontrado":
-            status = "Sem contrato confirmado"
-        registro = {
-            "selecionado": False,
-            "cliente": cliente,
-            "lote": lote,
-            "quadra": quadra,
-            "status": status,
-            "contrato": contrato_status,
-            "contrato_arquivo": contrato_path,
-            "origem": origem,
-            "parcelas_pagas_identificadas": "",
-            "ultima_parcela_paga": "",
-            "ultimo_vencimento_pago": "",
-            "valor_ultimo_pagamento": "",
-            "data_atualizacao": agora.isoformat(timespec="seconds"),
-            "observacoes": widepay_status,
-            "divergencias": "",
-            "pasta_local": str(pasta),
-        }
+        registro = mesclar_registro_indexado(
+            pasta=pasta,
+            lote=lote,
+            quadra=quadra,
+            contrato_status=contrato_status,
+            contrato_path=contrato_path,
+            origem=origem,
+            widepay_status=widepay_status,
+            agora=agora,
+            registro_anterior=r_antigo,
+            cliente_padrao=cliente,
+        )
+        
+        # Restauração automática de histórico físico
+        if registro.get("contrato") == "Encontrado" and (registro.get("boletos_atrasados") == "" or registro.get("status") == "Pendente validacao WidePay"):
+            metrics_data, mtime_iso = carregar_metricas_historicas_locais(cliente, lote)
+            if metrics_data:
+                registro = aplicar_metricas_registro(registro, metrics_data, atualizado_em=mtime_iso)
+
         registros.append(registro)
 
     registros.sort(key=lambda r: (slug_busca(r["cliente"]), r["lote"]))
@@ -210,14 +620,15 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
 
 def salvar_cache(registros):
     config.ensure_dirs()
+    registros_normalizados = [normalizar_registro_cache(item) for item in registros]
     payload = {
         "gerado_em": datetime.now().isoformat(timespec="seconds"),
-        "quantidade": len(registros),
-        "registros": registros,
+        "quantidade": len(registros_normalizados),
+        "registros": registros_normalizados,
     }
     with open(config.CLIENTES_JSON, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
-    salvar_xlsx(registros)
+    salvar_xlsx(registros_normalizados)
 
 
 def salvar_xlsx(registros):
@@ -230,12 +641,20 @@ def salvar_xlsx(registros):
         "quadra",
         "status",
         "contrato",
+        "contrato_resumo",
+        "contrato_modalidade",
         "origem",
         "parcelas_pagas_identificadas",
+        "parcelas_total_contrato",
+        "parcelas_restantes",
+        "parcelas_resumo",
+        "valor_total_pago",
         "ultima_parcela_paga",
         "ultimo_vencimento_pago",
         "valor_ultimo_pagamento",
         "data_atualizacao",
+        "ultima_atualizacao_widepay",
+        "situacao_final",
         "observacoes",
         "divergencias",
         "pasta_local",
@@ -254,4 +673,4 @@ def carregar_cache():
         return []
     with open(config.CLIENTES_JSON, "r", encoding="utf-8") as f:
         payload = json.load(f)
-    return payload.get("registros", [])
+    return [normalizar_registro_cache(item) for item in payload.get("registros", [])]

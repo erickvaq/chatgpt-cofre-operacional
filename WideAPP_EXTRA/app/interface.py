@@ -5,6 +5,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 from pathlib import Path
+from PIL import Image, ImageDraw, ImageTk, ImageFont
 
 from app import config
 from app import indexador_clientes
@@ -16,7 +17,6 @@ from app.abridor_arquivos import abrir_pasta, abrir
 
 
 COLUNAS = [
-    ("cliente", "Cliente", 220),
     ("lote", "Lote", 60),
     ("quadra", "Quadra", 60),
     ("contrato_resumo", "Contrato", 140),
@@ -203,6 +203,7 @@ class WideAppInterface:
         self.registros = indexador_clientes.carregar_cache()
         self.filtrados = []
         self.selecionados = set()
+        self.imagens_barrinha = {}
         self.ultimo_arquivo = None
         self.ultima_pasta = config.OUTPUT_DIR
         self.ultimos = {"xlsx": [], "pdf": [], "html": [], "md": [], "json": [], "log": []}
@@ -287,7 +288,9 @@ class WideAppInterface:
 
         meio = ttk.Frame(self.root, padding=8)
         meio.pack(fill="both", expand=True)
-        self.tree = ttk.Treeview(meio, columns=[c[0] for c in COLUNAS], show="headings", selectmode="extended")
+        self.tree = ttk.Treeview(meio, columns=[c[0] for c in COLUNAS], show="tree headings", selectmode="extended")
+        self.tree.heading("#0", text="Cliente")
+        self.tree.column("#0", width=220, anchor="w")
         for key, label, width in COLUNAS:
             self.tree.heading(key, text=label)
             self.tree.column(key, width=width, anchor="w")
@@ -359,13 +362,82 @@ class WideAppInterface:
         self.root.after(0, self.atualizar_combo_xlsx)
         self.log(f"Clientes/lotes indexados: {len(self.registros)}")
 
+    def obter_imagem_barrinha(self, boletos_atrasados):
+        """Gera e retorna uma imagem de barrinha colorida dinamicamente baseada nos boletos vencidos."""
+        chave_cache = str(boletos_atrasados)
+        if chave_cache in self.imagens_barrinha:
+            return self.imagens_barrinha[chave_cache]
+
+        # Se for nulo ou vazio (sem auditoria), cria imagem totalmente transparente para alinhar
+        if boletos_atrasados in (None, ""):
+            img = Image.new("RGBA", (32, 16), (0, 0, 0, 0))
+            photo = ImageTk.PhotoImage(img)
+            self.imagens_barrinha[chave_cache] = photo
+            return photo
+
+        try:
+            vencidos = int(float(boletos_atrasados))
+        except (ValueError, TypeError):
+            # Fallback para transparente
+            img = Image.new("RGBA", (32, 16), (0, 0, 0, 0))
+            photo = ImageTk.PhotoImage(img)
+            self.imagens_barrinha[chave_cache] = photo
+            return photo
+
+        # Definir cores baseadas nas regras de boletos vencidos
+        if vencidos <= 3:
+            fill_color = "#00C853"  # Verde premium
+            text_color = "#FFFFFF"  # Texto branco
+        elif vencidos < 6:
+            fill_color = "#FFD600"  # Amarelo premium
+            text_color = "#181818"  # Texto escuro para contraste
+        else:
+            fill_color = "#FF1744"  # Vermelho premium
+            text_color = "#FFFFFF"  # Texto branco
+
+        # Criar imagem RGBA
+        img = Image.new("RGBA", (32, 16), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        
+        # Desenhar retângulo com borda suavizada (raio = 3)
+        draw.rounded_rectangle([1, 1, 30, 14], radius=3, fill=fill_color)
+        
+        # Carregar fonte do sistema
+        try:
+            font = ImageFont.truetype("arial.ttf", 10)
+        except IOError:
+            font = ImageFont.load_default()
+
+        # Calcular e alinhar texto centralizado
+        text_str = str(vencidos)
+        if hasattr(draw, "textbbox"):
+            bbox = draw.textbbox((0, 0), text_str, font=font)
+            text_w = bbox[2] - bbox[0]
+            text_h = bbox[3] - bbox[1]
+        else:
+            text_w, text_h = draw.textsize(text_str, font=font) if hasattr(draw, "textsize") else (6, 8)
+
+        x = (32 - text_w) // 2
+        y = (16 - text_h) // 2 - 1
+
+        draw.text((x, y), text_str, fill=text_color, font=font)
+
+        photo = ImageTk.PhotoImage(img)
+        self.imagens_barrinha[chave_cache] = photo
+        return photo
+
     def aplicar_filtro(self):
         self.filtrados = pesquisa_clientes.filtrar(self.registros, self.busca_var.get(), self.status_var.get())
         self.tree.delete(*self.tree.get_children())
         for idx, item in enumerate(self.filtrados):
             values = [self._valor_grade(item, key) for key, _label, _width in COLUNAS]
             iid = str(idx)
-            self.tree.insert("", "end", iid=iid, values=values)
+            
+            nome_cliente = indexador_clientes.limpar_nome_cliente(item.get("cliente", ""))
+            vencidos = item.get("boletos_atrasados")
+            img_barrinha = self.obter_imagem_barrinha(vencidos)
+            
+            self.tree.insert("", "end", iid=iid, text=nome_cliente, image=img_barrinha, values=values)
             if self._chave(item) in self.selecionados:
                 self.tree.selection_add(iid)
         self.log(f"Filtro aplicado: {len(self.filtrados)} resultado(s).")
