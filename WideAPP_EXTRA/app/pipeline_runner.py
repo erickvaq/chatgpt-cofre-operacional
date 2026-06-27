@@ -73,7 +73,7 @@ def solicitar_cancelamento(log_callback=None):
     _EXECUCAO_CANCELAR.set()
     proc = _obter_processo_atual()
     if log_callback:
-        log_callback("CANCELAMENTO: solicitacao registrada.")
+        emitir_log(log_callback, "CANCELAMENTO: solicitacao registrada.")
     if not proc or proc.poll() is not None:
         return False
     try:
@@ -95,9 +95,41 @@ def solicitar_cancelamento(log_callback=None):
     return True
 
 
+def emitir_log(log_callback, msg):
+    if not log_callback:
+        return
+    try:
+        log_callback(msg)
+    except UnicodeError:
+        log_callback(str(msg).encode("ascii", "replace").decode("ascii"))
+    except Exception:
+        pass
+
+
 def slug(texto):
     base = slug_busca(texto).upper().replace(" ", "_")
     return re.sub(r"_+", "_", base).strip("_") or "CLIENTE"
+
+
+def tokens_cliente(texto):
+    return [
+        token for token in slug(texto).split("_")
+        if len(token) >= 3 and token not in {"DOS", "DAS", "DE", "DA", "DO", "E"}
+    ]
+
+
+def arquivo_pertence_cliente(path, cliente, lote):
+    texto = slug(str(path))
+    lote_slug = slug(lote)
+    cliente_tokens = tokens_cliente(cliente)
+    if lote_slug and lote_slug != "-" and lote_slug not in texto:
+        return False
+    if not cliente_tokens:
+        return False
+    tokens_presentes = sum(1 for token in cliente_tokens if token in texto)
+    if len(cliente_tokens) <= 2:
+        return tokens_presentes == len(cliente_tokens)
+    return tokens_presentes >= max(2, len(cliente_tokens) - 1)
 
 
 def arquivos_relevantes_desde(inicio):
@@ -151,8 +183,7 @@ def executar_cliente(registro, log_callback=None, progress_callback=None, client
         args += ["--lote", lote]
 
     def log(msg):
-        if log_callback:
-            log_callback(msg)
+        emitir_log(log_callback, msg)
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(msg + "\n")
 
@@ -173,8 +204,7 @@ def executar_cliente(registro, log_callback=None, progress_callback=None, client
         for line in proc.stdout or []:
             f.write(line)
             stripped = line.rstrip()
-            if log_callback:
-                log_callback(stripped)
+            emitir_log(log_callback, stripped)
             if progress_callback:
                 for text, percent, rem_sec in PROGRESS_STEPS:
                     if text in stripped:
@@ -227,8 +257,7 @@ def executar_bloco_clientes(bloco_registros, log_callback=None, progress_callbac
     args = [str(config.VENV_PYTHON), str(config.EXECUTOR), "--clientes", clientes_csv, "--lotes", lotes_csv]
 
     def log(msg):
-        if log_callback:
-            log_callback(msg)
+        emitir_log(log_callback, msg)
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(msg + "\n")
 
@@ -252,8 +281,7 @@ def executar_bloco_clientes(bloco_registros, log_callback=None, progress_callbac
         for line in proc.stdout or []:
             f.write(line)
             stripped = line.rstrip()
-            if log_callback:
-                log_callback(stripped)
+            emitir_log(log_callback, stripped)
                 
             if "AUDITORIA_CONCLUIDA" in stripped or "FALHA_AUDITORIA" in stripped:
                 clientes_concluidos += 1
@@ -304,6 +332,8 @@ def executar_bloco_clientes(bloco_registros, log_callback=None, progress_callbac
                 arquivos_do_cliente.append(path)
             elif f"WIDEPAY_{nome_limpo}.json" in path.name:
                 arquivos_do_cliente.append(path)
+            elif arquivo_pertence_cliente(path, cli_nome, cli_lote):
+                arquivos_do_cliente.append(path)
             elif path == log_path:
                 arquivos_do_cliente.append(path)
                 
@@ -338,8 +368,7 @@ def executar_lote(registros, grupo="SELECIONADOS", log_callback=None, progress_c
         raise RuntimeError("Nenhum cliente/lote com contrato confirmado para executar")
 
     def log(msg):
-        if log_callback:
-            log_callback(msg)
+        emitir_log(log_callback, msg)
 
     total = len(confirmados)
     log(f"LOTE: {total} cliente(s) confirmado(s) para processar.")

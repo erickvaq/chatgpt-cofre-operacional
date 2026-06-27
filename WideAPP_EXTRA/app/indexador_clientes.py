@@ -18,6 +18,7 @@ QUADRA_RE = re.compile(r"\bquadra\s*([A-H])\b", re.IGNORECASE)
 CONTRATO_A_VISTA_RE = re.compile(r"\b(a\s+vista|avista|pagamento\s+a\s+vista)\b", re.IGNORECASE)
 CONTRATO_QUITADO_RE = re.compile(r"\b(quitad[oa]?|quitacao|sem parcelas pendentes)\b", re.IGNORECASE)
 PASTA_IGNORADA_RE = re.compile(r"\b(backup|bkp|nova pasta|temporari[oa])\b", re.IGNORECASE)
+COMPENSACAO_ATRASO_RE = re.compile(r"\b(atras[oa]s?|atrazos?|ref(?:erente)?|referencia)\b", re.IGNORECASE)
 REMOVE_WORDS_RE = re.compile(
     r"\b(contrato|copia|final|corrigido|previa|carne\d*|apart\d*|agua|viva|leandro|meirelles|leo|docx|pdf|txt|html|md)\b",
     re.IGNORECASE,
@@ -37,6 +38,10 @@ PERSISTIR_CAMPOS = (
     "valor_ultimo_pagamento",
     "ultima_atualizacao_widepay",
     "situacao_final",
+    "status_atraso_qtd",
+    "status_atraso_cor",
+    "status_atraso_rotulo",
+    "status_atraso_origem",
     "observacoes",
     "divergencias",
     "boletos_atrasados",
@@ -59,6 +64,10 @@ PRESERVAR_EM_REINDEXACAO = (
     "data_atualizacao",
     "ultima_atualizacao_widepay",
     "situacao_final",
+    "status_atraso_qtd",
+    "status_atraso_cor",
+    "status_atraso_rotulo",
+    "status_atraso_origem",
     "observacoes",
     "divergencias",
     "boletos_atrasados",
@@ -121,6 +130,89 @@ def formatar_data_hora(valor):
         except ValueError:
             pass
     return bruto
+
+
+def parse_data(valor):
+    if not valor:
+        return None
+    if isinstance(valor, datetime):
+        return valor.date()
+    bruto = str(valor).strip()
+    if not bruto or bruto in ("-", "None"):
+        return None
+    try:
+        return datetime.fromisoformat(bruto.replace("Z", "+00:00")).date()
+    except ValueError:
+        pass
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d/%m/%Y %H:%M", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(bruto, fmt).date()
+        except ValueError:
+            pass
+    return None
+
+
+def classificar_status_atraso(qtd):
+    qtd = inteiro(qtd)
+    if qtd <= 3:
+        return "verde"
+    if qtd <= 5:
+        return "amarelo"
+    return "vermelho"
+
+
+def rotulo_status_atraso(qtd):
+    qtd = inteiro(qtd)
+    cor = classificar_status_atraso(qtd)
+    if cor == "verde":
+        return "Em dia" if qtd == 0 else "Atraso leve"
+    if cor == "amarelo":
+        return "Atraso"
+    return "Atraso critico"
+
+
+def formatar_status_indicador(registro):
+    valor = registro.get("status_atraso_qtd", registro.get("boletos_atrasados", 0))
+    return str(inteiro(valor))
+
+
+def calcular_atraso_recente(metrics, dias_recentes=210):
+    normalizado = (metrics or {}).get("normalizado") or {}
+    calculos = (metrics or {}).get("calculos") or {}
+    cobrancas = normalizado.get("cobrancas") or []
+    hoje = datetime.now().date()
+    vencidos_recentes = 0
+
+    for cob in cobrancas:
+        status = normalizar(str(cob.get("status", ""))).lower()
+        vencimento = parse_data(cob.get("vencimento") or cob.get("data_vencimento"))
+        if not vencimento or vencimento >= hoje:
+            continue
+        if (hoje - vencimento).days > dias_recentes:
+            continue
+        if status in ("recebido", "pago", "cancelado", "baixado"):
+            continue
+        vencidos_recentes += 1
+
+    compensacoes = 0
+    pagamentos = list(calculos.get("pagamentos_interpretados") or [])
+    pagamentos.extend(cob for cob in cobrancas if normalizar(str(cob.get("status", ""))).lower() in ("recebido", "pago"))
+
+    for pgto in pagamentos:
+        texto = " ".join(
+            str(pgto.get(campo, ""))
+            for campo in ("descricao", "referencia", "observacao", "cliente", "forma")
+        )
+        if not COMPENSACAO_ATRASO_RE.search(normalizar(texto).lower()):
+            continue
+        data_ref = parse_data(pgto.get("pagamento") or pgto.get("data_pagamento") or pgto.get("vencimento"))
+        if data_ref and (hoje - data_ref).days > dias_recentes:
+            continue
+        if decimal(pgto.get("valor_recebido", pgto.get("recebido", pgto.get("valor")))) <= 0:
+            continue
+        compensacoes += max(1, inteiro(pgto.get("qtd"), 1))
+
+    return max(0, vencidos_recentes - compensacoes)
 
 
 def extrair_lote(nome):
@@ -281,6 +373,10 @@ def normalizar_registro_cache(registro):
     item.setdefault("data_atualizacao", "")
     item.setdefault("ultima_atualizacao_widepay", "")
     item.setdefault("situacao_final", "")
+    item.setdefault("status_atraso_qtd", item.get("boletos_atrasados", 0))
+    item.setdefault("status_atraso_cor", "")
+    item.setdefault("status_atraso_rotulo", "")
+    item.setdefault("status_atraso_origem", "")
     item.setdefault("observacoes", "")
     item.setdefault("divergencias", "")
     item.setdefault("pasta_local", "")
@@ -295,6 +391,11 @@ def normalizar_registro_cache(registro):
     item["parcelas_resumo"] = deduzir_resumo_parcelas(item)
     if not item.get("situacao_final"):
         item["situacao_final"] = deduzir_situacao_final(item)
+    item["status_atraso_qtd"] = inteiro(item.get("status_atraso_qtd", item.get("boletos_atrasados", 0)))
+    item["boletos_atrasados"] = item["status_atraso_qtd"]
+    item["status_atraso_cor"] = item.get("status_atraso_cor") or classificar_status_atraso(item["status_atraso_qtd"])
+    item["status_atraso_rotulo"] = item.get("status_atraso_rotulo") or rotulo_status_atraso(item["status_atraso_qtd"])
+    item["status_atraso_origem"] = item.get("status_atraso_origem") or ("WidePay/cache" if item.get("ultima_atualizacao_widepay") else "Pendente WidePay")
     return item
 
 
@@ -391,6 +492,12 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
                 
     boletos_atrasados = max(0, len(vencidos_list) - compensacoes)
     item["boletos_atrasados"] = boletos_atrasados
+    atraso_recente = calcular_atraso_recente(metrics)
+    item["status_atraso_qtd"] = atraso_recente
+    item["status_atraso_cor"] = classificar_status_atraso(atraso_recente)
+    item["status_atraso_rotulo"] = rotulo_status_atraso(atraso_recente)
+    item["status_atraso_origem"] = "WidePay"
+    item["boletos_atrasados"] = atraso_recente
 
     return item
 
@@ -417,7 +524,7 @@ def mesclar_registro_indexado(
             registro[campo] = registro_anterior.get(campo)
 
     registro["selecionado"] = bool(registro.get("selecionado", False))
-    registro["cliente"] = registro.get("cliente") or cliente_padrao
+    registro["cliente"] = cliente_padrao or registro.get("cliente") or ""
     registro["lote"] = lote
     registro["quadra"] = quadra
     registro["contrato"] = contrato_status
@@ -434,8 +541,7 @@ def mesclar_registro_indexado(
     if registro.get("observacoes") in (None, ""):
         registro["observacoes"] = widepay_status
 
-    if not registro.get("data_atualizacao"):
-        registro["data_atualizacao"] = agora.isoformat(timespec="seconds")
+    registro["data_atualizacao"] = agora.isoformat(timespec="seconds")
 
     return normalizar_registro_cache(registro)
 
@@ -589,13 +695,14 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
         cliente_sugerido = limpar_nome_cliente(pasta.name)
         cliente = cliente_sugerido
         
-        # Se temos cache anterior para esta pasta e lote, preserva dados financeiros persistidos
+        # O nome exibido deve priorizar o contrato local confirmado. Os dados financeiros
+        # do cache anterior seguem preservados por mesclar_registro_indexado().
         chave_res = (str(pasta).lower(), lote)
         r_antigo = cache_anterior.get(chave_res)
-        if r_antigo and r_antigo.get("cliente"):
-            cliente = r_antigo["cliente"]
-        elif contrato_status == "Encontrado" and contrato_path:
+        if contrato_status == "Encontrado" and contrato_path:
             cliente = obter_nome_real_contrato(contrato_path, cliente_sugerido)
+        elif r_antigo and r_antigo.get("cliente"):
+            cliente = r_antigo["cliente"]
         quadra = extrair_quadra(pasta.name, lote)
         chave = (slug_busca(cliente), lote if lote != "-" else str(pasta).lower())
         if chave in vistos:
@@ -666,6 +773,10 @@ def salvar_xlsx(registros):
         "data_atualizacao",
         "ultima_atualizacao_widepay",
         "situacao_final",
+        "status_atraso_qtd",
+        "status_atraso_cor",
+        "status_atraso_rotulo",
+        "status_atraso_origem",
         "observacoes",
         "divergencias",
         "pasta_local",
