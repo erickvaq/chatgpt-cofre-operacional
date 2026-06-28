@@ -38,8 +38,8 @@ O script de validação de interface `test_sorting_isolated.py` foi executado co
 ## 5. Histórico de Commits GitHub
 A melhoria de ordenação visual clicável foi integrada nos commits abaixo:
 1. **Implementação da Ordenação de Colunas e Indicadores**:
-   * Hash: *Pendente (será gerado no próximo commit)*
-   * Link: *Pendente*
+   * Hash: `be6093f66810a9f62cd04e0de3873429fa2a0614`
+   * Link: [be6093f](https://github.com/erickvaq/chatgpt-cofre-operacional/commit/be6093f66810a9f62cd04e0de3873429fa2a0614)
 
 ## 6. Pendências
 * Nenhuma pendência restante. Ordenação clicável e visual com indicadores ▲ e ▼ concluída de ponta a ponta.
