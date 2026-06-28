@@ -247,6 +247,11 @@ class WideAppInterface:
         self.xlsx_map = {}
         self._context_iid = None
         self.execucao_em_andamento = False
+        self.progress_status_var = tk.StringVar(value="Pronto")
+        self.progress_etapa_var = tk.StringVar(value="Aguardando ação do usuário")
+        self.progress_pct_var = tk.StringVar(value="0%")
+        self.progress_reg_var = tk.StringVar(value="0")
+        self.progress_cli_var = tk.StringVar(value="0")
         self._montar()
         self.aplicar_filtro()
         self.atualizar_combo_xlsx()
@@ -508,6 +513,64 @@ class WideAppInterface:
         self.xlsx_combo.pack(side="left", fill="x", expand=True, ipady=4)
         self.xlsx_combo.bind("<<ComboboxSelected>>", self.abrir_xlsx_selecionado)
 
+        # -------------------------------------------------------------
+        # Painel de Andamento da Atualização (área fixa de progresso)
+        # -------------------------------------------------------------
+        progress_panel = self._panel(self.root, padx=16, pady=12)
+        progress_panel.pack(fill="x", padx=22, pady=(0, 10))
+        prog_inner = progress_panel.inner
+        
+        self._label(prog_inner, "Andamento da atualização", 11, "bold", self.ui_text, self.ui_panel).pack(anchor="w", pady=(0, 8))
+        
+        info_frame = tk.Frame(prog_inner, bg=self.ui_panel)
+        info_frame.pack(fill="x", pady=(0, 10))
+        
+        # Grid of status fields
+        tk.Label(info_frame, text="Status: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_status_val = tk.Label(info_frame, textvariable=self.progress_status_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_status_val.pack(side="left", padx=(0, 24))
+        
+        tk.Label(info_frame, text="Progresso: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_pct_val = tk.Label(info_frame, textvariable=self.progress_pct_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_pct_val.pack(side="left", padx=(0, 24))
+
+        tk.Label(info_frame, text="Clientes atualizados: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_cli_val = tk.Label(info_frame, textvariable=self.progress_cli_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_cli_val.pack(side="left", padx=(0, 24))
+
+        tk.Label(info_frame, text="Registros coletados: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_reg_val = tk.Label(info_frame, textvariable=self.progress_reg_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_reg_val.pack(side="left", padx=(0, 24))
+        
+        tk.Label(info_frame, text="Etapa atual: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_etapa_val = tk.Label(info_frame, textvariable=self.progress_etapa_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_etapa_val.pack(side="left")
+
+        # Custom high visibility style for progress bar
+        style = ttk.Style(self.root)
+        style.configure("Big.Horizontal.TProgressbar", thickness=18, troughcolor="#0F1A20", background="#22C55E")
+        self.progress = ttk.Progressbar(prog_inner, orient="horizontal", mode="determinate", style="Big.Horizontal.TProgressbar")
+        self.progress.pack(fill="x", pady=(0, 8))
+        
+        log_label_frame = tk.Frame(prog_inner, bg=self.ui_panel)
+        log_label_frame.pack(fill="x", pady=(4, 2))
+        self._label(log_label_frame, "Log de andamento recente:", 9, "bold", self.ui_muted, self.ui_panel).pack(anchor="w")
+        
+        self.progress_mini_log = tk.Text(
+            prog_inner,
+            height=4,
+            bg="#0F1A20",
+            fg="#F3F7F8",
+            font=("Consolas", 9),
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#2D4650",
+            padx=6,
+            pady=4
+        )
+        self.progress_mini_log.pack(fill="x")
+        self.progress_mini_log.configure(state="disabled")
+
         filtros_panel = self._panel(self.root, padx=16, pady=14)
         filtros_panel.pack(fill="x", padx=22, pady=(0, 8))
         filtros = filtros_panel.inner
@@ -583,12 +646,7 @@ class WideAppInterface:
         self.paginacao_var = tk.StringVar(value="Exibindo 0 de 0 clientes")
         tk.Label(tabela_footer, textvariable=self.paginacao_var, bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9)).pack(side="right")
 
-        progresso_frame = tk.Frame(self.root, bg=self.ui_bg)
-        progresso_frame.pack(fill="x", padx=22, pady=(0, 8))
-        self.progress_label = tk.Label(progresso_frame, text="Aguardando inicio...", bg=self.ui_bg, fg=self.ui_text, font=("Segoe UI", 9))
-        self.progress_label.pack(side="top", fill="x", anchor="w", pady=(0, 5))
-        self.progress = ttk.Progressbar(progresso_frame, orient="horizontal", mode="determinate")
-        self.progress.pack(side="top", fill="x")
+
 
         inferior = ttk.PanedWindow(self.root, orient="horizontal")
         inferior.pack(fill="both", expand=False, padx=22, pady=(0, 6))
@@ -700,8 +758,20 @@ class WideAppInterface:
         self.btn_gerar_todos.configure(state="disabled")
         self.btn_abrir_xlsx.configure(state="disabled")
         self.btn_visualizar_db.configure(state="disabled")
+        
+        self.progress_status_var.set("Atualizando clientes")
+        self.progress_etapa_var.set("Preparando atualização...")
+        self.progress_pct_var.set("0%")
+        self.progress_reg_var.set("0")
+        self.progress_cli_var.set("0")
         self.progress["value"] = 0
-        self.progress_label.configure(text="Iniciando atualização...")
+        
+        # Habilitar e limpar mini log
+        self.progress_mini_log.configure(state="normal")
+        self.progress_mini_log.delete("1.0", "end")
+        self.progress_mini_log.insert("end", "[0%] Iniciando atualização...\n")
+        self.progress_mini_log.configure(state="disabled")
+        
         self.log("Atualizacao incremental de clientes iniciada...")
         threading.Thread(target=self._atualizar, daemon=True).start()
 
@@ -709,7 +779,28 @@ class WideAppInterface:
         def progress_ui_callback(etapa, percentual, mensagem, detalhes=None):
             def _update():
                 self.progress["value"] = percentual
-                self.progress_label.configure(text=f"[{percentual}%] {mensagem}")
+                self.progress_pct_var.set(f"{percentual}%")
+                self.progress_etapa_var.set(mensagem)
+                
+                # Extrair registros coletados
+                import re
+                match_reg = re.search(r"coletados:\s*(\d+)", mensagem)
+                if match_reg:
+                    self.progress_reg_var.set(match_reg.group(1))
+                
+                # Extrair total de clientes
+                match_idx = re.search(r"(\d+)\s+registros indexados", mensagem)
+                if match_idx:
+                    self.progress_cli_var.set(match_idx.group(1))
+                elif percentual == 100:
+                    self.progress_cli_var.set(str(len(self.registros)))
+                
+                # Adicionar linha ao mini log
+                self.progress_mini_log.configure(state="normal")
+                self.progress_mini_log.insert("end", f"[{percentual}%] {mensagem}\n")
+                self.progress_mini_log.see("end")
+                self.progress_mini_log.configure(state="disabled")
+                
                 self.log(f"[{percentual}%] {mensagem}")
             self.root.after(0, _update)
 
@@ -722,9 +813,14 @@ class WideAppInterface:
             self.registros = result["registros"]
             self.root.after(0, self.aplicar_filtro)
             self.root.after(0, self.atualizar_combo_xlsx)
-            self.log(f"Clientes/lotes atualizados incrementalmente: {len(self.registros)}")
             
             def _success_msg():
+                self.progress_status_var.set("Pronto")
+                self.progress_etapa_var.set("Atualização concluída com sucesso — 100%")
+                self.progress_pct_var.set("100%")
+                self.progress["value"] = 100
+                self.progress_cli_var.set(str(len(self.registros)))
+                self.log(f"Clientes/lotes atualizados incrementalmente: {len(self.registros)}")
                 messagebox.showinfo(
                     "WideAPP_EXTRA",
                     f"Atualização concluída com sucesso!\n{len(self.registros)} clientes/lotes indexados."
@@ -734,7 +830,8 @@ class WideAppInterface:
             self.log(f"Erro durante atualização: {e}")
             
             def _error_msg():
-                self.progress_label.configure(text="Erro ao atualizar clientes. Veja o log para detalhes.")
+                self.progress_status_var.set("Pronto")
+                self.progress_etapa_var.set("Atualização falhou — veja o log")
                 messagebox.showerror(
                     "WideAPP_EXTRA",
                     f"Erro durante atualização de clientes:\n{e}\n\nOs dados anteriores foram preservados."

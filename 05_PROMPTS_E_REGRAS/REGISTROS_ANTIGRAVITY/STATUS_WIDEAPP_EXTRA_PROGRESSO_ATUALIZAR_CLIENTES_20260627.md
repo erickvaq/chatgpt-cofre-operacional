@@ -14,9 +14,16 @@ Implementar progresso visual dinâmico, real-time e thread-safe para o botão `A
 * [interface.py](file:///c:/Users/Windows User/Desktop/chatgpt projetos/Relatorio_WidePay_Lotes/WideAPP_EXTRA/app/interface.py)
 * [main.py](file:///c:/Users/Windows User/Desktop/chatgpt projetos/Relatorio_WidePay_Lotes/WideAPP_EXTRA/main.py)
 
-## 3. Como a Barra de Progresso Funciona
-A barra de progresso Tkinter (`self.progress`) é alimentada por meio de uma assinatura padrão de callback `progress_callback(etapa, percentual, mensagem, detalhes=None)`.
-Durante a execução lenta de scraping do WidePay, um loop asíncrono em segundo plano (Python) monitora variáveis globais da janela do navegador (`window.wideapp_progress`) populadas por scripts de paginação JavaScript injetados em tempo real, calculando a porcentagem exata com base na página atual do lote.
+## 3. Como a Barra de Progresso e o Painel Funcionam
+* **Painel Fixo Superior**: Um novo painel fixo de controle e progresso foi incorporado diretamente na tela principal, posicionado entre a barra de ferramentas superior (`toolbar`) e o painel de filtros (`filtros_panel`).
+* **Indicadores Dinâmicos**: O painel exibe de forma permanente e legível:
+  * **Status**: Estado operacional da tarefa (`Pronto`, `Atualizando clientes`, etc.).
+  * **Progresso**: Percentual atualizado em tempo real (ex: `41%`).
+  * **Clientes atualizados**: Totalizador final carregado na base de dados.
+  * **Registros coletados**: Quantidade de boletos/carnês processados no lote atual do WidePay.
+  * **Etapa atual**: Descrição textual da ação em andamento (ex: `Coletando carnês no WidePay...`).
+* **Barra de Progresso de Alta Visibilidade**: A barra horizontal (`self.progress`) foi redimensionada com espessura de `18px` e colorida com o verde Antigravity (`#22C55E`) para chamar atenção imediata do usuário.
+* **Mini Log Integrado**: Abaixo da barra de progresso, um mini log de console autoscrolling de 4 linhas exibe as mensagens de progresso agregadas.
 
 ## 4. Etapas Mapeadas
 * **0%**: Preparação da atualização local.
@@ -28,7 +35,7 @@ Durante a execução lenta de scraping do WidePay, um loop asíncrono em segundo
 * **70%**: Salvamento do cache interno WidePay JSON.
 * **80%**: Reindexação e ordenação final da lista de clientes.
 * **90%**: Salvamento do banco de dados XLSX portátil e backups.
-* **100%**: Finalização com sucesso e mensagem popup.
+* **100%**: Finalização com sucesso e exibição de popup.
 
 ## 5. Botões Bloqueados Durante a Execução
 Para evitar conflitos de arquivos e chamadas CDP duplicadas, os seguintes botões são desabilitados assim que a operação começa e habilitados no bloco `finally` após a conclusão:
@@ -48,4 +55,4 @@ Toda a lógica pesada de processamento de contratos locais e requisições CDP r
 * **Resiliência a Falhas**: Validado que falhas de conexão não apagam bases locais salvas em execuções passadas.
 
 ## 8. Commit GitHub
-* commit: `git commit -m "feat: adicionar barra de progresso em tempo real ao atualizar clientes"`
+* commit: `git commit -m "feat: adicionar painel fixo de progresso superior na interface"`
