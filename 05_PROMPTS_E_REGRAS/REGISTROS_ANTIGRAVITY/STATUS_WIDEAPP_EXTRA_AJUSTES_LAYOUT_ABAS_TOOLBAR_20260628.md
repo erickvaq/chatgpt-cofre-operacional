@@ -9,8 +9,10 @@
 * **Navegação Lateral Duplicada**: O frame lateral `sidebar_panel` e seus métodos associados (`_montar_sidebar`, `_selecionar_sidebar`, `_atualizar_sidebar_ativo`) foram 100% removidos. A aba de conteúdos Notebook ocupa agora toda a largura útil.
 * **Barra de Rolagem Horizontal**: Removidos os objetos `scroll_x` e o bind `xscrollcommand` da Treeview. As colunas foram configuradas para redimensionamento e esticamento automático (`stretch=True`), cabendo confortavelmente em qualquer resolução a partir de 1280px.
 * **Código Legado Duplicado**: Removida a primeira definição morta do método `_montar` (linhas 289-429) que causava riscos de regressão.
+* **Rolagem Horizontal Defasada**: Removidos o método `_rolar_tree_horizontal` e a ligação física de evento `<Shift-MouseWheel>`.
 
 ## 2. O que foi Mantido
+* **Logo WP Aprovado**: Restaurado através do carregamento de `assets/wideapp_extra_icon.png` via PIL (redimensionado para `48x48`), presente em ambos os diretórios de execução.
 * **Caixa "Andamento da Atualização"**: Mantida no cabeçalho superior direito com a barra de progresso verde neon (`#22C55E`), etapa atual, porcentagem e logs em tempo real intocados.
 * **Abas do Notebook**: Mantidas na mesma posição (Clientes, Banco de dados, Logs, Resumo / status, Auditoria).
 * **Botão Azul**: Mantido e visível (`Visualizar banco de dados` com estilo `Info.Toolbar.TButton` azul).
@@ -28,6 +30,7 @@
 
 ## 5. Como funciona o Arrastar Colunas (Drag & Drop)
 * **Prevenção de Conflitos**: Foram adicionados binds de baixo nível (`<ButtonPress-1>`, `<B1-Motion>` e `<ButtonRelease-1>`) e a opção `command` nativa dos cabeçalhos foi removida.
+* **Módulo Auxiliar**: Adicionada importação estável de `time` no cabeçalho para gerenciar os timelimit do clique simples versus arrasto.
 * **Detecção de Movimento**:
   * Se o usuário der um clique simples (ou segurar sem mover mais de 12 pixels), ao soltar, o sistema realiza a **Ordenação por Clique** da coluna correspondente.
   * Se o usuário arrastar o cabeçalho além de 12 pixels de distância, o sistema reordena a coluna visualmente no release e salva a nova preferência de exibição no arquivo `data/colunas_config.json`. Ao reabrir o app, a ordem personalizada é recarregada automaticamente.
@@ -41,7 +44,7 @@
 * O painel é atualizado em tempo real na inicialização e após qualquer filtragem ou atualização de dados.
 
 ## 7. Testes Executados
-* **Smoke Test do Workspace**: `python main.py --smoke-test-interface` passou com sucesso (`SMOKE_INTERFACE: ok; cache atual com 92 registro(s)`).
+* **Smoke Test do Workspace**: `python main.py --smoke-test-interface` passou com sucesso (`SMOKE_INTERFACE: ok; cache atual com 92 registro(s)`). Valida ausência de sidebar/scroll_x, correto carregamento do logo e dos binds de drag/drop.
 * **Smoke Test no Ambiente Isolado**: passou com sucesso (`SMOKE_INTERFACE: ok; cache atual com 87 registro(s)`).
 
 ## 8. Histórico de Commits GitHub

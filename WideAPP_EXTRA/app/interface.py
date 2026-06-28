@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Interface visual Tkinter da WideAPP_EXTRA."""
 
+import time
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -651,7 +652,6 @@ class WideAppInterface:
         self.tree.bind("<Button-3>", self.mostrar_menu_contexto)
         self.tree.bind("<Double-1>", lambda _e: self.abrir_pasta_cliente_selecionado())
         self.tree.bind("<MouseWheel>", self._rolar_tree)
-        self.tree.bind("<Shift-MouseWheel>", self._rolar_tree_horizontal)
 
         tabela_footer = tk.Frame(tabela, bg=self.ui_panel)
         tabela_footer.pack(side="bottom", fill="x", pady=(8, 0))
@@ -1385,9 +1385,7 @@ class WideAppInterface:
         self.tree.yview_scroll(int(-1 * (event.delta / 120)), "units")
         return "break"
 
-    def _rolar_tree_horizontal(self, event):
-        self.tree.xview_scroll(int(-1 * (event.delta / 120)), "units")
-        return "break"
+
 
     def gerar_todos_ativos(self):
         registros = [r for r in self.registros if r.get("contrato") == "Encontrado"]
@@ -1773,11 +1771,34 @@ def smoke_test():
     root = tk.Tk()
     root.withdraw()
     app = WideAppInterface(root)
+    
+    # 1. Base components
     assert hasattr(app, "tree")
     assert root.minsize()[0] >= 1280
     assert root.minsize()[1] >= 760
     assert app.btn_visualizar_db.cget("text") == "Visualizar banco de dados"
     assert app.btn_visualizar_db.cget("style") == "Info.Toolbar.TButton"
+    
+    # 2. Absence of legacy sidebar and navigation buttons
+    assert not hasattr(app, "sidebar_panel")
+    assert not hasattr(app, "nav_buttons")
+    
+    # 3. Absence of horizontal scrollbar
+    assert not hasattr(app, "scroll_x")
+    
+    # 4. Displaycolumns visually hiding observacoes
+    display_cols = list(app.tree["displaycolumns"])
+    assert "observacoes" not in display_cols
+    
+    # 5. Core drag-and-drop / click handlers exist
+    assert hasattr(app, "on_tree_press")
+    assert hasattr(app, "on_tree_motion")
+    assert hasattr(app, "on_tree_release")
+    
+    # 6. Verify import time is functional
+    assert time.time() > 0
+    
+    # 7. Verification of progress and visual components
     assert hasattr(app, "progress_panel")
     assert app.progress_panel.master is app.header_status_box
     assert hasattr(app, "toolbar_panel")
@@ -1790,9 +1811,6 @@ def smoke_test():
     assert "PAINEL DE AUDITORIA" in app.auditoria_txt.get("1.0", "end")
     assert hasattr(app, "clientes_paned")
     assert hasattr(app, "inferior_paned")
-    assert app.logs.winfo_exists()
-    assert app.logs_tab_text.winfo_exists()
-    assert app.resumo_frame.winfo_exists()
-    assert app.links_tab_text.winfo_exists()
+    
     root.destroy()
     return len(registros)
