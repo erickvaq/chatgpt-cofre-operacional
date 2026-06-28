@@ -2,6 +2,7 @@
 
 Data: 2026-06-28
 Escopo: entrega incremental da funcionalidade de reorganizacao manual de clientes.
+Fonte central da versao do app: `WideAPP_EXTRA/VERSION`
 
 ## V1.1
 
@@ -30,4 +31,3 @@ Escopo: entrega incremental da funcionalidade de reorganizacao manual de cliente
 O rotulo `V1.1` foi aplicado aos artefatos desta entrega para marcar a primeira consolidacao funcional apos a base `1.0` mencionada pelo usuario.
 
 O texto visual de versao exibido na interface nao foi alterado nesta rodada para evitar trocar a convencao do aplicativo sem regra local explicita.
-

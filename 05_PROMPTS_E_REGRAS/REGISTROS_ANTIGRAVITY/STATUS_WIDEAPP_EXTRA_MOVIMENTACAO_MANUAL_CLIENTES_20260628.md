@@ -10,6 +10,11 @@ Entregar a movimentacao manual de clientes entre as abas:
 
 com persistencia, auditoria, atualizacao do XLSX e validacao real no ambiente isolado.
 
+## Versao desta entrega
+
+- Versao: `V1.1`
+- Fonte central da versao do app: `WideAPP_EXTRA/VERSION`
+
 ## Resultado consolidado
 
 - Backend de movimentacao manual: concluido
@@ -114,4 +119,3 @@ Status: `VALIDADO NO ISOLADO REAL`
 Pendencia remanescente:
 
 - consolidar aprovacao final do usuario sobre a feature
-

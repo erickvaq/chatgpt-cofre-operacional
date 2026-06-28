@@ -9,6 +9,8 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
+from app.app_version import APP_VERSION_LABEL
+
 
 APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
@@ -47,7 +49,7 @@ class WideApp:
 
     def header(self):
         print("=" * 72)
-        print(" WideAPP_EXTRA - Auditoria e Relatorios WidePay")
+        print(f" WideAPP_EXTRA - Auditoria e Relatorios WidePay - {APP_VERSION_LABEL}")
         print("=" * 72)
         print(f"Projeto: {ROOT_DIR}")
         print(f"Log: {self.log_path}")

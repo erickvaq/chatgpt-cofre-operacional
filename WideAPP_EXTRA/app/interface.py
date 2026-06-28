@@ -15,6 +15,7 @@ from app import saneamento_clientes
 from app import seletor_clientes
 from app import drive_uploader
 from app import pipeline_runner
+from app.app_version import APP_VERSION, APP_VERSION_LABEL, APP_WINDOW_TITLE
 from app.abridor_arquivos import abrir_pasta, abrir
 
 
@@ -135,9 +136,10 @@ class ConfirmacaoSelecaoDialogo:
 class WideAppInterface:
     def __init__(self, root):
         self.root = root
-        self.root.title("WideAPP_EXTRA - Clientes, lotes e relatorios")
+        self.root.title(APP_WINDOW_TITLE)
         self.root.geometry("1500x900")
         self.root.minsize(1280, 760)
+        self.app_version_var = tk.StringVar(value=APP_VERSION_LABEL)
         
         # Configurar Estilos do Tema Dark + Accent Green
         style = ttk.Style(self.root)
@@ -426,7 +428,24 @@ class WideAppInterface:
         title_box = tk.Frame(header, bg=self.ui_bg)
         self.title_box = title_box
         title_box.pack(side="left", fill="both", expand=True, padx=(0, 16))
-        self._label(title_box, "WideAPP_EXTRA - Clientes, lotes e relatorios", 20, "bold", self.ui_text).pack(anchor="w")
+
+        title_row = tk.Frame(title_box, bg=self.ui_bg)
+        title_row.pack(fill="x")
+        self.title_label = self._label(title_row, "WideAPP_EXTRA - Clientes, lotes e relatorios", 20, "bold", self.ui_text)
+        self.title_label.pack(side="left", anchor="w")
+        self.version_badge = tk.Label(
+            title_row,
+            textvariable=self.app_version_var,
+            bg="#132833",
+            fg=self.ui_text,
+            font=("Segoe UI", 10, "bold"),
+            padx=10,
+            pady=4,
+            highlightbackground=self.ui_border,
+            highlightthickness=1,
+        )
+        self.version_badge.pack(side="left", padx=(12, 0), pady=(2, 0))
+
         self._label(title_box, "Gestao de clientes, lotes e relatorios", 11, "normal", self.ui_muted).pack(anchor="w", pady=(2, 0))
 
         toolbar = self._panel(title_box, padx=14, pady=10)
@@ -786,7 +805,14 @@ class WideAppInterface:
         statusbar = tk.Frame(self.root, bg="#0B151A")
         statusbar.pack(fill="x", side="bottom")
         self._label(statusbar, "Usuario: administrador", 8, "normal", self.ui_muted, "#0B151A").pack(side="left", padx=22, pady=7)
-        self._label(statusbar, "Versao 2.0.3", 8, "normal", self.ui_muted, "#0B151A").pack(side="left", padx=(20, 0), pady=7)
+        self.status_version_label = tk.Label(
+            statusbar,
+            textvariable=self.app_version_var,
+            bg="#0B151A",
+            fg=self.ui_muted,
+            font=("Segoe UI", 8),
+        )
+        self.status_version_label.pack(side="left", padx=(20, 0), pady=7)
         self._label(statusbar, "Ambiente: Producao", 8, "normal", self.ui_muted, "#0B151A").pack(side="left", padx=(20, 0), pady=7)
         self.status_ultima_atualizacao_var = tk.StringVar(value="Ultima atualizacao: nunca")
         tk.Label(statusbar, textvariable=self.status_ultima_atualizacao_var, bg="#0B151A", fg=self.ui_muted, font=("Segoe UI", 8)).pack(side="right", padx=22, pady=7)
@@ -1954,8 +1980,12 @@ def smoke_test():
     assert hasattr(app, "tree")
     assert root.minsize()[0] >= 1280
     assert root.minsize()[1] >= 760
+    assert root.title() == APP_WINDOW_TITLE
     assert app.btn_visualizar_db.cget("text") == "Visualizar banco de dados"
     assert app.btn_visualizar_db.cget("style") == "Info.Toolbar.TButton"
+    assert app.app_version_var.get() == APP_VERSION_LABEL
+    assert hasattr(app, "version_badge")
+    assert APP_VERSION in app.app_version_var.get()
     
     # 2. Absence of legacy sidebar and navigation buttons
     assert not hasattr(app, "sidebar_panel")
@@ -1984,6 +2014,7 @@ def smoke_test():
     assert int(app.progress_mini_log.cget("height")) in (2, 3)
     assert hasattr(app, "workspace_tabs")
     assert len(app.workspace_tabs.tabs()) >= 5
+    assert app.status_version_label.cget("textvariable")
     assert hasattr(app, "logo_photo")
     assert hasattr(app, "auditoria_txt")
     assert "PAINEL DE AUDITORIA" in app.auditoria_txt.get("1.0", "end")

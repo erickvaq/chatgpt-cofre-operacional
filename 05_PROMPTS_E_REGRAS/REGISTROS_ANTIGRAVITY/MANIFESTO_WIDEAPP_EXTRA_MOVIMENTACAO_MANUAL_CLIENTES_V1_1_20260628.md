@@ -5,6 +5,7 @@
 - Versao documental: `V1.1`
 - Data: `2026-06-28`
 - Tipo: `feature + validacao real em ambiente isolado`
+- Fonte central da versao do app: `WideAPP_EXTRA/VERSION`
 
 ## Arquivos incluidos no commit
 
