@@ -616,6 +616,7 @@ class WideAppInterface:
         workspace_tabs.pack(fill="both", expand=True)
 
         clientes_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
+        recentes_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         quitados_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         bloqueados_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         banco_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
@@ -623,6 +624,7 @@ class WideAppInterface:
         resumo_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         auditoria_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         self.clientes_tab = clientes_tab
+        self.recentes_tab = recentes_tab
         self.quitados_tab = quitados_tab
         self.bloqueados_tab = bloqueados_tab
         self.banco_tab = banco_tab
@@ -630,6 +632,7 @@ class WideAppInterface:
         self.resumo_tab = resumo_tab
         self.auditoria_tab = auditoria_tab
         workspace_tabs.add(clientes_tab, text="Ativos")
+        workspace_tabs.add(recentes_tab, text="Pagamentos Recentes")
         workspace_tabs.add(quitados_tab, text="Quitados")
         workspace_tabs.add(bloqueados_tab, text="Bloqueados / Removidos")
         workspace_tabs.add(banco_tab, text="Banco de dados")
@@ -685,6 +688,7 @@ class WideAppInterface:
         self.tree.bind("<MouseWheel>", self._rolar_tree)
         self.tree.bind("<<TreeviewSelect>>", lambda _e: self.sincronizar_selecao_tree(self.tree))
 
+        self.tree_recentes = self._montar_grade_pagamentos_recentes(recentes_tab)
         self.tree_quitados = self._montar_grade_saneamento(quitados_tab)
         self.tree_bloqueados = self._montar_grade_saneamento(bloqueados_tab)
 
@@ -863,6 +867,41 @@ class WideAppInterface:
             fg=self.ui_muted,
             font=("Segoe UI", 9),
         ).pack(side="left")
+        return tree
+
+    def _colunas_pagamentos_recentes(self):
+        return indexador_clientes.janela_pagamentos_recentes()
+
+    def _montar_grade_pagamentos_recentes(self, parent):
+        panel = self._panel(parent, padx=14, pady=10)
+        panel.pack(fill="both", expand=True, padx=8, pady=8)
+        tabela = panel.inner
+        colunas_mes = [mes["chave"] for mes in self._colunas_pagamentos_recentes()]
+        tree = ttk.Treeview(
+            tabela,
+            columns=[c[0] for c in COLUNAS] + colunas_mes,
+            show="tree headings",
+            selectmode="extended",
+            style="Modern.Treeview",
+        )
+        tree["displaycolumns"] = list(getattr(self, "display_cols", [c[0] for c in COLUNAS if c[0] != "observacoes"])) + colunas_mes
+        tree.heading("#0", text="STATUS")
+        tree.column("#0", width=86, minwidth=72, anchor="center", stretch=False)
+        for key, label, width in COLUNAS:
+            tree.heading(key, text=label)
+            anchor = "w" if key == "cliente" else "center"
+            tree.column(key, width=width, anchor=anchor, stretch=True)
+        for mes in self._colunas_pagamentos_recentes():
+            tree.heading(mes["chave"], text=mes["rotulo"])
+            tree.column(mes["chave"], width=90, minwidth=76, anchor="center", stretch=False)
+        scroll_y = ttk.Scrollbar(tabela, orient="vertical", command=tree.yview)
+        scroll_y.pack(side="right", fill="y")
+        tree.pack(side="top", fill="both", expand=True)
+        tree.configure(yscrollcommand=scroll_y.set)
+        tree.bind("<Button-3>", self.mostrar_menu_contexto)
+        tree.bind("<Double-1>", lambda _e: self.abrir_pasta_cliente_selecionado())
+        tree.bind("<MouseWheel>", self._rolar_tree)
+        tree.bind("<<TreeviewSelect>>", lambda _e, current_tree=tree: self.sincronizar_selecao_tree(current_tree))
         return tree
 
     def _registrar_diagnostico_inicial(self):
@@ -1343,6 +1382,36 @@ class WideAppInterface:
             tree.insert("", "end", iid=iid, text="", image=img_barrinha, values=values)
             self._tree_record_maps[str(tree)][iid] = item
 
+    def _popular_tree_pagamentos_recentes(self, registros):
+        tree = getattr(self, "tree_recentes", None)
+        if not tree:
+            return
+        meses = self._colunas_pagamentos_recentes()
+        colunas_mes = [mes["chave"] for mes in meses]
+        tree.delete(*tree.get_children())
+        self._tree_record_maps[str(tree)] = {}
+        tree["displaycolumns"] = list(getattr(self, "display_cols", [c[0] for c in COLUNAS if c[0] != "observacoes"])) + colunas_mes
+        for mes in meses:
+            tree.heading(mes["chave"], text=mes["rotulo"])
+        colunas_base = [c[0] for c in COLUNAS]
+        for idx, item in enumerate(registros):
+            valores_base = [self._valor_grade(item, key) for key in colunas_base]
+            linha = dict(zip(colunas_base, valores_base))
+            mapa = indexador_clientes.normalizar_pagamentos_recentes_5m(item.get("pagamentos_recentes_5m"))
+            for mes in meses:
+                linha[mes["chave"]] = mapa.get(mes["chave"], "-")
+            vencidos = item.get("status_atraso_qtd", item.get("boletos_atrasados", 0))
+            iid = f"r{idx}"
+            tree.insert(
+                "",
+                "end",
+                iid=iid,
+                text="",
+                image=self.obter_imagem_barrinha(vencidos),
+                values=[linha.get(col, "") for col in tree["columns"]],
+            )
+            self._tree_record_maps[str(tree)][iid] = item
+
     def _atualizar_abas_saneamento(self):
         quitados = [r for r in self.registros if r.get("saneamento_categoria") == "quitados"]
         bloqueados = [r for r in self.registros if r.get("saneamento_categoria") == "bloqueados_removidos"]
@@ -1430,6 +1499,7 @@ class WideAppInterface:
             self._tree_record_maps[str(self.tree)][iid] = item
             if self._chave(item) in self.selecionados:
                 self.tree.selection_add(iid)
+        self._popular_tree_pagamentos_recentes(self.filtrados)
         self.atualizar_resumo_visual()
         self._atualizar_abas_saneamento()
         self.atualizar_aba_auditoria()
@@ -1529,7 +1599,7 @@ class WideAppInterface:
         return "break"
 
     def _identificar_aba_tree(self, tree):
-        if tree == self.tree:
+        if tree in (self.tree, getattr(self, "tree_recentes", None)):
             return "ativos"
         if tree == getattr(self, "tree_quitados", None):
             return "quitados"
@@ -1860,7 +1930,7 @@ class WideAppInterface:
             
             menu = tk.Menu(self.root, tearoff=0, bg="#242424", fg="#F3F3F3", activebackground="#007A3E", activeforeground="#F3F3F3")
             self._popular_menu_movimentacao(menu, tree)
-            if tree == self.tree:
+            if tree in (self.tree, getattr(self, "tree_recentes", None)):
                 menu.add_separator()
                 menu.add_command(label="Gerar relatorio do(s) selecionado(s)", command=self.gerar_selecionados)
                 menu.add_command(label="Abrir pasta do cliente no Explorer", command=self.abrir_pasta_cliente_selecionado)
@@ -2014,6 +2084,10 @@ def smoke_test():
     assert int(app.progress_mini_log.cget("height")) in (2, 3)
     assert hasattr(app, "workspace_tabs")
     assert len(app.workspace_tabs.tabs()) >= 5
+    assert app.workspace_tabs.tab(app.workspace_tabs.tabs()[1], "text") == "Pagamentos Recentes"
+    assert hasattr(app, "tree_recentes")
+    recentes_cols = [col for col in app.tree_recentes["columns"] if col not in [c[0] for c in COLUNAS]]
+    assert len(recentes_cols) == 5
     assert app.status_version_label.cget("textvariable")
     assert hasattr(app, "logo_photo")
     assert hasattr(app, "auditoria_txt")

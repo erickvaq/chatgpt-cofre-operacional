@@ -17,8 +17,10 @@ from app.leitor_contratos import (
     extrair_nome_cliente,
     parsear_dados_contrato,
 )
+from app.normalizador_pagamentos import normalizar_e_deduplicar
 from app.widepay_boletos_cache import (
     chave_lote_canonica,
+    montar_raw_cliente,
     normalizar_lote_quadra,
     registros_de_resultado_bloco,
     salvar_cache as salvar_cache_boletos_widepay,
@@ -38,6 +40,7 @@ REMOVE_WORDS_RE = re.compile(
     r"\b(contrato|copia|final|corrigido|previa|carne\d*|apart\d*|agua|viva|leandro|meirelles|leo|docx|pdf|txt|html|md)\b",
     re.IGNORECASE,
 )
+MESES_ABREV = ("Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")
 
 PERSISTIR_CAMPOS = (
     "status",
@@ -80,6 +83,7 @@ PERSISTIR_CAMPOS = (
     "origem_classificacao",
     "bloqueado_reaparecer",
     "motivo_remocao_lista",
+    "pagamentos_recentes_5m",
 )
 
 PRESERVAR_EM_REINDEXACAO = (
@@ -116,6 +120,7 @@ PRESERVAR_EM_REINDEXACAO = (
     "origem_classificacao",
     "bloqueado_reaparecer",
     "motivo_remocao_lista",
+    "pagamentos_recentes_5m",
 )
 
 
@@ -220,6 +225,36 @@ def parse_data(valor):
     return None
 
 
+def _deslocar_mes(ano, mes, deslocamento):
+    indice = (ano * 12 + (mes - 1)) + deslocamento
+    novo_ano = indice // 12
+    novo_mes = (indice % 12) + 1
+    return novo_ano, novo_mes
+
+
+def janela_pagamentos_recentes(quantidade=5, referencia=None):
+    referencia = referencia or datetime.now().date()
+    meses = []
+    inicio = -(max(1, quantidade) - 1)
+    for deslocamento in range(inicio, 1):
+        ano, mes = _deslocar_mes(referencia.year, referencia.month, deslocamento)
+        chave = f"{ano:04d}-{mes:02d}"
+        rotulo = f"{MESES_ABREV[mes - 1]}/{str(ano)[-2:]}"
+        meses.append({"chave": chave, "rotulo": rotulo, "ano": ano, "mes": mes})
+    return meses
+
+
+def normalizar_pagamentos_recentes_5m(mapa=None):
+    atual = mapa if isinstance(mapa, dict) else {}
+    normalizado = {}
+    for mes in janela_pagamentos_recentes():
+        valor = str(atual.get(mes["chave"], "-") or "-").strip()
+        if valor not in ("Pago", "Vencido"):
+            valor = "-"
+        normalizado[mes["chave"]] = valor
+    return normalizado
+
+
 def meses_desde_data(valor):
     data = parse_data(valor)
     if not data:
@@ -244,6 +279,68 @@ def sem_pagamento_recente_parcelado(registro, meses_limite=8):
         and total > 0
         and pagas < total
     )
+
+
+def _status_pagamento_recente(status):
+    bruto = normalizar(str(status or "")).lower()
+    if bruto in ("recebido", "pago", "quitado", "liquidado"):
+        return "Pago"
+    if bruto in ("vencido", "aguardando", "aberto", "pendente", "pendencia"):
+        return "Vencido"
+    return ""
+
+
+def calcular_pagamentos_recentes_5m(cobrancas):
+    resultado = {mes["chave"]: "-" for mes in janela_pagamentos_recentes()}
+    prioridade = {"-": 0, "Vencido": 1, "Pago": 2}
+
+    for cob in cobrancas or []:
+        if cob.get("duplicidade"):
+            continue
+        classificacao = normalizar(str(cob.get("classificacao") or "")).lower()
+        if classificacao in ("entrada", "atraso", "avulso"):
+            continue
+        if classificacao not in ("parcela normal", "pendencia") and not cob.get("pertence_a_carne"):
+            continue
+
+        status = _status_pagamento_recente(cob.get("status"))
+        if not status:
+            continue
+
+        data_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
+        if not data_ref:
+            continue
+
+        chave = f"{data_ref.year:04d}-{data_ref.month:02d}"
+        if chave not in resultado:
+            continue
+        if prioridade[status] >= prioridade[resultado[chave]]:
+            resultado[chave] = status
+
+    return normalizar_pagamentos_recentes_5m(resultado)
+
+
+def enriquecer_pagamentos_recentes_cache(registro):
+    item = normalizar_registro_cache(registro)
+    atual = item.get("pagamentos_recentes_5m") if isinstance(item.get("pagamentos_recentes_5m"), dict) else {}
+    if all(valor in ("Pago", "Vencido") for valor in atual.values()) and len(atual) >= 5:
+        item["pagamentos_recentes_5m"] = normalizar_pagamentos_recentes_5m(atual)
+        return item
+
+    raw = montar_raw_cliente(
+        cliente=item.get("cliente", ""),
+        lote=item.get("lote", ""),
+        quadra=item.get("quadra", ""),
+        pasta_local=item.get("pasta_local", ""),
+    )
+    if not raw:
+        item["pagamentos_recentes_5m"] = normalizar_pagamentos_recentes_5m(atual)
+        return item
+
+    valor_base = decimal(item.get("valor_base_parcela"))
+    normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
+    item["pagamentos_recentes_5m"] = calcular_pagamentos_recentes_5m(normalizado.get("cobrancas") or [])
+    return item
 
 
 def classificar_status_atraso(qtd):
@@ -518,6 +615,7 @@ def normalizar_registro_cache(registro):
     item.setdefault("origem_classificacao", "")
     item.setdefault("bloqueado_reaparecer", False)
     item.setdefault("motivo_remocao_lista", "")
+    item["pagamentos_recentes_5m"] = normalizar_pagamentos_recentes_5m(item.get("pagamentos_recentes_5m"))
 
     if not item.get("contrato_modalidade"):
         item["contrato_modalidade"] = inferir_modalidade_contrato(
@@ -680,6 +778,7 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
     item["status_atraso_rotulo"] = rotulo_status_atraso(atraso_recente)
     item["status_atraso_origem"] = "WidePay"
     item["boletos_atrasados"] = atraso_recente
+    item["pagamentos_recentes_5m"] = calcular_pagamentos_recentes_5m(cobrancas)
 
     return item
 
@@ -1288,6 +1387,30 @@ def salvar_xlsx(registros):
             sheet.column_dimensions[col[0].column_letter].width = width
 
     preparar_planilha(ws, "Ativos", grupos["ativos"])
+    pagamentos_recentes = wb.create_sheet("Pagamentos_Recentes")
+    recentes_headers = [label for _key, label, _width in COLUNAS if label != "Observacoes"]
+    meses_recentes = janela_pagamentos_recentes()
+    pagamentos_recentes.append(recentes_headers + [mes["rotulo"] for mes in meses_recentes])
+    header_fill = PatternFill("solid", fgColor="1C2B33")
+    for cell in pagamentos_recentes[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = header_fill
+    for item in grupos["ativos"]:
+        linha_base = [
+            limpar_nome_cliente(str(item.get("cliente") or "")),
+            f"{(item.get('chave_lote_canonica') or item.get('lote') or '-')} / {((item.get('chave_lote_canonica') or '')[:1] or item.get('quadra') or '-')}",
+            deduzir_resumo_contrato(item),
+            deduzir_resumo_parcelas(item),
+            item.get("situacao_final") or deduzir_situacao_final(item),
+            formatar_data_hora(item.get("ultima_atualizacao_widepay") or item.get("data_atualizacao")),
+            formatar_moeda(item.get("valor_total_contratado")),
+            formatar_moeda(item.get("valor_total_pago")),
+        ]
+        mapa_recentes = normalizar_pagamentos_recentes_5m(item.get("pagamentos_recentes_5m"))
+        pagamentos_recentes.append(linha_base + [mapa_recentes.get(mes["chave"], "-") for mes in meses_recentes])
+    for col in pagamentos_recentes.columns:
+        width = min(max(len(str(cell.value or "")) for cell in col) + 2, 24)
+        pagamentos_recentes.column_dimensions[col[0].column_letter].width = width
     preparar_planilha(wb.create_sheet("Quitados"), "Quitados", grupos["quitados"])
     preparar_planilha(wb.create_sheet("Bloqueados_Removidos"), "Bloqueados_Removidos", grupos["bloqueados_removidos"])
 
@@ -1371,6 +1494,11 @@ def carregar_cache():
         return []
     with open(config.CLIENTES_JSON, "r", encoding="utf-8") as f:
         payload = json.load(f)
-    registros = [normalizar_registro_cache(item) for item in payload.get("registros", [])]
+    registros = []
+    for item in payload.get("registros", []):
+        registro = normalizar_registro_cache(item)
+        if not any(valor in ("Pago", "Vencido") for valor in registro.get("pagamentos_recentes_5m", {}).values()):
+            registro = enriquecer_pagamentos_recentes_cache(registro)
+        registros.append(registro)
     registros, _resumo = saneamento_clientes.aplicar_saneamento(registros)
     return registros
