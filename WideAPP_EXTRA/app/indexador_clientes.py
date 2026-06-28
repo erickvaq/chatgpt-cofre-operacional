@@ -8,8 +8,9 @@ from datetime import datetime
 from pathlib import Path
 
 from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 
-from app import config
+from app import config, saneamento_clientes
 from app.leitor_contratos import (
     extrair_texto_docx,
     extrair_texto_pdf,
@@ -64,6 +65,21 @@ PERSISTIR_CAMPOS = (
     "divergencias",
     "boletos_atrasados",
     "origem_dados",
+    "saneamento_acao",
+    "saneamento_categoria",
+    "saneamento_origem",
+    "saneamento_observacao",
+    "cliente_canonico",
+    "chave_saneamento",
+    "quitado_manual",
+    "bloqueado_removido_manual",
+    "atencao_manual",
+    "ignorado_manual",
+    "ativo_na_lista_principal",
+    "status_operacional",
+    "origem_classificacao",
+    "bloqueado_reaparecer",
+    "motivo_remocao_lista",
 )
 
 PRESERVAR_EM_REINDEXACAO = (
@@ -95,6 +111,11 @@ PRESERVAR_EM_REINDEXACAO = (
     "divergencias",
     "boletos_atrasados",
     "origem_dados",
+    "ativo_na_lista_principal",
+    "status_operacional",
+    "origem_classificacao",
+    "bloqueado_reaparecer",
+    "motivo_remocao_lista",
 )
 
 
@@ -482,6 +503,21 @@ def normalizar_registro_cache(registro):
     item.setdefault("pasta_local", "")
     item.setdefault("boletos_atrasados", "")
     item.setdefault("origem_dados", "")
+    item.setdefault("saneamento_acao", "ativo")
+    item.setdefault("saneamento_categoria", "ativos")
+    item.setdefault("saneamento_origem", "")
+    item.setdefault("saneamento_observacao", "")
+    item.setdefault("cliente_canonico", "")
+    item.setdefault("chave_saneamento", "")
+    item.setdefault("quitado_manual", False)
+    item.setdefault("bloqueado_removido_manual", False)
+    item.setdefault("atencao_manual", False)
+    item.setdefault("ignorado_manual", False)
+    item.setdefault("ativo_na_lista_principal", True)
+    item.setdefault("status_operacional", "Ativo")
+    item.setdefault("origem_classificacao", "")
+    item.setdefault("bloqueado_reaparecer", False)
+    item.setdefault("motivo_remocao_lista", "")
 
     if not item.get("contrato_modalidade"):
         item["contrato_modalidade"] = inferir_modalidade_contrato(
@@ -1145,12 +1181,20 @@ def indexar_clientes(validar_widepay=False, log_callback=None, progress_callback
 
     if progress_callback:
         progress_callback("Atualização de Lista", 80, "Atualizando lista de clientes...")
-    registros.sort(key=lambda r: (slug_busca(r["cliente"]), r["lote"]))
+    registros, resumo_saneamento = saneamento_clientes.aplicar_saneamento(registros)
+    registros.sort(key=lambda r: (r.get("saneamento_categoria", "ativos"), slug_busca(r["cliente"]), r["lote"]))
     
     if progress_callback:
         progress_callback("Geração XLSX", 90, "Gerando banco de dados XLSX...")
     salvar_cache(registros)
     log(f"Indexacao concluida: {len(registros)} cliente/lote")
+    log(
+        "Saneamento aplicado: "
+        f"{resumo_saneamento.get('ativos', 0)} ativos, "
+        f"{resumo_saneamento.get('quitados', 0)} quitados, "
+        f"{resumo_saneamento.get('bloqueados_removidos', 0)} bloqueados/removidos, "
+        f"{resumo_saneamento.get('atencao', 0)} atencao"
+    )
     if progress_callback:
         progress_callback("Concluído", 100, f"Atualização concluída com sucesso. {len(registros)} registros indexados.")
     return {"registros": registros, "log": str(log_path), "widepay_status": widepay_status}
@@ -1159,9 +1203,11 @@ def indexar_clientes(validar_widepay=False, log_callback=None, progress_callback
 def salvar_cache(registros):
     config.ensure_dirs()
     registros_normalizados = [normalizar_registro_cache(item) for item in registros]
+    registros_normalizados, resumo_saneamento = saneamento_clientes.aplicar_saneamento(registros_normalizados)
     payload = {
         "gerado_em": datetime.now().isoformat(timespec="seconds"),
         "quantidade": len(registros_normalizados),
+        "resumo_saneamento": resumo_saneamento,
         "registros": registros_normalizados,
     }
     with open(config.CLIENTES_JSON, "w", encoding="utf-8") as f:
@@ -1172,7 +1218,7 @@ def salvar_cache(registros):
 def salvar_xlsx(registros):
     wb = Workbook()
     ws = wb.active
-    ws.title = "Clientes indexados"
+    ws.title = "Ativos"
     headers = [
         "cliente",
         "lote",
@@ -1205,14 +1251,99 @@ def salvar_xlsx(registros):
         "observacoes",
         "divergencias",
         "origem_dados",
+        "saneamento_acao",
+        "saneamento_categoria",
+        "saneamento_origem",
+        "saneamento_observacao",
+        "cliente_canonico",
+        "chave_saneamento",
+        "quitado_manual",
+        "bloqueado_removido_manual",
+        "atencao_manual",
+        "ignorado_manual",
+        "ativo_na_lista_principal",
+        "status_operacional",
+        "origem_classificacao",
+        "bloqueado_reaparecer",
+        "motivo_remocao_lista",
         "pasta_local",
     ]
-    ws.append(headers)
-    for item in registros:
-        ws.append([item.get(h, "") for h in headers])
-    for col in ws.columns:
-        width = min(max(len(str(cell.value or "")) for cell in col) + 2, 60)
-        ws.column_dimensions[col[0].column_letter].width = width
+
+    grupos = saneamento_clientes.separar_por_categoria(registros)
+
+    def preparar_planilha(sheet, titulo, itens):
+        sheet.title = titulo
+        sheet.append(headers)
+        header_fill = PatternFill("solid", fgColor="1C2B33")
+        for cell in sheet[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = header_fill
+        for item in itens:
+            sheet.append([item.get(h, "") for h in headers])
+            if item.get("saneamento_acao") == "atencao":
+                for cell in sheet[sheet.max_row]:
+                    cell.fill = PatternFill("solid", fgColor="FFF2CC")
+        for col in sheet.columns:
+            width = min(max(len(str(cell.value or "")) for cell in col) + 2, 60)
+            sheet.column_dimensions[col[0].column_letter].width = width
+
+    preparar_planilha(ws, "Ativos", grupos["ativos"])
+    preparar_planilha(wb.create_sheet("Quitados"), "Quitados", grupos["quitados"])
+    preparar_planilha(wb.create_sheet("Bloqueados_Removidos"), "Bloqueados_Removidos", grupos["bloqueados_removidos"])
+
+    auditoria = wb.create_sheet("Auditoria")
+    auditoria.append(["item", "valor"])
+    for cell in auditoria[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="1C2B33")
+    auditoria_linhas = [
+        ("gerado_em", datetime.now().isoformat(timespec="seconds")),
+        ("total_registros_preservados", len(registros)),
+        ("ativos", len(grupos["ativos"])),
+        ("quitados", len(grupos["quitados"])),
+        ("bloqueados_removidos", len(grupos["bloqueados_removidos"])),
+        ("ignorados", len(grupos["ignorados"])),
+        ("fora_roster_planilha", len(grupos["fora_roster"])),
+        ("amarelos_atencao", len(grupos["atencao"])),
+        ("movimentos_manuais", len(saneamento_clientes.carregar_saneamento().get("auditoria_manual", []))),
+        ("arquivo_saneamento", str(saneamento_clientes.ARQUIVO_SANEAMENTO)),
+        ("planilha_marcada", str(saneamento_clientes.encontrar_planilha_marcada() or "")),
+    ]
+    for linha in auditoria_linhas:
+        auditoria.append(list(linha))
+    if grupos["ignorados"]:
+        auditoria.append([])
+        auditoria.append(["ignorados_cliente", "ignorados_lote"])
+        for item in grupos["ignorados"]:
+            auditoria.append(
+                [
+                    item.get("cliente") or "",
+                    item.get("chave_lote_canonica") or item.get("lote") or "",
+                ]
+            )
+    if grupos["fora_roster"]:
+        auditoria.append([])
+        auditoria.append(["fora_roster_cliente", "fora_roster_lote"])
+        for item in grupos["fora_roster"]:
+            auditoria.append(
+                [
+                    item.get("cliente") or "",
+                    item.get("chave_lote_canonica") or item.get("lote") or "",
+                ]
+            )
+    movimentos = saneamento_clientes.carregar_saneamento().get("auditoria_manual", [])
+    if movimentos:
+        auditoria.append([])
+        auditoria.append(["data_hora", "acao_executada"])
+        for mov in movimentos[-50:]:
+            auditoria.append(
+                [
+                    f"{mov.get('data_hora')} | {mov.get('cliente')} | {mov.get('chave_lote_canonica') or mov.get('lote')}",
+                    f"{mov.get('acao_executada')} | {mov.get('aba_origem')} -> {mov.get('aba_destino')}",
+                ]
+            )
+    auditoria.column_dimensions["A"].width = 32
+    auditoria.column_dimensions["B"].width = 90
         
     # Salvar backup se o arquivo já existir
     if config.VISUAL_XLSX.exists():
@@ -1240,4 +1371,6 @@ def carregar_cache():
         return []
     with open(config.CLIENTES_JSON, "r", encoding="utf-8") as f:
         payload = json.load(f)
-    return [normalizar_registro_cache(item) for item in payload.get("registros", [])]
+    registros = [normalizar_registro_cache(item) for item in payload.get("registros", [])]
+    registros, _resumo = saneamento_clientes.aplicar_saneamento(registros)
+    return registros

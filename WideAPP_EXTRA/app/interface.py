@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw, ImageTk, ImageFont
 from app import config
 from app import indexador_clientes
 from app import pesquisa_clientes
+from app import saneamento_clientes
 from app import seletor_clientes
 from app import drive_uploader
 from app import pipeline_runner
@@ -260,6 +261,8 @@ class WideAppInterface:
         self.ultimo_grupo = "SELECIONADOS"
         self.xlsx_map = {}
         self._context_iid = None
+        self._context_tree = None
+        self._tree_record_maps = {}
         self.execucao_em_andamento = False
         self.progress_status_var = tk.StringVar(value="Pronto")
         self.progress_etapa_var = tk.StringVar(value="Aguardando ação do usuário")
@@ -398,7 +401,9 @@ class WideAppInterface:
         # Logo image loader using PIL
         try:
             from PIL import Image, ImageTk
-            logo_path = Path(__file__).resolve().parent.parent / "assets" / "wideapp_extra_icon.png"
+            logo_path = Path(__file__).resolve().parent.parent / "widepay_icon_transparente_centralizado_ok.png"
+            if not logo_path.exists():
+                logo_path = Path(__file__).resolve().parent.parent / "assets" / "wideapp_extra_icon.png"
             if not logo_path.exists():
                 logo_path = Path(__file__).resolve().parent / "assets" / "wideapp_extra_icon.png"
             if logo_path.exists():
@@ -592,16 +597,22 @@ class WideAppInterface:
         workspace_tabs.pack(fill="both", expand=True)
 
         clientes_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
+        quitados_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
+        bloqueados_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         banco_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         logs_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         resumo_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         auditoria_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         self.clientes_tab = clientes_tab
+        self.quitados_tab = quitados_tab
+        self.bloqueados_tab = bloqueados_tab
         self.banco_tab = banco_tab
         self.logs_tab = logs_tab
         self.resumo_tab = resumo_tab
         self.auditoria_tab = auditoria_tab
-        workspace_tabs.add(clientes_tab, text="Clientes / relatorios")
+        workspace_tabs.add(clientes_tab, text="Ativos")
+        workspace_tabs.add(quitados_tab, text="Quitados")
+        workspace_tabs.add(bloqueados_tab, text="Bloqueados / Removidos")
         workspace_tabs.add(banco_tab, text="Banco de dados")
         workspace_tabs.add(logs_tab, text="Logs")
         workspace_tabs.add(resumo_tab, text="Resumo / status")
@@ -621,6 +632,7 @@ class WideAppInterface:
                     display_cols = valid_saved
         except Exception:
             pass
+        self.display_cols = display_cols
 
         clientes_paned = ttk.PanedWindow(clientes_tab, orient="vertical")
         self.clientes_paned = clientes_paned
@@ -652,6 +664,10 @@ class WideAppInterface:
         self.tree.bind("<Button-3>", self.mostrar_menu_contexto)
         self.tree.bind("<Double-1>", lambda _e: self.abrir_pasta_cliente_selecionado())
         self.tree.bind("<MouseWheel>", self._rolar_tree)
+        self.tree.bind("<<TreeviewSelect>>", lambda _e: self.sincronizar_selecao_tree(self.tree))
+
+        self.tree_quitados = self._montar_grade_saneamento(quitados_tab)
+        self.tree_bloqueados = self._montar_grade_saneamento(bloqueados_tab)
 
         tabela_footer = tk.Frame(tabela, bg=self.ui_panel)
         tabela_footer.pack(side="bottom", fill="x", pady=(8, 0))
@@ -787,6 +803,41 @@ class WideAppInterface:
         tk.Label(card, text=label, bg="#14222A", fg=self.ui_text, font=("Segoe UI", 10)).pack(anchor="w", padx=14)
         tk.Label(card, text="base atual", bg="#14222A", fg=self.ui_muted, font=("Segoe UI", 8)).pack(anchor="w", padx=14, pady=(2, 12))
         return card
+
+    def _montar_grade_saneamento(self, parent):
+        panel = self._panel(parent, padx=14, pady=10)
+        panel.pack(fill="both", expand=True, padx=8, pady=8)
+        tabela = panel.inner
+        tree = ttk.Treeview(
+            tabela,
+            columns=[c[0] for c in COLUNAS],
+            show="tree headings",
+            selectmode="extended",
+            style="Modern.Treeview",
+        )
+        tree["displaycolumns"] = getattr(self, "display_cols", [c[0] for c in COLUNAS if c[0] != "observacoes"])
+        tree.heading("#0", text="STATUS")
+        tree.column("#0", width=86, minwidth=72, anchor="center", stretch=False)
+        for key, label, width in COLUNAS:
+            tree.heading(key, text=label)
+            anchor = "w" if key == "cliente" else "center"
+            tree.column(key, width=width, anchor=anchor, stretch=True)
+        scroll_y = ttk.Scrollbar(tabela, orient="vertical", command=tree.yview)
+        scroll_y.pack(side="right", fill="y")
+        tree.pack(side="top", fill="both", expand=True)
+        tree.configure(yscrollcommand=scroll_y.set)
+        tree.bind("<Button-3>", self.mostrar_menu_contexto)
+        tree.bind("<<TreeviewSelect>>", lambda _e, current_tree=tree: self.sincronizar_selecao_tree(current_tree))
+        footer = tk.Frame(tabela, bg=self.ui_panel)
+        footer.pack(side="bottom", fill="x", pady=(8, 0))
+        tk.Label(
+            footer,
+            text="Lista separada pela camada persistente de saneamento manual",
+            bg=self.ui_panel,
+            fg=self.ui_muted,
+            font=("Segoe UI", 9),
+        ).pack(side="left")
+        return tree
 
     def _registrar_diagnostico_inicial(self):
         import sys
@@ -1058,12 +1109,24 @@ class WideAppInterface:
         self.auditoria_txt.insert("end", "=== PAINEL DE AUDITORIA E CONFORMIDADE FINANCEIRA ===\n\n")
         
         total_clientes = len(self.registros)
-        com_divergencia = [r for r in self.registros if r.get("divergencias")]
-        sem_contrato = [r for r in self.registros if r.get("contrato") != "Encontrado"]
-        pendentes_wp = [r for r in self.registros if r.get("situacao_final") == "Pendente validacao WidePay" or "Pendente" in str(r.get("situacao_final"))]
-        erros = [r for r in self.registros if r.get("situacao_final") == "ERRO" or r.get("status_atraso_qtd") == -1]
+        ativos = [r for r in self.registros if r.get("saneamento_categoria", "ativos") == "ativos"]
+        quitados = [r for r in self.registros if r.get("saneamento_categoria") == "quitados"]
+        bloqueados = [r for r in self.registros if r.get("saneamento_categoria") == "bloqueados_removidos"]
+        atencao = [r for r in self.registros if r.get("saneamento_acao") == "atencao"]
+        ignorados = [r for r in self.registros if r.get("saneamento_acao") == "ignorar"]
+        fora_roster = [r for r in self.registros if r.get("saneamento_categoria") == "fora_roster"]
+        com_divergencia = [r for r in ativos if r.get("divergencias")]
+        sem_contrato = [r for r in ativos if r.get("contrato") != "Encontrado"]
+        pendentes_wp = [r for r in ativos if r.get("situacao_final") == "Pendente validacao WidePay" or "Pendente" in str(r.get("situacao_final"))]
+        erros = [r for r in ativos if r.get("situacao_final") == "ERRO" or r.get("status_atraso_qtd") == -1]
         
         self.auditoria_txt.insert("end", f"Total de Clientes na Base: {total_clientes}\n")
+        self.auditoria_txt.insert("end", f"Ativos exibidos na lista principal: {len(ativos)}\n")
+        self.auditoria_txt.insert("end", f"Quitados separados: {len(quitados)}\n")
+        self.auditoria_txt.insert("end", f"Bloqueados/Removidos separados: {len(bloqueados)}\n")
+        self.auditoria_txt.insert("end", f"Ignorados/placeholders: {len(ignorados)}\n")
+        self.auditoria_txt.insert("end", f"Fora do roster da planilha: {len(fora_roster)}\n")
+        self.auditoria_txt.insert("end", f"Amarelos/atencao: {len(atencao)}\n")
         self.auditoria_txt.insert("end", f"Clientes Conciliados com Sucesso: {total_clientes - len(com_divergencia)}\n")
         self.auditoria_txt.insert("end", f"Clientes com Divergências Ativas: {len(com_divergencia)}\n")
         self.auditoria_txt.insert("end", f"Clientes sem Contrato Físico Confirmado: {len(sem_contrato)}\n")
@@ -1098,7 +1161,19 @@ class WideAppInterface:
                 cliente = r.get("cliente", "Desconhecido")
                 sit = r.get("situacao_final", "ERRO")
                 self.auditoria_txt.insert("end", f"{idx}. {cliente} - Situação: {sit}\n")
-                
+
+        movimentos = saneamento_clientes.carregar_saneamento().get("auditoria_manual", [])
+        self.auditoria_txt.insert("end", "\n--- MOVIMENTACOES MANUAIS RECENTES ---\n")
+        if not movimentos:
+            self.auditoria_txt.insert("end", "Nenhuma movimentacao manual registrada.\n")
+        else:
+            for idx, mov in enumerate(movimentos[-15:], 1):
+                linha = (
+                    f"{idx}. {mov.get('data_hora')} | {mov.get('cliente')} | "
+                    f"{mov.get('aba_origem')} -> {mov.get('aba_destino')} | "
+                    f"{mov.get('status_anterior')} -> {mov.get('status_novo')}\n"
+                )
+                self.auditoria_txt.insert("end", linha)
         self.auditoria_txt.configure(state="disabled")
 
     def _obter_imagem_barrinha_legacy(self, boletos_atrasados):
@@ -1216,16 +1291,41 @@ class WideAppInterface:
             self.sort_descending = False
         self.aplicar_filtro()
 
-    def aplicar_filtro(self):
-        self.filtrados = pesquisa_clientes.filtrar(self.registros, self.busca_var.get(), self.status_var.get())
+    def _filtrar_registros_visuais(self, registros):
+        filtrados = pesquisa_clientes.filtrar(registros, self.busca_var.get(), self.status_var.get())
         quadra_lote = self.quadra_lote_var.get() if hasattr(self, "quadra_lote_var") else "Todos"
         if quadra_lote and quadra_lote != "Todos":
             alvo = quadra_lote.strip().upper()
-            self.filtrados = [
-                item for item in self.filtrados
+            filtrados = [
+                item for item in filtrados
                 if str(item.get("quadra") or "").strip().upper() == alvo
                 or str(item.get("lote") or "").strip().upper() == alvo
+                or str(item.get("chave_lote_canonica") or "").strip().upper() == alvo
             ]
+        return filtrados
+
+    def _popular_tree_saneamento(self, tree, registros):
+        if not tree:
+            return
+        tree.delete(*tree.get_children())
+        self._tree_record_maps[str(tree)] = {}
+        for idx, item in enumerate(registros):
+            values = [self._valor_grade(item, key) for key, _label, _width in COLUNAS]
+            vencidos = item.get("status_atraso_qtd", item.get("boletos_atrasados", 0))
+            img_barrinha = self.obter_imagem_barrinha(vencidos)
+            iid = f"s{idx}"
+            tree.insert("", "end", iid=iid, text="", image=img_barrinha, values=values)
+            self._tree_record_maps[str(tree)][iid] = item
+
+    def _atualizar_abas_saneamento(self):
+        quitados = [r for r in self.registros if r.get("saneamento_categoria") == "quitados"]
+        bloqueados = [r for r in self.registros if r.get("saneamento_categoria") == "bloqueados_removidos"]
+        self._popular_tree_saneamento(getattr(self, "tree_quitados", None), self._filtrar_registros_visuais(quitados))
+        self._popular_tree_saneamento(getattr(self, "tree_bloqueados", None), self._filtrar_registros_visuais(bloqueados))
+
+    def aplicar_filtro(self):
+        ativos = [r for r in self.registros if r.get("saneamento_categoria", "ativos") == "ativos"]
+        self.filtrados = self._filtrar_registros_visuais(ativos)
 
         # Aplicar ordenação baseada na coluna ativa
         if self.sort_column:
@@ -1290,6 +1390,7 @@ class WideAppInterface:
                 self.tree.heading(key, text=label)
 
         self.tree.delete(*self.tree.get_children())
+        self._tree_record_maps[str(self.tree)] = {}
         for idx, item in enumerate(self.filtrados):
             values = [self._valor_grade(item, key) for key, _label, _width in COLUNAS]
             iid = str(idx)
@@ -1300,9 +1401,11 @@ class WideAppInterface:
             # A coluna #0 exibe apenas o ícone da barrinha na coluna STATUS.
             # O texto da coluna #0 fica vazio (""), e o nome do cliente vai no values.
             self.tree.insert("", "end", iid=iid, text="", image=img_barrinha, values=values)
+            self._tree_record_maps[str(self.tree)][iid] = item
             if self._chave(item) in self.selecionados:
                 self.tree.selection_add(iid)
         self.atualizar_resumo_visual()
+        self._atualizar_abas_saneamento()
         self.atualizar_aba_auditoria()
         self.log(f"Filtro aplicado: {len(self.filtrados)} resultado(s).")
 
@@ -1351,39 +1454,109 @@ class WideAppInterface:
             return indexador_clientes.formatar_moeda(valor)
         return valor
 
-    def sincronizar_selecao_tree(self):
+    def sincronizar_selecao_tree(self, tree=None):
+        tree = tree or self.tree
         self.selecionados = set()
-        for iid in self.tree.selection():
-            item = self.filtrados[int(iid)]
+        registros = self._selecionados_registros_tree(tree)
+        for item in registros:
             self.selecionados.add(self._chave(item))
         self.log(f"Selecionados: {len(self.selecionados)}")
 
     def selecionar_todos(self):
         for iid in self.tree.get_children():
             self.tree.selection_add(iid)
-        self.sincronizar_selecao_tree()
+        self.sincronizar_selecao_tree(self.tree)
 
     def limpar_selecao(self):
         self.tree.selection_remove(self.tree.selection())
         self.selecionados.clear()
         self.log("Selecao limpa.")
 
-    def _selecionados_registros(self):
+    def _selecionados_registros_tree(self, tree=None):
+        tree = tree or self.tree
+        mapa = self._tree_record_maps.get(str(tree), {})
+        registros = []
+        for iid in tree.selection():
+            item = mapa.get(str(iid))
+            if item:
+                registros.append(item)
+        return registros
+
+    def _selecionados_registros(self, tree=None):
+        if tree is not None:
+            return self._selecionados_registros_tree(tree)
         chaves = set(self.selecionados)
         return [item for item in self.registros if self._chave(item) in chaves]
 
-    def _registro_contexto_ou_primeiro(self):
-        if self._context_iid is not None and str(self._context_iid) in self.tree.get_children():
-            try:
-                return self.filtrados[int(self._context_iid)]
-            except Exception:
-                pass
-        registros = self._selecionados_registros()
+    def _registro_contexto_ou_primeiro(self, tree=None):
+        tree = tree or self._context_tree or self.tree
+        mapa = self._tree_record_maps.get(str(tree), {})
+        if self._context_iid is not None:
+            item = mapa.get(str(self._context_iid))
+            if item:
+                return item
+        registros = self._selecionados_registros_tree(tree)
         return registros[0] if registros else None
 
     def _rolar_tree(self, event):
         self.tree.yview_scroll(int(-1 * (event.delta / 120)), "units")
         return "break"
+
+    def _identificar_aba_tree(self, tree):
+        if tree == self.tree:
+            return "ativos"
+        if tree == getattr(self, "tree_quitados", None):
+            return "quitados"
+        if tree == getattr(self, "tree_bloqueados", None):
+            return "bloqueados_removidos"
+        return "ativos"
+
+    def _descricao_destino(self, destino):
+        return {
+            "ativos": "Ativos",
+            "quitados": "Quitados",
+            "bloqueados_removidos": "Bloqueados / Removidos",
+        }.get(destino, destino)
+
+    def _mover_registros_manual(self, tree, destino):
+        origem = self._identificar_aba_tree(tree)
+        registros = self._selecionados_registros_tree(tree)
+        if not registros:
+            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado.")
+            return
+        destino_label = self._descricao_destino(destino)
+        qtd = len(registros)
+        if not messagebox.askyesno(
+            "WideAPP_EXTRA",
+            f"Deseja mover {qtd} cliente(s) para {destino_label}? Essa acao nao apagara dados e podera ser revertida depois.",
+        ):
+            return
+        chaves = [item.get("chave_saneamento") or indexador_clientes.normalizar_registro_cache(item).get("chave_saneamento") for item in registros]
+        alterados = saneamento_clientes.registrar_movimentacao_manual(self.registros, chaves, destino, origem)
+        if not alterados:
+            messagebox.showwarning("WideAPP_EXTRA", "Nenhum cliente selecionado conseguiu ser movido.")
+            return
+        try:
+            indexador_clientes.salvar_cache(self.registros)
+            self._recarregar_dados_apos_atualizacao()
+        except Exception as exc:
+            self.log(f"Erro ao salvar movimentacao manual: {exc}")
+            messagebox.showerror("WideAPP_EXTRA", f"Erro ao salvar a movimentacao manual:\n{exc}")
+            return
+        self.log(f"Movimentacao manual aplicada: {len(alterados)} cliente(s) -> {destino_label}")
+        self.atualizar_aba_auditoria()
+
+    def _popular_menu_movimentacao(self, menu, tree):
+        aba = self._identificar_aba_tree(tree)
+        if aba == "ativos":
+            menu.add_command(label="Mover para Quitados", command=lambda current_tree=tree: self._mover_registros_manual(current_tree, "quitados"))
+            menu.add_command(label="Mover para Bloqueados / Removidos", command=lambda current_tree=tree: self._mover_registros_manual(current_tree, "bloqueados_removidos"))
+        elif aba == "quitados":
+            menu.add_command(label="Restaurar para Ativos", command=lambda current_tree=tree: self._mover_registros_manual(current_tree, "ativos"))
+            menu.add_command(label="Mover para Bloqueados / Removidos", command=lambda current_tree=tree: self._mover_registros_manual(current_tree, "bloqueados_removidos"))
+        elif aba == "bloqueados_removidos":
+            menu.add_command(label="Restaurar para Ativos", command=lambda current_tree=tree: self._mover_registros_manual(current_tree, "ativos"))
+            menu.add_command(label="Mover para Quitados", command=lambda current_tree=tree: self._mover_registros_manual(current_tree, "quitados"))
 
 
 
@@ -1650,20 +1823,25 @@ class WideAppInterface:
             abrir(path)
 
     def mostrar_menu_contexto(self, event):
-        row_id = self.tree.identify_row(event.y)
+        tree = event.widget if isinstance(event.widget, ttk.Treeview) else self.tree
+        row_id = tree.identify_row(event.y)
         if row_id:
             self._context_iid = row_id
-            if row_id not in self.tree.selection():
-                self.tree.selection_set(row_id)
-            self.sincronizar_selecao_tree()
+            self._context_tree = tree
+            if row_id not in tree.selection():
+                tree.selection_set(row_id)
+            self.sincronizar_selecao_tree(tree)
             
             menu = tk.Menu(self.root, tearoff=0, bg="#242424", fg="#F3F3F3", activebackground="#007A3E", activeforeground="#F3F3F3")
-            menu.add_command(label="Gerar relatório do(s) selecionado(s)", command=self.gerar_selecionados)
-            menu.add_command(label="Abrir pasta do cliente no Explorer", command=self.abrir_pasta_cliente_selecionado)
-            menu.add_command(label="Abrir planilha recente do cliente", command=self.abrir_planilha_cliente_selecionado)
-            menu.add_separator()
-            menu.add_command(label="Atualizar clientes", command=self.atualizar_async)
-            menu.add_command(label="Atualizar informações da WidePay (selecionados)", command=self.atualizar_widepay_selecionados_async)
+            self._popular_menu_movimentacao(menu, tree)
+            if tree == self.tree:
+                menu.add_separator()
+                menu.add_command(label="Gerar relatorio do(s) selecionado(s)", command=self.gerar_selecionados)
+                menu.add_command(label="Abrir pasta do cliente no Explorer", command=self.abrir_pasta_cliente_selecionado)
+                menu.add_command(label="Abrir planilha recente do cliente", command=self.abrir_planilha_cliente_selecionado)
+                menu.add_separator()
+                menu.add_command(label="Atualizar clientes", command=self.atualizar_async)
+                menu.add_command(label="Atualizar informacoes da WidePay (selecionados)", command=self.atualizar_widepay_selecionados_async)
             
             menu.post(event.x_root, event.y_root)
 
