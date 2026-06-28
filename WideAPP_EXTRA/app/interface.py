@@ -239,6 +239,8 @@ class WideAppInterface:
         self.registros = indexador_clientes.carregar_cache()
         self.filtrados = []
         self.selecionados = set()
+        self.sort_column = "cliente"
+        self.sort_descending = False
         self.imagens_barrinha = {}
         self.ultimo_arquivo = None
         self.ultima_pasta = config.OUTPUT_DIR
@@ -618,10 +620,10 @@ class WideAppInterface:
         tabela_panel.pack(fill="both", expand=True, padx=22, pady=(0, 8))
         tabela = tabela_panel.inner
         self.tree = ttk.Treeview(tabela, columns=[c[0] for c in COLUNAS], show="tree headings", selectmode="extended", style="Modern.Treeview")
-        self.tree.heading("#0", text="STATUS")
+        self.tree.heading("#0", text="STATUS", command=lambda: self.ordenar_por_coluna("#0"))
         self.tree.column("#0", width=86, minwidth=72, anchor="center", stretch=False)
         for key, label, width in COLUNAS:
-            self.tree.heading(key, text=label)
+            self.tree.heading(key, text=label, command=lambda k=key: self.ordenar_por_coluna(k))
             anchor = "w" if key == "cliente" else "center"
             self.tree.column(key, width=width, anchor=anchor)
 
@@ -954,6 +956,14 @@ class WideAppInterface:
         self.imagens_barrinha[chave_cache] = photo
         return photo
 
+    def ordenar_por_coluna(self, col_key):
+        if self.sort_column == col_key:
+            self.sort_descending = not self.sort_descending
+        else:
+            self.sort_column = col_key
+            self.sort_descending = False
+        self.aplicar_filtro()
+
     def aplicar_filtro(self):
         self.filtrados = pesquisa_clientes.filtrar(self.registros, self.busca_var.get(), self.status_var.get())
         quadra_lote = self.quadra_lote_var.get() if hasattr(self, "quadra_lote_var") else "Todos"
@@ -964,6 +974,69 @@ class WideAppInterface:
                 if str(item.get("quadra") or "").strip().upper() == alvo
                 or str(item.get("lote") or "").strip().upper() == alvo
             ]
+
+        # Aplicar ordenação baseada na coluna ativa
+        if self.sort_column:
+            def get_sort_key(item):
+                col = self.sort_column
+                if col == "#0":
+                    try:
+                        return int(float(item.get("status_atraso_qtd", item.get("boletos_atrasados", 0))))
+                    except (ValueError, TypeError):
+                        return 0
+                elif col == "cliente":
+                    val = item.get("cliente") or ""
+                    return indexador_clientes.limpar_nome_cliente(str(val)).lower()
+                elif col == "lote":
+                    lote_can = item.get("chave_lote_canonica") or indexador_clientes.chave_lote_canonica(item) or ""
+                    import re
+                    match = re.match(r"^([a-zA-Z]+)?(\d+)?", lote_can)
+                    if match:
+                        alpha = match.group(1) or ""
+                        num = int(match.group(2)) if match.group(2) else 0
+                        return (alpha.upper(), num)
+                    return ("", 0)
+                elif col == "contrato_resumo":
+                    return indexador_clientes.deduzir_resumo_contrato(item).lower()
+                elif col == "parcelas_resumo":
+                    res = indexador_clientes.deduzir_resumo_parcelas(item)
+                    import re
+                    match = re.search(r"(\d+)\s*/\s*(\d+)", res)
+                    if match:
+                        pago = int(match.group(1))
+                        total = int(match.group(2))
+                        pct = pago / total if total > 0 else 0
+                        return (pct, pago, total)
+                    return (0, 0, 0)
+                elif col == "situacao_final":
+                    val = item.get("situacao_final") or indexador_clientes.deduzir_situacao_final(item) or ""
+                    return val.lower()
+                elif col == "ultima_atualizacao_widepay":
+                    val = item.get("ultima_atualizacao_widepay") or item.get("data_atualizacao") or ""
+                    return val
+                elif col in ("valor_total_contratado", "valor_total_pago"):
+                    val = item.get(col)
+                    try:
+                        return float(val) if val is not None else 0.0
+                    except (ValueError, TypeError):
+                        return 0.0
+                return ""
+
+            self.filtrados.sort(key=get_sort_key, reverse=self.sort_descending)
+
+        # Atualizar cabeçalhos com indicadores de ordenação ▲ / ▼
+        indicator = " ▼" if self.sort_descending else " ▲"
+        if self.sort_column == "#0":
+            self.tree.heading("#0", text=f"STATUS{indicator}")
+        else:
+            self.tree.heading("#0", text="STATUS")
+            
+        for key, label, _width in COLUNAS:
+            if self.sort_column == key:
+                self.tree.heading(key, text=f"{label}{indicator}")
+            else:
+                self.tree.heading(key, text=label)
+
         self.tree.delete(*self.tree.get_children())
         for idx, item in enumerate(self.filtrados):
             values = [self._valor_grade(item, key) for key, _label, _width in COLUNAS]
