@@ -77,8 +77,8 @@ A melhoria de progresso visual e portabilidade do banco de dados XLSX entrou atr
    * Hash: `432271ea04d7c087966be62f44101e40d04c106e`
    * Link: [432271e](https://github.com/erickvaq/chatgpt-cofre-operacional/commit/432271ea04d7c087966be62f44101e40d04c106e)
 4. **Fechamento e Registro Final de Auditoria**:
-   * Hash: *Pendente (será gerado no próximo commit)*
-   * Link: *Pendente*
+   * Hash: `846cd488d0737a28e8ad88be4f16bc444855ec90`
+   * Link: [846cd48](https://github.com/erickvaq/chatgpt-cofre-operacional/commit/846cd488d0737a28e8ad88be4f16bc444855ec90)
 
 ## 11. Pendências
 * Nenhuma pendência restante. Lógica visual e portabilidade validadas de ponta a ponta.
