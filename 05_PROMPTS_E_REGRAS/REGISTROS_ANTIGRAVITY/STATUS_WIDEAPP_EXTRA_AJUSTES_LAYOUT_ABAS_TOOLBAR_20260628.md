@@ -44,5 +44,10 @@
 * **Smoke Test do Workspace**: `python main.py --smoke-test-interface` passou com sucesso (`SMOKE_INTERFACE: ok; cache atual com 92 registro(s)`).
 * **Smoke Test no Ambiente Isolado**: passou com sucesso (`SMOKE_INTERFACE: ok; cache atual com 87 registro(s)`).
 
-## 8. Pendências
+## 8. Histórico de Commits GitHub
+* **Ajuste Fino de Layout, Abas, Drag e Auditoria**:
+  * Hash: `b2ccaae807490ab1cdcb96c4295ef85675e4e0b0`
+  * Link: [b2ccaae](https://github.com/erickvaq/chatgpt-cofre-operacional/commit/b2ccaae807490ab1cdcb96c4295ef85675e4e0b0)
+
+## 9. Pendências
 * Nenhuma pendência restante.
