@@ -43,3 +43,26 @@ WideAPP_EXTRA/data/
 WideAPP_EXTRA/logs/
 WideAPP_EXTRA/drive_local/
 WideAPP_EXTRA/LINKS_GOOGLE_DRIVE.md
+
+# Banco XLSX do usuário
+/BANCO_DADOS_WIDEAPP_EXTRA.xlsx
+/backups/
+
+# Pastas de dados temporários e relatórios gerados
+/07_DADOS_TEMPORARIOS/
+/02_RELATORIOS_GERADOS/
+/08_NAVEGADOR_WIDEPAY/
+
+# PyInstaller build outputs e executáveis
+/build/
+/dist/
+/*.spec
+
+# Scripts locais, atalhos e temporários
+/scratch/
+/*.bat
+/*.hta
+/*.lnk
+/*.vbs
+/ferramentas/rclone/
+
