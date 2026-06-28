@@ -469,20 +469,38 @@ class WideAppInterface:
         tb_open = tk.Frame(tb, bg=self.ui_panel)
         tb_open.pack(fill="x", pady=(10, 0))
 
-        ttk.Button(tb_actions, text="Atualizar clientes", style="Primary.Toolbar.TButton", command=self.atualizar_async).pack(side="left", padx=(0, 10), ipady=5)
-        ttk.Button(tb_actions, text="Atualizar WidePay", style="Toolbar.TButton", command=self.atualizar_widepay_async).pack(side="left", padx=(0, 10), ipady=5)
+        self.btn_atualizar_cli = ttk.Button(tb_actions, text="Atualizar clientes", style="Primary.Toolbar.TButton", command=self.atualizar_async)
+        self.btn_atualizar_cli.pack(side="left", padx=(0, 10), ipady=5)
+        
+        self.btn_atualizar_wp = ttk.Button(tb_actions, text="Atualizar WidePay", style="Toolbar.TButton", command=self.atualizar_widepay_async)
+        self.btn_atualizar_wp.pack(side="left", padx=(0, 10), ipady=5)
+        
         self.btn_gerar_sel = ttk.Button(tb_actions, text="Gerar relatorio selecionados", style="Toolbar.TButton", command=self.gerar_selecionados)
         self.btn_gerar_sel.pack(side="left", padx=(0, 10), ipady=5)
+        
         self.btn_gerar_todos = ttk.Button(tb_actions, text="Gerar clientes ativos", style="Toolbar.TButton", command=self.gerar_todos_ativos)
         self.btn_gerar_todos.pack(side="left", padx=(0, 10), ipady=5)
+        
         self.btn_parar = ttk.Button(tb_actions, text="Parar captura", style="Danger.Toolbar.TButton", command=self.parar_captura, state="disabled")
         self.btn_parar.pack(side="left", ipady=5)
 
-        ttk.Button(tb_open, text="Abrir pasta local", style="Toolbar.TButton", command=self.abrir_pasta_execucao).pack(side="left", padx=(0, 8), ipady=5)
-        ttk.Button(tb_open, text="Abrir Drive", style="Toolbar.TButton", command=self.abrir_drive).pack(side="left", padx=(0, 8), ipady=5)
-        ttk.Button(tb_open, text="Abrir HTML", style="Toolbar.TButton", command=lambda: self.abrir_tipo("html")).pack(side="left", padx=(0, 8), ipady=5)
-        ttk.Button(tb_open, text="Abrir PDF", style="Toolbar.TButton", command=lambda: self.abrir_tipo("pdf")).pack(side="left", padx=(0, 8), ipady=5)
-        ttk.Button(tb_open, text="Abrir XLSX", style="Toolbar.TButton", command=self.abrir_ultimo).pack(side="left", ipady=5)
+        self.btn_abrir_pasta = ttk.Button(tb_open, text="Abrir pasta local", style="Toolbar.TButton", command=self.abrir_pasta_execucao)
+        self.btn_abrir_pasta.pack(side="left", padx=(0, 8), ipady=5)
+        
+        self.btn_abrir_drive = ttk.Button(tb_open, text="Abrir Drive", style="Toolbar.TButton", command=self.abrir_drive)
+        self.btn_abrir_drive.pack(side="left", padx=(0, 8), ipady=5)
+        
+        self.btn_abrir_html = ttk.Button(tb_open, text="Abrir HTML", style="Toolbar.TButton", command=lambda: self.abrir_tipo("html"))
+        self.btn_abrir_html.pack(side="left", padx=(0, 8), ipady=5)
+        
+        self.btn_abrir_pdf = ttk.Button(tb_open, text="Abrir PDF", style="Toolbar.TButton", command=lambda: self.abrir_tipo("pdf"))
+        self.btn_abrir_pdf.pack(side="left", padx=(0, 8), ipady=5)
+        
+        self.btn_abrir_xlsx = ttk.Button(tb_open, text="Abrir XLSX", style="Toolbar.TButton", command=self.abrir_ultimo)
+        self.btn_abrir_xlsx.pack(side="left", padx=(0, 8), ipady=5)
+        
+        self.btn_visualizar_db = ttk.Button(tb_open, text="Visualizar banco de dados", style="Toolbar.TButton", command=self.visualizar_banco_dados)
+        self.btn_visualizar_db.pack(side="left", ipady=5)
         recentes_box = tk.Frame(tb_open, bg=self.ui_panel)
         recentes_box.pack(side="right", fill="x", expand=True, padx=(16, 0))
         self._label(recentes_box, "Planilhas recentes", 9, "normal", self.ui_muted, self.ui_panel).pack(side="left", padx=(0, 8))
@@ -653,6 +671,12 @@ class WideAppInterface:
         self.log(f"[DIAGNOSTICO] Modificacao UI: {mtime}")
         self.log(f"[DIAGNOSTICO] Versao Git: {commit_version}")
         self.log(f"[DIAGNOSTICO] Cache JSON: {config.CLIENTES_JSON}")
+        
+        # Logs de diagnóstico obrigatórios para banco XLSX portátil
+        from app import paths
+        self.log(f"Pasta raiz do app: {paths.get_app_root()}")
+        self.log(f"Banco visual XLSX: {paths.get_visual_database_path()}")
+        self.log(f"Cache interno WidePay: {config.WIDEPAY_BOLETOS_CACHE_JSON}")
 
     def limpar_filtros(self):
         self.busca_var.set("")
@@ -670,15 +694,61 @@ class WideAppInterface:
         self.root.update_idletasks()
 
     def atualizar_async(self):
+        self.btn_atualizar_cli.configure(state="disabled")
+        self.btn_atualizar_wp.configure(state="disabled")
+        self.btn_gerar_sel.configure(state="disabled")
+        self.btn_gerar_todos.configure(state="disabled")
+        self.btn_abrir_xlsx.configure(state="disabled")
+        self.btn_visualizar_db.configure(state="disabled")
+        self.progress["value"] = 0
+        self.progress_label.configure(text="Iniciando atualização...")
         self.log("Atualizacao incremental de clientes iniciada...")
         threading.Thread(target=self._atualizar, daemon=True).start()
 
     def _atualizar(self):
-        result = indexador_clientes.indexar_clientes(validar_widepay=True, log_callback=self.log)
-        self.registros = result["registros"]
-        self.root.after(0, self.aplicar_filtro)
-        self.root.after(0, self.atualizar_combo_xlsx)
-        self.log(f"Clientes/lotes atualizados incrementalmente: {len(self.registros)}")
+        def progress_ui_callback(etapa, percentual, mensagem, detalhes=None):
+            def _update():
+                self.progress["value"] = percentual
+                self.progress_label.configure(text=f"[{percentual}%] {mensagem}")
+                self.log(f"[{percentual}%] {mensagem}")
+            self.root.after(0, _update)
+
+        try:
+            result = indexador_clientes.indexar_clientes(
+                validar_widepay=True,
+                log_callback=self.log,
+                progress_callback=progress_ui_callback
+            )
+            self.registros = result["registros"]
+            self.root.after(0, self.aplicar_filtro)
+            self.root.after(0, self.atualizar_combo_xlsx)
+            self.log(f"Clientes/lotes atualizados incrementalmente: {len(self.registros)}")
+            
+            def _success_msg():
+                messagebox.showinfo(
+                    "WideAPP_EXTRA",
+                    f"Atualização concluída com sucesso!\n{len(self.registros)} clientes/lotes indexados."
+                )
+            self.root.after(0, _success_msg)
+        except Exception as e:
+            self.log(f"Erro durante atualização: {e}")
+            
+            def _error_msg():
+                self.progress_label.configure(text="Erro ao atualizar clientes. Veja o log para detalhes.")
+                messagebox.showerror(
+                    "WideAPP_EXTRA",
+                    f"Erro durante atualização de clientes:\n{e}\n\nOs dados anteriores foram preservados."
+                )
+            self.root.after(0, _error_msg)
+        finally:
+            def _restore_buttons():
+                self.btn_atualizar_cli.configure(state="normal")
+                self.btn_atualizar_wp.configure(state="normal")
+                self.btn_gerar_sel.configure(state="normal")
+                self.btn_gerar_todos.configure(state="normal")
+                self.btn_abrir_xlsx.configure(state="normal")
+                self.btn_visualizar_db.configure(state="normal")
+            self.root.after(0, _restore_buttons)
 
     def _obter_imagem_barrinha_legacy(self, boletos_atrasados):
         """Gera e retorna uma imagem de barrinha colorida dinamicamente baseada nos boletos vencidos."""
@@ -1219,6 +1289,26 @@ class WideAppInterface:
             self.log(f"VISUALIZADOR PADRÃO: planilha aberta no Excel")
         else:
             messagebox.showwarning("WideAPP_EXTRA", f"Nenhum relatorio XLSX encontrado para {cliente} no diretorio {pasta_relatorios}")
+
+    def visualizar_banco_dados(self):
+        from app import paths
+        from app.abridor_arquivos import abrir
+        path = paths.get_visual_database_path()
+        if not path.exists():
+            messagebox.showwarning(
+                "WideAPP_EXTRA",
+                "Banco de dados ainda não foi gerado. Clique em Atualizar clientes primeiro."
+            )
+            return
+        
+        self.log(f"SKILL CARREGADA: widepay-abertura-externa")
+        self.log(f"EXECUÇÃO EXTERNA: abrindo banco de dados visual: {path.name}")
+        try:
+            abrir(path)
+            self.log(f"VISUALIZADOR PADRÃO: banco de dados visual aberto com sucesso.")
+        except Exception as exc:
+            self.log(f"Erro ao abrir banco de dados visual: {exc}")
+            messagebox.showerror("WideAPP_EXTRA", f"Erro ao abrir o banco de dados visual:\n{exc}")
 
     def atualizar_widepay_async(self):
         registros = [r for r in self.registros if r.get("contrato") == "Encontrado"]

@@ -85,7 +85,7 @@ def selecionar_aba_widepay(abas, preferir_valida=True):
 def validar_sessao_widepay(ws_url):
     async def _validar():
         import websockets
-        async with websockets.connect(ws_url) as ws:
+        async with websockets.connect(ws_url, max_size=None) as ws:
             async def cdp(method, params=None):
                 nonlocal ws
                 msg = {"id": 1, "method": method, "params": params or {}}

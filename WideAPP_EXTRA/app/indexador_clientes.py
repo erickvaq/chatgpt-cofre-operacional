@@ -326,7 +326,27 @@ def detectar_contrato(pasta):
         arquivos.append(path)
     if not arquivos:
         return "Nao encontrado", ""
-    principal = sorted(arquivos, key=lambda p: p.stat().st_size if p.exists() else 0, reverse=True)[0]
+    
+    # Heurística de pontuação baseada em correspondência com o nome da pasta
+    folder_name = pasta.name.lower()
+    noise = {"agua", "viva", "leandro", "meirelles", "leo", "contrato", "lote", "quadra", "lt", "qd"}
+    lote_da_pasta = extrair_lote(pasta.name)
+    if lote_da_pasta != "-":
+        noise.add(lote_da_pasta.lower())
+    
+    tokens = [t for t in re.split(r"[^a-z0-9]+", folder_name) if t and t not in noise]
+    
+    def score_candidato(path):
+        f_name = path.name.lower()
+        score = sum(1 for t in tokens if t in f_name)
+        # Prioridade de extensão como peso fracionário
+        ext = path.suffix.lower()
+        ext_weight = 0.9 if ext == ".docx" else (0.5 if ext == ".pdf" else 0.1)
+        # Tamanho do arquivo como peso menor (desempate)
+        size_weight = (path.stat().st_size if path.exists() else 0) / 1000000000.0
+        return (score, ext_weight, size_weight)
+        
+    principal = sorted(arquivos, key=score_candidato, reverse=True)[0]
     return "Encontrado", str(principal)
 
 
@@ -917,7 +937,7 @@ def montar_metricas_resumo_widepay(dados_raw_wp, dados_contrato):
     }
 
 
-def atualizar_resumo_widepay_incremental(registros, log_callback=None):
+def atualizar_resumo_widepay_incremental(registros, log_callback=None, progress_callback=None):
     confirmados = [r for r in registros if r.get("contrato") == "Encontrado"]
     if not confirmados:
         return registros
@@ -959,7 +979,7 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None):
             inicio_coleta = datetime.now().isoformat(timespec="seconds")
             log(f"WidePay global: coletando boletos/carnes de {len(payload)} cliente(s) em uma varredura paginada.")
             try:
-                resultado_bloco = await extrair_dados_clientes_bloco(ws_url, payload)
+                resultado_bloco = await extrair_dados_clientes_bloco(ws_url, payload, progress_callback=progress_callback)
             except Exception as e:
                 log(f"Erro na extracao em lote: {e}")
                 resultado_bloco = {}
@@ -974,6 +994,8 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None):
                 "total_clientes_reconhecidos": len({b.get("cliente_normalizado") for b in boletos_cache if b.get("cliente_normalizado")}),
                 "origem": "Atualizar clientes / coleta global WidePay",
             }
+            if progress_callback:
+                progress_callback("Salvando Cache", 70, "Salvando banco interno WidePay...")
             salvar_cache_boletos_widepay(boletos_cache, metadados_cache)
             log(f"Banco interno WidePay salvo: {len(boletos_cache)} boleto(s)/carne(s) em {config.WIDEPAY_BOLETOS_CACHE_JSON}.")
                 
@@ -1015,7 +1037,7 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None):
         return mantidos
 
 
-def indexar_clientes(validar_widepay=False, log_callback=None):
+def indexar_clientes(validar_widepay=False, log_callback=None, progress_callback=None):
     config.ensure_dirs()
     agora = datetime.now()
     log_path = config.LOG_DIR / f"atualizacao_clientes_{agora.strftime('%Y%m%d_%H%M%S')}.log"
@@ -1026,8 +1048,14 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now().isoformat(timespec='seconds')}] {msg}\n")
 
+    if progress_callback:
+        progress_callback("Preparação", 0, "Preparando atualização...")
+
     log("Indexacao iniciada")
     widepay_status = "Nao validado nesta atualizacao"
+    if progress_callback:
+        progress_callback("Validação", 10, "Validando ambiente e conexão com WidePay...")
+
     if validar_widepay:
         try:
             from app.login_navegador import garantir_navegador_conectado
@@ -1038,6 +1066,9 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
         except Exception as exc:
             widepay_status = f"WidePay indisponivel: {exc}"
             log(widepay_status)
+
+    if progress_callback:
+        progress_callback("Leitura Local", 20, "Lendo contratos e base local...")
 
     registros = []
     vistos = set()
@@ -1108,11 +1139,20 @@ def indexar_clientes(validar_widepay=False, log_callback=None):
 
     registros = deduplicar_preservando_ordem(registros)
     if validar_widepay:
-        registros = atualizar_resumo_widepay_incremental(registros, log_callback=log)
+        if progress_callback:
+            progress_callback("Conexão WidePay", 30, "Conectando ao WidePay...")
+        registros = atualizar_resumo_widepay_incremental(registros, log_callback=log, progress_callback=progress_callback)
 
+    if progress_callback:
+        progress_callback("Atualização de Lista", 80, "Atualizando lista de clientes...")
     registros.sort(key=lambda r: (slug_busca(r["cliente"]), r["lote"]))
+    
+    if progress_callback:
+        progress_callback("Geração XLSX", 90, "Gerando banco de dados XLSX...")
     salvar_cache(registros)
     log(f"Indexacao concluida: {len(registros)} cliente/lote")
+    if progress_callback:
+        progress_callback("Concluído", 100, f"Atualização concluída com sucesso. {len(registros)} registros indexados.")
     return {"registros": registros, "log": str(log_path), "widepay_status": widepay_status}
 
 
@@ -1173,6 +1213,25 @@ def salvar_xlsx(registros):
     for col in ws.columns:
         width = min(max(len(str(cell.value or "")) for cell in col) + 2, 60)
         ws.column_dimensions[col[0].column_letter].width = width
+        
+    # Salvar backup se o arquivo já existir
+    if config.VISUAL_XLSX.exists():
+        import shutil
+        from app import paths
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"BANCO_DADOS_WIDEAPP_EXTRA_ANTES_{timestamp}.xlsx"
+        backup_path = paths.get_backups_dir() / backup_name
+        try:
+            shutil.copy2(config.VISUAL_XLSX, backup_path)
+            print(f"Backup do banco visual criado em: {backup_path}")
+        except Exception as exc:
+            print(f"Erro ao criar backup do banco visual: {exc}")
+            
+    # Salvar banco visual (raiz do app)
+    wb.save(config.VISUAL_XLSX)
+    print(f"Banco visual XLSX salvo em: {config.VISUAL_XLSX}")
+    
+    # Manter cópia na pasta data interna para compatibilidade
     wb.save(config.CLIENTES_XLSX)
 
 

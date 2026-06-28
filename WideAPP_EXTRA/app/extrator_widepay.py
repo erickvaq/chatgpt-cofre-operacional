@@ -18,7 +18,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 async def cdp_command(ws_url, method, params=None):
     if params is None:
         params = {}
-    async with websockets.connect(ws_url) as ws:
+    async with websockets.connect(ws_url, max_size=None) as ws:
         msg = {
             "id": 1,
             "method": method,
@@ -269,10 +269,44 @@ async def ensure_widepay_logged_in(ws_url):
     motivo_str = ", ".join(motivos)
     raise RuntimeError(f"Login automatico impossivel porque: {motivo_str}. Por favor, faca login manualmente.")
 
-async def extrair_dados_clientes_bloco(ws_url, clientes_bloco):
+async def extrair_dados_clientes_bloco(ws_url, clientes_bloco, progress_callback=None):
     """Navega, executa pesquisa em branco e extrai dados de até 3 clientes simultaneamente."""
     await ensure_widepay_logged_in(ws_url)
     
+    # Inicializar estado de progresso na janela do navegador
+    await cdp_command(ws_url, "Runtime.evaluate", {
+        "expression": "window.wideapp_progress = null",
+        "returnByValue": True
+    })
+    
+    extraction_done = False
+
+    async def poll_progress_loop():
+        while not extraction_done:
+            try:
+                eval_prog = await cdp_command(ws_url, "Runtime.evaluate", {
+                    "expression": "window.wideapp_progress",
+                    "returnByValue": True
+                })
+                prog = eval_prog.get("result", {}).get("result", {}).get("value")
+                if prog and isinstance(prog, dict):
+                    et = prog.get("etapa")
+                    pg = prog.get("pagina", 1)
+                    aceitos = prog.get("total_aceitos", 0)
+                    if progress_callback:
+                        if et == "carnes":
+                            pct = 40 + min(pg * 1, 14)
+                            msg = f"Coletando carnês — página {pg} (coletados: {aceitos})"
+                            progress_callback("Coleta Carnes", pct, msg)
+                        elif et == "cobrancas":
+                            pct = 55 + min(pg * 2, 14)
+                            msg = f"Coletando cobranças — página {pg} (coletados: {aceitos})"
+                            progress_callback("Coleta Cobranças", pct, msg)
+            except Exception:
+                pass
+            await asyncio.sleep(1)
+
+    poll_task = asyncio.create_task(poll_progress_loop())
     # 1. Obter URL
     eval_loc = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "window.location.href", "returnByValue": True})
     current_url = eval_loc.get("result", {}).get("result", {}).get("value", "")
@@ -492,6 +526,13 @@ async def extrair_dados_clientes_bloco(ws_url, clientes_bloco):
                     totalAceitos++;
                 }
             });
+
+            window.wideapp_progress = {
+                etapa: "carnes",
+                pagina: page,
+                total_aceitos: totalAceitos,
+                total_ignorados: totalIgnorados
+            };
 
             var totalPagina = wideappInfoTotalTabela();
             var infoPagina = wideappInfoPagina();
@@ -747,6 +788,13 @@ async def extrair_dados_clientes_bloco(ws_url, clientes_bloco):
                 }
             });
 
+            window.wideapp_progress = {
+                etapa: "cobrancas",
+                pagina: page,
+                total_aceitos: totalAceitos,
+                total_ignorados: totalIgnorados
+            };
+
             var totalPagina = wideappInfoTotalTabela();
             var infoPagina = wideappInfoPagina();
             paginasWideapp.push({
@@ -833,13 +881,20 @@ async def extrair_dados_clientes_bloco(ws_url, clientes_bloco):
         resultados_bloco[c_nome] = res_json
         print(f"Dados brutos extraidos e salvos para {c_nome} em {caminho_json}")
         
+    extraction_done = True
+    try:
+        await poll_task
+    except Exception:
+        pass
+            
     return resultados_bloco
 
-async def extrair_dados_cliente(ws_url, cliente_nome, cliente_lote=None, cliente_quadra=None):
+async def extrair_dados_cliente(ws_url, cliente_nome, cliente_lote=None, cliente_quadra=None, progress_callback=None):
     """Envelopa a chamada individual para manter retrocompatibilidade."""
     res_bloco = await extrair_dados_clientes_bloco(
         ws_url,
-        [{"nome": cliente_nome, "lote": cliente_lote, "quadra": cliente_quadra}]
+        [{"nome": cliente_nome, "lote": cliente_lote, "quadra": cliente_quadra}],
+        progress_callback=progress_callback
     )
     return res_bloco.get(cliente_nome) or {
         "cliente": cliente_nome,

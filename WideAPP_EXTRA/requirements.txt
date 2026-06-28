@@ -4,3 +4,5 @@ websockets
 beautifulsoup4
 lxml
 playwright
+pypdf
+python-docx

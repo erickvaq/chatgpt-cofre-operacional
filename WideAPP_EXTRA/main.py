@@ -23,6 +23,8 @@ REQUIRED_MODULES = [
     "bs4",
     "lxml",
     "playwright",
+    "pypdf",
+    "docx",
 ]
 
 
@@ -243,7 +245,14 @@ class WideApp:
     def atualizar_clientes(self, validar_widepay=True):
         from app.indexador_clientes import indexar_clientes
 
-        result = indexar_clientes(validar_widepay=validar_widepay, log_callback=self.log)
+        def cli_progress(etapa, percentual, mensagem, detalhes=None):
+            self.log(f"[{percentual}%] {mensagem}")
+
+        result = indexar_clientes(
+            validar_widepay=validar_widepay,
+            log_callback=self.log,
+            progress_callback=cli_progress
+        )
         self.log(f"INDEXACAO: {len(result['registros'])} cliente/lote")
         self.log(f"INDEXACAO_LOG: {result['log']}")
         return 0
