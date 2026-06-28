@@ -134,8 +134,8 @@ class WideAppInterface:
     def __init__(self, root):
         self.root = root
         self.root.title("WideAPP_EXTRA - Clientes, lotes e relatorios")
-        self.root.geometry("1280x720")
-        self.root.minsize(1120, 650)
+        self.root.geometry("1500x900")
+        self.root.minsize(1280, 760)
         
         # Configurar Estilos do Tema Dark + Accent Green
         style = ttk.Style(self.root)
@@ -227,6 +227,11 @@ class WideAppInterface:
             background=[("active", "#7F1D1D"), ("disabled", "#1A2226")],
             foreground=[("active", "#FFFFFF"), ("disabled", "#66737A")]
         )
+        style.configure("Info.Toolbar.TButton", background="#1D4ED8", foreground="#FFFFFF", bordercolor="#60A5FA", font=("Segoe UI", 10, "bold"), padding=(14, 10))
+        style.map("Info.Toolbar.TButton",
+            background=[("active", "#2563EB"), ("disabled", "#1A2226")],
+            foreground=[("active", "#FFFFFF"), ("disabled", "#66737A")]
+        )
         style.configure("Modern.TEntry", fieldbackground="#101B21", foreground=self.ui_text, insertcolor=self.ui_text, bordercolor=self.ui_border, font=("Segoe UI", 10), padding=7)
         style.configure("Modern.TCombobox", fieldbackground="#101B21", background=self.ui_panel, foreground=self.ui_text, arrowcolor=self.ui_text, bordercolor=self.ui_border, font=("Segoe UI", 10), padding=6)
         style.configure("Modern.Treeview", background="#16232A", foreground=self.ui_text, fieldbackground="#16232A", rowheight=31, bordercolor=self.ui_border, font=("Segoe UI", 10))
@@ -234,6 +239,12 @@ class WideAppInterface:
         style.map("Modern.Treeview",
             background=[("selected", "#0B7F45")],
             foreground=[("selected", "#FFFFFF")]
+        )
+        style.configure("TNotebook", background=self.ui_bg, borderwidth=0)
+        style.configure("TNotebook.Tab", background="#102029", foreground=self.ui_text, padding=(14, 8), font=("Segoe UI", 10, "bold"))
+        style.map("TNotebook.Tab",
+            background=[("selected", self.ui_panel), ("active", "#1C2B33")],
+            foreground=[("selected", "#FFFFFF"), ("active", "#FFFFFF")]
         )
 
         self.registros = indexador_clientes.carregar_cache()
@@ -446,11 +457,80 @@ class WideAppInterface:
                 opcoes.add(lote)
         return ["Todos"] + sorted(opcao for opcao in opcoes if opcao != "Todos")
 
+    def _montar_painel_progresso(self, parent):
+        progress_panel = self._panel(parent, padx=10, pady=8)
+        self.progress_panel = progress_panel
+        prog_inner = progress_panel.inner
+
+        self._label(prog_inner, "Andamento da atualizacao", 10, "bold", self.ui_text, self.ui_panel).pack(anchor="w", pady=(0, 4))
+
+        info_frame = tk.Frame(prog_inner, bg=self.ui_panel)
+        info_frame.pack(fill="x", pady=(0, 4))
+
+        tk.Label(info_frame, text="Status: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_status_val = tk.Label(info_frame, textvariable=self.progress_status_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_status_val.pack(side="left", padx=(0, 10))
+
+        tk.Label(info_frame, text="Progresso: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_pct_val = tk.Label(info_frame, textvariable=self.progress_pct_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_pct_val.pack(side="left", padx=(0, 10))
+
+        tk.Label(info_frame, text="Clientes: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_cli_val = tk.Label(info_frame, textvariable=self.progress_cli_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_cli_val.pack(side="left", padx=(0, 10))
+
+        tk.Label(info_frame, text="Registros: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_reg_val = tk.Label(info_frame, textvariable=self.progress_reg_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_reg_val.pack(side="left", padx=(0, 10))
+
+        etapa_frame = tk.Frame(prog_inner, bg=self.ui_panel)
+        etapa_frame.pack(fill="x", pady=(0, 4))
+        tk.Label(etapa_frame, text="Etapa: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        self.lbl_etapa_val = tk.Label(etapa_frame, textvariable=self.progress_etapa_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
+        self.lbl_etapa_val.pack(side="left")
+        self.progress_label = self.lbl_etapa_val
+
+        style = ttk.Style(self.root)
+        style.configure("Big.Horizontal.TProgressbar", thickness=10, troughcolor="#0F1A20", background="#22C55E")
+        self.progress = ttk.Progressbar(prog_inner, orient="horizontal", mode="determinate", style="Big.Horizontal.TProgressbar")
+        self.progress.pack(fill="x", pady=(0, 4))
+
+        log_label_frame = tk.Frame(prog_inner, bg=self.ui_panel)
+        log_label_frame.pack(fill="x", pady=(4, 2))
+        self._label(log_label_frame, "Log de andamento recente:", 9, "bold", self.ui_muted, self.ui_panel).pack(anchor="w")
+
+        self.progress_mini_log = tk.Text(
+            prog_inner,
+            height=3,
+            bg="#0F1A20",
+            fg="#F3F7F8",
+            font=("Consolas", 8),
+            bd=0,
+            highlightthickness=1,
+            highlightbackground="#2D4650",
+            padx=6,
+            pady=3
+        )
+        self.progress_mini_log.pack(fill="x")
+        self.progress_mini_log.configure(state="disabled")
+        return progress_panel
+
     def _montar(self):
         self.root.configure(bg=self.ui_bg)
 
         header = tk.Frame(self.root, bg=self.ui_bg)
+        self.header_frame = header
         header.pack(fill="x", padx=22, pady=(16, 8))
+
+        status_box = tk.Frame(header, bg=self.ui_bg)
+        self.header_status_box = status_box
+        status_box.pack(side="right", anchor="ne")
+        self.conexao_var = tk.StringVar(value="Conectado ao WidePay")
+        conexao_row = tk.Frame(status_box, bg=self.ui_bg)
+        conexao_row.pack(anchor="e", pady=(0, 6))
+        tk.Label(conexao_row, textvariable=self.conexao_var, bg=self.ui_bg, fg=self.ui_text, font=("Segoe UI", 10)).pack(side="left", padx=(0, 22))
+        ttk.Button(conexao_row, text="Configuracoes", style="Toolbar.TButton", command=lambda: self.log("Configuracoes ainda nao possuem painel dedicado.")).pack(side="left")
+        # O painel de progresso definitivo e montado no fim do bloco legado abaixo.
 
         logo = tk.Canvas(header, width=50, height=50, bg=self.ui_bg, highlightthickness=0)
         logo.pack(side="left", padx=(0, 14))
@@ -458,37 +538,40 @@ class WideAppInterface:
             logo.create_polygon(8, y + 6, 25, y, 42, y + 6, 25, y + 16, fill=color, outline="")
 
         title_box = tk.Frame(header, bg=self.ui_bg)
-        title_box.pack(side="left", fill="x", expand=True)
+        self.title_box = title_box
+        title_box.pack(side="left", fill="both", expand=True, padx=(0, 16))
         self._label(title_box, "WideAPP_EXTRA - Clientes, lotes e relatorios", 20, "bold", self.ui_text).pack(anchor="w")
         self._label(title_box, "Gestao de clientes, lotes e relatorios", 11, "normal", self.ui_muted).pack(anchor="w", pady=(2, 0))
 
-        status_box = tk.Frame(header, bg=self.ui_bg)
-        status_box.pack(side="right")
-        self.conexao_var = tk.StringVar(value="Conectado ao WidePay")
-        tk.Label(status_box, textvariable=self.conexao_var, bg=self.ui_bg, fg=self.ui_text, font=("Segoe UI", 10)).pack(side="left", padx=(0, 22))
-        ttk.Button(status_box, text="Configuracoes", style="Toolbar.TButton", command=lambda: self.log("Configuracoes ainda nao possuem painel dedicado.")).pack(side="left")
-
-        toolbar = self._panel(self.root, padx=14, pady=12)
-        toolbar.pack(fill="x", padx=22, pady=(6, 10))
+        toolbar = self._panel(title_box, padx=14, pady=12)
+        self.toolbar_panel = toolbar
+        toolbar.pack(fill="x", pady=(24, 0))
         tb = toolbar.inner
         tb_actions = tk.Frame(tb, bg=self.ui_panel)
         tb_actions.pack(fill="x")
+        tb_reports = tk.Frame(tb, bg=self.ui_panel)
+        tb_reports.pack(fill="x", pady=(10, 0))
         tb_open = tk.Frame(tb, bg=self.ui_panel)
         tb_open.pack(fill="x", pady=(10, 0))
+        tb_recent = tk.Frame(tb, bg=self.ui_panel)
+        tb_recent.pack(fill="x", pady=(10, 0))
 
         self.btn_atualizar_cli = ttk.Button(tb_actions, text="Atualizar clientes", style="Primary.Toolbar.TButton", command=self.atualizar_async)
         self.btn_atualizar_cli.pack(side="left", padx=(0, 10), ipady=5)
+
+        self.btn_visualizar_db = ttk.Button(tb_actions, text="Visualizar banco de dados", style="Info.Toolbar.TButton", command=self.visualizar_banco_dados)
+        self.btn_visualizar_db.pack(side="left", padx=(0, 10), ipady=5)
         
         self.btn_atualizar_wp = ttk.Button(tb_actions, text="Atualizar WidePay", style="Toolbar.TButton", command=self.atualizar_widepay_async)
         self.btn_atualizar_wp.pack(side="left", padx=(0, 10), ipady=5)
         
-        self.btn_gerar_sel = ttk.Button(tb_actions, text="Gerar relatorio selecionados", style="Toolbar.TButton", command=self.gerar_selecionados)
+        self.btn_gerar_sel = ttk.Button(tb_reports, text="Gerar relatorio selecionados", style="Toolbar.TButton", command=self.gerar_selecionados)
         self.btn_gerar_sel.pack(side="left", padx=(0, 10), ipady=5)
         
-        self.btn_gerar_todos = ttk.Button(tb_actions, text="Gerar clientes ativos", style="Toolbar.TButton", command=self.gerar_todos_ativos)
-        self.btn_gerar_todos.pack(side="left", padx=(0, 10), ipady=5)
+        self.btn_gerar_todos = ttk.Button(tb_reports, text="Gerar clientes ativos", style="Toolbar.TButton", command=self.gerar_todos_ativos)
+        self.btn_gerar_todos.pack(side="left", padx=(0, 8), ipady=5)
         
-        self.btn_parar = ttk.Button(tb_actions, text="Parar captura", style="Danger.Toolbar.TButton", command=self.parar_captura, state="disabled")
+        self.btn_parar = ttk.Button(tb_reports, text="Parar captura", style="Danger.Toolbar.TButton", command=self.parar_captura, state="disabled")
         self.btn_parar.pack(side="left", ipady=5)
 
         self.btn_abrir_pasta = ttk.Button(tb_open, text="Abrir pasta local", style="Toolbar.TButton", command=self.abrir_pasta_execucao)
@@ -506,53 +589,52 @@ class WideAppInterface:
         self.btn_abrir_xlsx = ttk.Button(tb_open, text="Abrir XLSX", style="Toolbar.TButton", command=self.abrir_ultimo)
         self.btn_abrir_xlsx.pack(side="left", padx=(0, 8), ipady=5)
         
-        self.btn_visualizar_db = ttk.Button(tb_open, text="Visualizar banco de dados", style="Toolbar.TButton", command=self.visualizar_banco_dados)
-        self.btn_visualizar_db.pack(side="left", ipady=5)
-        recentes_box = tk.Frame(tb_open, bg=self.ui_panel)
-        recentes_box.pack(side="right", fill="x", expand=True, padx=(16, 0))
+        recentes_box = tk.Frame(tb_recent, bg=self.ui_panel)
+        recentes_box.pack(side="left", fill="x", expand=True)
         self._label(recentes_box, "Planilhas recentes", 9, "normal", self.ui_muted, self.ui_panel).pack(side="left", padx=(0, 8))
-        self.xlsx_combo = ttk.Combobox(recentes_box, state="readonly", width=58, style="Modern.TCombobox")
+        self.xlsx_combo = ttk.Combobox(recentes_box, state="readonly", width=42, style="Modern.TCombobox")
         self.xlsx_combo.pack(side="left", fill="x", expand=True, ipady=4)
         self.xlsx_combo.bind("<<ComboboxSelected>>", self.abrir_xlsx_selecionado)
 
         # -------------------------------------------------------------
         # Painel de Andamento da Atualização (área fixa de progresso)
         # -------------------------------------------------------------
-        progress_panel = self._panel(self.root, padx=16, pady=12)
-        progress_panel.pack(fill="x", padx=22, pady=(0, 10))
+        progress_panel = self._panel(self.root, padx=10, pady=8)
+        progress_panel.pack(anchor="e", padx=22, pady=(0, 6))
         prog_inner = progress_panel.inner
         
-        self._label(prog_inner, "Andamento da atualização", 11, "bold", self.ui_text, self.ui_panel).pack(anchor="w", pady=(0, 8))
+        self._label(prog_inner, "Andamento da atualização", 10, "bold", self.ui_text, self.ui_panel).pack(anchor="w", pady=(0, 4))
         
         info_frame = tk.Frame(prog_inner, bg=self.ui_panel)
-        info_frame.pack(fill="x", pady=(0, 10))
+        info_frame.pack(fill="x", pady=(0, 4))
         
         # Grid of status fields
         tk.Label(info_frame, text="Status: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
         self.lbl_status_val = tk.Label(info_frame, textvariable=self.progress_status_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
-        self.lbl_status_val.pack(side="left", padx=(0, 24))
+        self.lbl_status_val.pack(side="left", padx=(0, 10))
         
         tk.Label(info_frame, text="Progresso: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
         self.lbl_pct_val = tk.Label(info_frame, textvariable=self.progress_pct_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
-        self.lbl_pct_val.pack(side="left", padx=(0, 24))
+        self.lbl_pct_val.pack(side="left", padx=(0, 10))
 
-        tk.Label(info_frame, text="Clientes atualizados: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        tk.Label(info_frame, text="Clientes: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
         self.lbl_cli_val = tk.Label(info_frame, textvariable=self.progress_cli_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
-        self.lbl_cli_val.pack(side="left", padx=(0, 24))
+        self.lbl_cli_val.pack(side="left", padx=(0, 10))
 
-        tk.Label(info_frame, text="Registros coletados: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        tk.Label(info_frame, text="Registros: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
         self.lbl_reg_val = tk.Label(info_frame, textvariable=self.progress_reg_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
-        self.lbl_reg_val.pack(side="left", padx=(0, 24))
+        self.lbl_reg_val.pack(side="left", padx=(0, 10))
         
-        tk.Label(info_frame, text="Etapa atual: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
+        tk.Label(info_frame, text="Etapa: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
         self.lbl_etapa_val = tk.Label(info_frame, textvariable=self.progress_etapa_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
         self.lbl_etapa_val.pack(side="left")
+        self.progress_label = self.lbl_etapa_val
 
         # Custom high visibility style for progress bar
         style = ttk.Style(self.root)
-        style.configure("Big.Horizontal.TProgressbar", thickness=18, troughcolor="#0F1A20", background="#22C55E")
+        style.configure("Big.Horizontal.TProgressbar", thickness=10, troughcolor="#0F1A20", background="#22C55E")
         self.progress = ttk.Progressbar(prog_inner, orient="horizontal", mode="determinate", style="Big.Horizontal.TProgressbar")
-        self.progress.pack(fill="x", pady=(0, 8))
+        self.progress.pack(fill="x", pady=(0, 4))
         
         log_label_frame = tk.Frame(prog_inner, bg=self.ui_panel)
         log_label_frame.pack(fill="x", pady=(4, 2))
@@ -560,18 +642,20 @@ class WideAppInterface:
         
         self.progress_mini_log = tk.Text(
             prog_inner,
-            height=4,
+            height=3,
             bg="#0F1A20",
             fg="#F3F7F8",
-            font=("Consolas", 9),
+            font=("Consolas", 8),
             bd=0,
             highlightthickness=1,
             highlightbackground="#2D4650",
             padx=6,
-            pady=4
+            pady=3
         )
         self.progress_mini_log.pack(fill="x")
         self.progress_mini_log.configure(state="disabled")
+        progress_panel.destroy()
+        self._montar_painel_progresso(status_box).pack(anchor="e")
 
         filtros_panel = self._panel(self.root, padx=16, pady=14)
         filtros_panel.pack(fill="x", padx=22, pady=(0, 8))
@@ -616,8 +700,32 @@ class WideAppInterface:
         self.quadra_lote_combo.bind("<<ComboboxSelected>>", lambda _e: self.aplicar_filtro())
         ttk.Button(filtros, text="Limpar filtros", style="Toolbar.TButton", command=self.limpar_filtros).pack(side="left", ipady=7, pady=(18, 0))
 
-        tabela_panel = self._panel(self.root, padx=14, pady=10)
-        tabela_panel.pack(fill="both", expand=True, padx=22, pady=(0, 8))
+        workspace_tabs = ttk.Notebook(self.root)
+        self.workspace_tabs = workspace_tabs
+        workspace_tabs.pack(fill="both", expand=True, padx=22, pady=(0, 8))
+
+        clientes_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
+        banco_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
+        logs_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
+        resumo_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
+        auditoria_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
+        self.clientes_tab = clientes_tab
+        self.banco_tab = banco_tab
+        self.logs_tab = logs_tab
+        self.resumo_tab = resumo_tab
+        self.auditoria_tab = auditoria_tab
+        workspace_tabs.add(clientes_tab, text="Clientes / relatorios")
+        workspace_tabs.add(banco_tab, text="Banco de dados")
+        workspace_tabs.add(logs_tab, text="Logs")
+        workspace_tabs.add(resumo_tab, text="Resumo / status")
+        workspace_tabs.add(auditoria_tab, text="Auditoria")
+
+        clientes_paned = ttk.PanedWindow(clientes_tab, orient="vertical")
+        self.clientes_paned = clientes_paned
+        clientes_paned.pack(fill="both", expand=True)
+
+        tabela_panel = self._panel(clientes_paned, padx=14, pady=10)
+        self.tabela_panel = tabela_panel
         tabela = tabela_panel.inner
         self.tree = ttk.Treeview(tabela, columns=[c[0] for c in COLUNAS], show="tree headings", selectmode="extended", style="Modern.Treeview")
         self.tree.heading("#0", text="STATUS", command=lambda: self.ordenar_por_coluna("#0"))
@@ -650,18 +758,20 @@ class WideAppInterface:
 
 
 
-        inferior = ttk.PanedWindow(self.root, orient="horizontal")
-        inferior.pack(fill="both", expand=False, padx=22, pady=(0, 6))
+        inferior = ttk.PanedWindow(clientes_paned, orient="horizontal")
+        self.inferior_paned = inferior
 
         logs_frame = self._panel(inferior, padx=14, pady=10)
         resumo_frame = self._panel(inferior, padx=14, pady=10)
+        self.logs_frame = logs_frame
+        self.resumo_frame = resumo_frame
         inferior.add(logs_frame, weight=3)
         inferior.add(resumo_frame, weight=3)
 
         logs_header = tk.Frame(logs_frame.inner, bg=self.ui_panel)
         logs_header.pack(fill="x")
         self._label(logs_header, "Log de execucao", 11, "bold", self.ui_text, self.ui_panel).pack(side="left")
-        ttk.Button(logs_header, text="Limpar log", style="Toolbar.TButton", command=lambda: self.logs.delete("1.0", "end")).pack(side="right")
+        ttk.Button(logs_header, text="Limpar log", style="Toolbar.TButton", command=self._limpar_logs).pack(side="right")
         self.logs = tk.Text(logs_frame.inner, height=5, wrap="word", bg=self.ui_panel, fg=self.ui_text, insertbackground=self.ui_text, selectbackground="#0B7F45", selectforeground="#FFFFFF", font=("Consolas", 9), bd=0)
         self.logs.pack(fill="both", expand=True, pady=(8, 0))
 
@@ -683,6 +793,62 @@ class WideAppInterface:
 
         self.links = tk.Text(resumo_frame.inner, height=3, wrap="word", bg="#101B21", fg=self.ui_text, insertbackground=self.ui_text, selectbackground="#0B7F45", selectforeground="#FFFFFF", font=("Consolas", 8), bd=0)
         self.links.pack(fill="x", pady=(10, 0))
+
+        banco_panel = self._panel(banco_tab, padx=16, pady=14)
+        banco_panel.pack(fill="both", expand=True, padx=8, pady=8)
+        banco_inner = banco_panel.inner
+        self._label(banco_inner, "Banco de dados", 14, "bold", self.ui_text, self.ui_panel).pack(anchor="w")
+        try:
+            from app import paths
+            banco_path_text = str(paths.get_visual_database_path())
+        except Exception:
+            banco_path_text = "BANCO_DADOS_WIDEAPP_EXTRA.xlsx"
+        self.banco_path_var = tk.StringVar(value=banco_path_text)
+        tk.Label(banco_inner, textvariable=self.banco_path_var, bg=self.ui_panel, fg=self.ui_muted, font=("Consolas", 9), anchor="w").pack(fill="x", pady=(8, 12))
+        ttk.Button(banco_inner, text="Visualizar banco de dados", style="Info.Toolbar.TButton", command=self.visualizar_banco_dados).pack(anchor="w", ipady=5)
+
+        logs_tab_panel = self._panel(logs_tab, padx=14, pady=10)
+        logs_tab_panel.pack(fill="both", expand=True, padx=8, pady=8)
+        logs_tab_header = tk.Frame(logs_tab_panel.inner, bg=self.ui_panel)
+        logs_tab_header.pack(fill="x")
+        self._label(logs_tab_header, "Logs", 13, "bold", self.ui_text, self.ui_panel).pack(side="left")
+        ttk.Button(logs_tab_header, text="Limpar log", style="Toolbar.TButton", command=self._limpar_logs).pack(side="right")
+        logs_tab_scroll = ttk.Scrollbar(logs_tab_panel.inner, orient="vertical")
+        logs_tab_scroll.pack(side="right", fill="y", pady=(8, 0))
+        self.logs_tab_text = tk.Text(logs_tab_panel.inner, height=12, wrap="word", bg="#101B21", fg=self.ui_text, insertbackground=self.ui_text, selectbackground="#0B7F45", selectforeground="#FFFFFF", font=("Consolas", 9), bd=0, yscrollcommand=logs_tab_scroll.set)
+        self.logs_tab_text.pack(fill="both", expand=True, pady=(8, 0))
+        logs_tab_scroll.config(command=self.logs_tab_text.yview)
+
+        resumo_tab_panel = self._panel(resumo_tab, padx=14, pady=10)
+        resumo_tab_panel.pack(fill="both", expand=True, padx=8, pady=8)
+        resumo_tab_header = tk.Frame(resumo_tab_panel.inner, bg=self.ui_panel)
+        resumo_tab_header.pack(fill="x")
+        self._label(resumo_tab_header, "Resumo e status", 13, "bold", self.ui_text, self.ui_panel).pack(side="left")
+        tk.Label(resumo_tab_header, textvariable=self.resumo_atualizado_var, bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9)).pack(side="right")
+        cards_tab = tk.Frame(resumo_tab_panel.inner, bg=self.ui_panel)
+        cards_tab.pack(fill="x", pady=(10, 0))
+        self._criar_card_resumo(cards_tab, self.metric_total_var, "Clientes ativos", self.ui_green).pack(side="left", fill="both", expand=True, padx=(0, 10))
+        self._criar_card_resumo(cards_tab, self.metric_atraso_var, "Em atraso", self.ui_red).pack(side="left", fill="both", expand=True, padx=(0, 10))
+        self._criar_card_resumo(cards_tab, self.metric_critico_var, "Atraso critico", self.ui_yellow).pack(side="left", fill="both", expand=True, padx=(0, 10))
+        self._criar_card_resumo(cards_tab, self.metric_atualizados_var, "Atualizados hoje", self.ui_blue).pack(side="left", fill="both", expand=True)
+        self.links_tab_text = tk.Text(resumo_tab_panel.inner, height=8, wrap="word", bg="#101B21", fg=self.ui_text, insertbackground=self.ui_text, selectbackground="#0B7F45", selectforeground="#FFFFFF", font=("Consolas", 9), bd=0)
+        self.links_tab_text.pack(fill="both", expand=True, pady=(12, 0))
+
+        auditoria_panel = self._panel(auditoria_tab, padx=16, pady=14)
+        auditoria_panel.pack(fill="both", expand=True, padx=8, pady=8)
+        self._label(auditoria_panel.inner, "Auditoria visual", 14, "bold", self.ui_text, self.ui_panel).pack(anchor="w")
+        auditoria_txt = tk.Text(auditoria_panel.inner, height=10, wrap="word", bg="#101B21", fg=self.ui_text, insertbackground=self.ui_text, font=("Consolas", 9), bd=0)
+        auditoria_txt.pack(fill="both", expand=True, pady=(10, 0))
+        auditoria_txt.insert("end", "Protecoes ativas:\n")
+        auditoria_txt.insert("end", "- Botao azul Visualizar banco de dados preservado.\n")
+        auditoria_txt.insert("end", "- Painel de progresso preso ao canto superior direito.\n")
+        auditoria_txt.insert("end", "- Toolbar presa ao bloco do titulo.\n")
+        auditoria_txt.insert("end", "- Lista, log e resumo dentro de divisores redimensionaveis.\n")
+        auditoria_txt.insert("end", "- Abas para clientes, banco, logs, resumo/status e auditoria.\n")
+        auditoria_txt.configure(state="disabled")
+
+        clientes_paned.add(tabela_panel, weight=5)
+        clientes_paned.add(inferior, weight=2)
 
         statusbar = tk.Frame(self.root, bg="#0B151A")
         statusbar.pack(fill="x", side="bottom")
@@ -745,13 +911,57 @@ class WideAppInterface:
             self.quadra_lote_var.set("Todos")
         self.aplicar_filtro()
 
+    def _limpar_logs(self):
+        for widget_name in ("logs", "logs_tab_text"):
+            widget = getattr(self, widget_name, None)
+            if widget is not None:
+                widget.delete("1.0", "end")
+
+    def _limpar_links_status(self):
+        for widget_name in ("links", "links_tab_text"):
+            widget = getattr(self, widget_name, None)
+            if widget is not None:
+                widget.delete("1.0", "end")
+
+    def _append_links_status(self, texto):
+        for widget_name in ("links", "links_tab_text"):
+            widget = getattr(self, widget_name, None)
+            if widget is not None:
+                widget.insert("end", texto)
+                widget.see("end")
+
     def log(self, msg):
         if threading.current_thread() is not threading.main_thread():
             self.root.after(0, lambda m=msg: self.log(m))
             return
-        self.logs.insert("end", msg + "\n")
-        self.logs.see("end")
+        for widget_name in ("logs", "logs_tab_text"):
+            widget = getattr(self, widget_name, None)
+            if widget is not None:
+                widget.insert("end", msg + "\n")
+                widget.see("end")
         self.root.update_idletasks()
+
+    def _append_progress_log(self, linha):
+        if not hasattr(self, "progress_mini_log"):
+            return
+        self.progress_mini_log.configure(state="normal")
+        linhas = [x for x in self.progress_mini_log.get("1.0", "end").splitlines() if x.strip()]
+        linhas.append(linha)
+        linhas = linhas[-3:]
+        self.progress_mini_log.delete("1.0", "end")
+        self.progress_mini_log.insert("end", "\n".join(linhas) + ("\n" if linhas else ""))
+        self.progress_mini_log.configure(state="disabled")
+
+    def _recarregar_dados_apos_atualizacao(self):
+        self.registros = indexador_clientes.carregar_cache()
+        if hasattr(self, "quadra_lote_combo"):
+            opcoes = self._opcoes_quadra_lote()
+            atual = self.quadra_lote_var.get()
+            self.quadra_lote_combo.configure(values=opcoes)
+            if atual not in opcoes:
+                self.quadra_lote_var.set("Todos")
+        self.aplicar_filtro()
+        self.atualizar_combo_xlsx()
 
     def atualizar_async(self):
         self.btn_atualizar_cli.configure(state="disabled")
@@ -767,12 +977,13 @@ class WideAppInterface:
         self.progress_reg_var.set("0")
         self.progress_cli_var.set("0")
         self.progress["value"] = 0
+        self.progress_label.configure(text="Preparando atualização...")
         
         # Habilitar e limpar mini log
         self.progress_mini_log.configure(state="normal")
         self.progress_mini_log.delete("1.0", "end")
-        self.progress_mini_log.insert("end", "[0%] Iniciando atualização...\n")
         self.progress_mini_log.configure(state="disabled")
+        self._append_progress_log("[0%] Iniciando atualização...")
         
         self.log("Atualizacao incremental de clientes iniciada...")
         threading.Thread(target=self._atualizar, daemon=True).start()
@@ -783,6 +994,7 @@ class WideAppInterface:
                 self.progress["value"] = percentual
                 self.progress_pct_var.set(f"{percentual}%")
                 self.progress_etapa_var.set(mensagem)
+                self.progress_label.configure(text=mensagem)
                 
                 # Extrair registros coletados
                 import re
@@ -797,11 +1009,7 @@ class WideAppInterface:
                 elif percentual == 100:
                     self.progress_cli_var.set(str(len(self.registros)))
                 
-                # Adicionar linha ao mini log
-                self.progress_mini_log.configure(state="normal")
-                self.progress_mini_log.insert("end", f"[{percentual}%] {mensagem}\n")
-                self.progress_mini_log.see("end")
-                self.progress_mini_log.configure(state="disabled")
+                self._append_progress_log(f"[{percentual}%] {mensagem}")
                 
                 self.log(f"[{percentual}%] {mensagem}")
             self.root.after(0, _update)
@@ -812,16 +1020,15 @@ class WideAppInterface:
                 log_callback=self.log,
                 progress_callback=progress_ui_callback
             )
-            self.registros = result["registros"]
-            self.root.after(0, self.aplicar_filtro)
-            self.root.after(0, self.atualizar_combo_xlsx)
-            
             def _success_msg():
+                self._recarregar_dados_apos_atualizacao()
                 self.progress_status_var.set("Pronto")
                 self.progress_etapa_var.set("Atualização concluída com sucesso — 100%")
+                self.progress_label.configure(text="Atualização concluída com sucesso — 100%")
                 self.progress_pct_var.set("100%")
                 self.progress["value"] = 100
                 self.progress_cli_var.set(str(len(self.registros)))
+                self._append_progress_log(f"[100%] Banco e tabela atualizados com {len(self.registros)} registros.")
                 self.log(f"Clientes/lotes atualizados incrementalmente: {len(self.registros)}")
                 messagebox.showinfo(
                     "WideAPP_EXTRA",
@@ -834,6 +1041,8 @@ class WideAppInterface:
             def _error_msg():
                 self.progress_status_var.set("Pronto")
                 self.progress_etapa_var.set("Atualização falhou — veja o log")
+                self.progress_label.configure(text="Atualização falhou — veja o log")
+                self._append_progress_log("[erro] Atualização falhou; dados anteriores preservados.")
                 messagebox.showerror(
                     "WideAPP_EXTRA",
                     f"Erro durante atualização de clientes:\n{e}\n\nOs dados anteriores foram preservados."
@@ -1269,9 +1478,9 @@ class WideAppInterface:
             self.ultima_pasta = self.ultimos["pdf"][0].parent
         elif self.ultimos.get("xlsx"):
             self.ultima_pasta = self.ultimos["xlsx"][0].parent
-        self.links.delete("1.0", "end")
+        self._limpar_links_status()
         for item in resultado["drive"]:
-            self.links.insert("end", f"{item.get('cliente')} {item.get('lote')}: {item.get('status')} {item.get('link')}\n")
+            self._append_links_status(f"{item.get('cliente')} {item.get('lote')}: {item.get('status')} {item.get('link')}\n")
         if resultado.get("cancelado"):
             self.log("Captura encerrada sem consolidado/upload final por solicitacao do usuario.")
         else:
@@ -1312,7 +1521,7 @@ class WideAppInterface:
             else:
                 messagebox.showinfo("WideAPP_EXTRA", f"Pasta Drive nao encontrada: {destino}")
         else:
-            self.links.insert("end", f"Destino Drive remoto: {destino}\n")
+            self._append_links_status(f"Destino Drive remoto: {destino}\n")
 
     def atualizar_progresso(self, pct, tempo_restante_segundos):
         def _update():
@@ -1521,5 +1730,22 @@ def smoke_test():
     root.withdraw()
     app = WideAppInterface(root)
     assert hasattr(app, "tree")
+    assert root.minsize()[0] >= 1280
+    assert root.minsize()[1] >= 760
+    assert app.btn_visualizar_db.cget("text") == "Visualizar banco de dados"
+    assert app.btn_visualizar_db.cget("style") == "Info.Toolbar.TButton"
+    assert hasattr(app, "progress_panel")
+    assert app.progress_panel.master is app.header_status_box
+    assert hasattr(app, "toolbar_panel")
+    assert app.toolbar_panel.master is app.title_box
+    assert int(app.progress_mini_log.cget("height")) in (2, 3)
+    assert hasattr(app, "workspace_tabs")
+    assert len(app.workspace_tabs.tabs()) >= 5
+    assert hasattr(app, "clientes_paned")
+    assert hasattr(app, "inferior_paned")
+    assert app.logs.winfo_exists()
+    assert app.logs_tab_text.winfo_exists()
+    assert app.resumo_frame.winfo_exists()
+    assert app.links_tab_text.winfo_exists()
     root.destroy()
     return len(registros)
