@@ -212,22 +212,22 @@ class WideAppInterface:
         style.configure("TProgressbar", thickness=12, troughcolor=bg_card, background=green_accent)
         style.configure("TLabelframe", background=bg_dark, foreground=green_accent, font=("Segoe UI", 9, "bold"), bordercolor=bg_active)
         style.configure("TLabelframe.Label", background=bg_dark, foreground=green_accent)
-        style.configure("Toolbar.TButton", background=self.ui_panel_alt, foreground=self.ui_text, bordercolor=self.ui_border, font=("Segoe UI", 10, "bold"), padding=(14, 10))
+        style.configure("Toolbar.TButton", background=self.ui_panel_alt, foreground=self.ui_text, bordercolor=self.ui_border, font=("Segoe UI", 9, "bold"), padding=(10, 4))
         style.map("Toolbar.TButton",
             background=[("active", "#233A44"), ("disabled", "#1A2226")],
             foreground=[("active", self.ui_text), ("disabled", "#66737A")]
         )
-        style.configure("Primary.Toolbar.TButton", background="#10B95B", foreground="#FFFFFF", bordercolor="#2DF27D", font=("Segoe UI", 10, "bold"), padding=(16, 10))
+        style.configure("Primary.Toolbar.TButton", background="#10B95B", foreground="#FFFFFF", bordercolor="#2DF27D", font=("Segoe UI", 9, "bold"), padding=(12, 4))
         style.map("Primary.Toolbar.TButton",
             background=[("active", "#22C55E"), ("disabled", "#1A2226")],
             foreground=[("active", "#06150B"), ("disabled", "#66737A")]
         )
-        style.configure("Danger.Toolbar.TButton", background="#3A2630", foreground="#FFB4C0", bordercolor="#7F2D3B", font=("Segoe UI", 10, "bold"), padding=(14, 10))
+        style.configure("Danger.Toolbar.TButton", background="#3A2630", foreground="#FFB4C0", bordercolor="#7F2D3B", font=("Segoe UI", 9, "bold"), padding=(10, 4))
         style.map("Danger.Toolbar.TButton",
             background=[("active", "#7F1D1D"), ("disabled", "#1A2226")],
             foreground=[("active", "#FFFFFF"), ("disabled", "#66737A")]
         )
-        style.configure("Info.Toolbar.TButton", background="#1D4ED8", foreground="#FFFFFF", bordercolor="#60A5FA", font=("Segoe UI", 10, "bold"), padding=(14, 10))
+        style.configure("Info.Toolbar.TButton", background="#1D4ED8", foreground="#FFFFFF", bordercolor="#60A5FA", font=("Segoe UI", 9, "bold"), padding=(10, 4))
         style.map("Info.Toolbar.TButton",
             background=[("active", "#2563EB"), ("disabled", "#1A2226")],
             foreground=[("active", "#FFFFFF"), ("disabled", "#66737A")]
@@ -286,146 +286,6 @@ class WideAppInterface:
         self.root.after(800, _focus)
         self.root.after(1600, _focus)
 
-    def _montar(self):
-        topo = ttk.Frame(self.root, padding=8)
-        topo.pack(fill="x")
-        ttk.Button(topo, text="Atualizar clientes", command=self.atualizar_async).pack(side="left")
-        ttk.Button(topo, text="Atualizar informações da WidePay", command=self.atualizar_widepay_async).pack(side="left", padx=(6, 0))
-        ttk.Label(topo, text="Pesquisar cliente").pack(side="left", padx=(12, 4))
-        self.busca_var = tk.StringVar()
-        busca = ttk.Entry(topo, textvariable=self.busca_var, width=36)
-        busca.pack(side="left")
-        busca.bind("<KeyRelease>", lambda _e: self.aplicar_filtro())
-        ttk.Label(topo, text="Status").pack(side="left", padx=(12, 4))
-        self.status_var = tk.StringVar(value="Todos")
-        status_box = ttk.Combobox(
-            topo,
-            textvariable=self.status_var,
-            values=["Todos", "Pendente validacao WidePay", "APROVADO", "PENDENTE", "ERRO", "Sem contrato confirmado"],
-            width=26,
-            state="readonly",
-        )
-        status_box.pack(side="left")
-        status_box.bind("<<ComboboxSelected>>", lambda _e: self.aplicar_filtro())
-
-        botoes = ttk.Frame(self.root, padding=(8, 0, 8, 8))
-        botoes.pack(fill="x")
-        ttk.Button(botoes, text="Selecionar todos", command=self.selecionar_todos).pack(side="left")
-        ttk.Button(botoes, text="Limpar selecao", command=self.limpar_selecao).pack(side="left", padx=4)
-        self.btn_gerar_sel = ttk.Button(botoes, text="Gerar relatorio dos selecionados", command=self.gerar_selecionados, style="Accent.TButton")
-        self.btn_gerar_sel.pack(side="left", padx=12)
-        self.btn_gerar_todos = ttk.Button(botoes, text="Gerar relatorio de todos os clientes ativos", command=self.gerar_todos_ativos, style="Accent.TButton")
-        self.btn_gerar_todos.pack(side="left")
-        self.btn_parar = ttk.Button(botoes, text="Parar captura", command=self.parar_captura, state="disabled")
-        self.btn_parar.pack(side="left", padx=(8, 0))
-        
-        # Frame para organizador de abridores
-        abridores = ttk.Frame(botoes)
-        abridores.pack(side="right")
-        
-        # Linha superior: botões
-        botoes_linha = ttk.Frame(abridores)
-        botoes_linha.pack(side="top", anchor="e")
-        ttk.Button(botoes_linha, text="Abrir pasta local", command=self.abrir_pasta_execucao).pack(side="left", padx=2)
-        ttk.Button(botoes_linha, text="Abrir pasta no Drive", command=self.abrir_drive).pack(side="left", padx=2)
-        ttk.Button(botoes_linha, text="Abrir HTML", command=lambda: self.abrir_tipo("html")).pack(side="left", padx=2)
-        ttk.Button(botoes_linha, text="Abrir PDF", command=lambda: self.abrir_tipo("pdf")).pack(side="left", padx=2)
-        ttk.Button(botoes_linha, text="Abrir XLSX", command=self.abrir_ultimo).pack(side="left", padx=2)
-        
-        # Linha inferior: combobox de planilhas de largura 75 para visualização completa
-        xlsx_linha = ttk.Frame(abridores)
-        xlsx_linha.pack(side="top", fill="x", anchor="e", pady=(4, 0))
-        ttk.Label(xlsx_linha, text="Planilhas recentes:").pack(side="left", padx=2)
-        self.xlsx_combo = ttk.Combobox(xlsx_linha, state="readonly", width=75)
-        self.xlsx_combo.pack(side="left", padx=2, fill="x", expand=True)
-        self.xlsx_combo.bind("<<ComboboxSelected>>", self.abrir_xlsx_selecionado)
-
-        meio = ttk.Frame(self.root, padding=8)
-        meio.pack(fill="both", expand=True)
-        self.tree = ttk.Treeview(meio, columns=[c[0] for c in COLUNAS], show="tree headings", selectmode="extended")
-        self.tree.heading("#0", text="STATUS")
-        self.tree.column("#0", width=88, minwidth=72, anchor="center", stretch=False)
-        for key, label, width in COLUNAS:
-            self.tree.heading(key, text=label)
-            self.tree.column(key, width=width, anchor="w" if key == "cliente" else "center")
-        
-        scroll_y = ttk.Scrollbar(meio, orient="vertical", command=self.tree.yview)
-        scroll_x = ttk.Scrollbar(meio, orient="horizontal", command=self.tree.xview)
-        scroll_y.pack(side="right", fill="y")
-        scroll_x.pack(side="bottom", fill="x")
-
-        self.tree.pack(side="left", fill="both", expand=True)
-        self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
-        self.tree.bind("<ButtonRelease-1>", lambda _e: self.sincronizar_selecao_tree())
-        self.tree.bind("<Button-3>", self.mostrar_menu_contexto)
-        self.tree.bind("<Double-1>", lambda _e: self.abrir_pasta_cliente_selecionado())
-        self.tree.bind("<MouseWheel>", self._rolar_tree)
-        self.tree.bind("<Shift-MouseWheel>", self._rolar_tree_horizontal)
-
-        # Progresso da execução
-        progresso_frame = ttk.Frame(self.root, padding=(8, 0, 8, 8))
-        progresso_frame.pack(fill="x", expand=False)
-        
-        self.progress_label = ttk.Label(progresso_frame, text="Aguardando início...")
-        self.progress_label.pack(side="top", fill="x", pady=(0, 4))
-        
-        self.progress = ttk.Progressbar(progresso_frame, orient="horizontal", mode="determinate")
-        self.progress.pack(side="top", fill="x")
-
-        rodape = ttk.PanedWindow(self.root, orient="horizontal")
-        rodape.pack(fill="both", expand=False, padx=8, pady=(0, 8))
-        
-        logs_frame = ttk.LabelFrame(rodape, text="Logs/status")
-        links_frame = ttk.LabelFrame(rodape, text="Links Google Drive")
-        rodape.add(logs_frame, weight=3)
-        rodape.add(links_frame, weight=2)
-        
-        logs_scroll = ttk.Scrollbar(logs_frame, orient="vertical")
-        logs_scroll.pack(side="right", fill="y")
-        self.logs = tk.Text(logs_frame, height=8, wrap="word", yscrollcommand=logs_scroll.set)
-        self.logs.pack(fill="both", expand=True)
-        self.logs.configure(bg="#242424", fg="#F3F3F3", insertbackground="#F3F3F3", selectbackground="#007A3E", selectforeground="#F3F3F3", font=("Consolas", 9))
-        logs_scroll.config(command=self.logs.yview)
-        
-        links_scroll = ttk.Scrollbar(links_frame, orient="vertical")
-        links_scroll.pack(side="right", fill="y")
-        self.links = tk.Text(links_frame, height=8, wrap="word", yscrollcommand=links_scroll.set)
-        self.links.pack(fill="both", expand=True)
-        self.links.configure(bg="#242424", fg="#F3F3F3", insertbackground="#F3F3F3", selectbackground="#007A3E", selectforeground="#F3F3F3", font=("Consolas", 9))
-        links_scroll.config(command=self.links.yview)
-        self.log("Interface iniciada.")
-        
-        # Metadados de Diagnóstico de Inicialização
-        import sys
-        import subprocess
-        from datetime import datetime
-        
-        main_path = Path(sys.argv[0]).resolve()
-        interface_path = Path(__file__).resolve()
-        
-        try:
-            mtime = datetime.fromtimestamp(interface_path.stat().st_mtime).strftime("%d/%m/%Y %H:%M:%S")
-        except Exception:
-            mtime = "Desconhecida"
-            
-        try:
-            commit_version = subprocess.check_output(
-                ["git", "rev-parse", "--short", "HEAD"], 
-                cwd=str(interface_path.parent), 
-                text=True, 
-                stderr=subprocess.DEVNULL
-            ).strip()
-        except Exception:
-            commit_version = "Sem Git"
-            
-        self.log(f"[DIAGNOSTICO] Entrada: {main_path}")
-        self.log(f"[DIAGNOSTICO] Modulo UI: {interface_path}")
-        self.log(f"[DIAGNOSTICO] Modificacao UI: {mtime}")
-        self.log(f"[DIAGNOSTICO] Versao Git: {commit_version}")
-        self.log(f"[DIAGNOSTICO] Cache JSON: {config.CLIENTES_JSON}")
-        
-        if not self.registros:
-            self.log("Cache vazio. Clique em Atualizar clientes.")
 
     def _label(self, parent, text, size=10, weight="normal", color=None, bg=None):
         return tk.Label(
@@ -515,6 +375,8 @@ class WideAppInterface:
         self.progress_mini_log.configure(state="disabled")
         return progress_panel
 
+
+
     def _montar(self):
         self.root.configure(bg=self.ui_bg)
 
@@ -532,10 +394,28 @@ class WideAppInterface:
         ttk.Button(conexao_row, text="Configuracoes", style="Toolbar.TButton", command=lambda: self.log("Configuracoes ainda nao possuem painel dedicado.")).pack(side="left")
         # O painel de progresso definitivo e montado no fim do bloco legado abaixo.
 
-        logo = tk.Canvas(header, width=50, height=50, bg=self.ui_bg, highlightthickness=0)
-        logo.pack(side="left", padx=(0, 14))
-        for y, color in ((8, "#67E85A"), (20, "#44C85D"), (32, "#2EA84E")):
-            logo.create_polygon(8, y + 6, 25, y, 42, y + 6, 25, y + 16, fill=color, outline="")
+        # Logo image loader using PIL
+        try:
+            from PIL import Image, ImageTk
+            logo_path = Path(__file__).resolve().parent.parent / "assets" / "wideapp_extra_icon.png"
+            if not logo_path.exists():
+                logo_path = Path(__file__).resolve().parent / "assets" / "wideapp_extra_icon.png"
+            if logo_path.exists():
+                logo_img = Image.open(logo_path).resize((48, 48), Image.Resampling.LANCZOS)
+                self.logo_photo = ImageTk.PhotoImage(logo_img)
+                logo_label = tk.Label(header, image=self.logo_photo, bg=self.ui_bg)
+                logo_label.pack(side="left", padx=(0, 14))
+            else:
+                # Fallback to polygon drawing if file is missing
+                logo = tk.Canvas(header, width=50, height=50, bg=self.ui_bg, highlightthickness=0)
+                logo.pack(side="left", padx=(0, 14))
+                for y, color in ((8, "#67E85A"), (20, "#44C85D"), (32, "#2EA84E")):
+                    logo.create_polygon(8, y + 6, 25, y, 42, y + 6, 25, y + 16, fill=color, outline="")
+        except Exception:
+            logo = tk.Canvas(header, width=50, height=50, bg=self.ui_bg, highlightthickness=0)
+            logo.pack(side="left", padx=(0, 14))
+            for y, color in ((8, "#67E85A"), (20, "#44C85D"), (32, "#2EA84E")):
+                logo.create_polygon(8, y + 6, 25, y, 42, y + 6, 25, y + 16, fill=color, outline="")
 
         title_box = tk.Frame(header, bg=self.ui_bg)
         self.title_box = title_box
@@ -543,57 +423,55 @@ class WideAppInterface:
         self._label(title_box, "WideAPP_EXTRA - Clientes, lotes e relatorios", 20, "bold", self.ui_text).pack(anchor="w")
         self._label(title_box, "Gestao de clientes, lotes e relatorios", 11, "normal", self.ui_muted).pack(anchor="w", pady=(2, 0))
 
-        toolbar = self._panel(title_box, padx=14, pady=12)
+        toolbar = self._panel(title_box, padx=14, pady=10)
         self.toolbar_panel = toolbar
-        toolbar.pack(fill="x", pady=(24, 0))
+        toolbar.pack(fill="x", pady=(20, 0))
         tb = toolbar.inner
-        tb_actions = tk.Frame(tb, bg=self.ui_panel)
-        tb_actions.pack(fill="x")
-        tb_reports = tk.Frame(tb, bg=self.ui_panel)
-        tb_reports.pack(fill="x", pady=(10, 0))
-        tb_open = tk.Frame(tb, bg=self.ui_panel)
-        tb_open.pack(fill="x", pady=(10, 0))
-        tb_recent = tk.Frame(tb, bg=self.ui_panel)
-        tb_recent.pack(fill="x", pady=(10, 0))
+        
+        tb_row1 = tk.Frame(tb, bg=self.ui_panel)
+        tb_row1.pack(fill="x", pady=(2, 4))
+        
+        tb_row2 = tk.Frame(tb, bg=self.ui_panel)
+        tb_row2.pack(fill="x", pady=(2, 2))
 
-        self.btn_atualizar_cli = ttk.Button(tb_actions, text="Atualizar clientes", style="Primary.Toolbar.TButton", command=self.atualizar_async)
-        self.btn_atualizar_cli.pack(side="left", padx=(0, 10), ipady=5)
+        self.btn_atualizar_cli = ttk.Button(tb_row1, text="Atualizar clientes", style="Primary.Toolbar.TButton", command=self.atualizar_async)
+        self.btn_atualizar_cli.pack(side="left", padx=(0, 8), ipady=3)
 
-        self.btn_visualizar_db = ttk.Button(tb_actions, text="Visualizar banco de dados", style="Info.Toolbar.TButton", command=self.visualizar_banco_dados)
-        self.btn_visualizar_db.pack(side="left", padx=(0, 10), ipady=5)
+        self.btn_visualizar_db = ttk.Button(tb_row1, text="Visualizar banco de dados", style="Info.Toolbar.TButton", command=self.visualizar_banco_dados)
+        self.btn_visualizar_db.pack(side="left", padx=(0, 8), ipady=3)
         
-        self.btn_atualizar_wp = ttk.Button(tb_actions, text="Atualizar WidePay", style="Toolbar.TButton", command=self.atualizar_widepay_async)
-        self.btn_atualizar_wp.pack(side="left", padx=(0, 10), ipady=5)
+        self.btn_atualizar_wp = ttk.Button(tb_row1, text="Atualizar WidePay", style="Toolbar.TButton", command=self.atualizar_widepay_async)
+        self.btn_atualizar_wp.pack(side="left", padx=(0, 8), ipady=3)
         
-        self.btn_gerar_sel = ttk.Button(tb_reports, text="Gerar relatorio selecionados", style="Toolbar.TButton", command=self.gerar_selecionados)
-        self.btn_gerar_sel.pack(side="left", padx=(0, 10), ipady=5)
-        
-        self.btn_gerar_todos = ttk.Button(tb_reports, text="Gerar clientes ativos", style="Toolbar.TButton", command=self.gerar_todos_ativos)
-        self.btn_gerar_todos.pack(side="left", padx=(0, 8), ipady=5)
-        
-        self.btn_parar = ttk.Button(tb_reports, text="Parar captura", style="Danger.Toolbar.TButton", command=self.parar_captura, state="disabled")
-        self.btn_parar.pack(side="left", ipady=5)
+        self.btn_parar = ttk.Button(tb_row1, text="Parar captura", style="Danger.Toolbar.TButton", command=self.parar_captura, state="disabled")
+        self.btn_parar.pack(side="left", padx=(0, 8), ipady=3)
 
-        self.btn_abrir_pasta = ttk.Button(tb_open, text="Abrir pasta local", style="Toolbar.TButton", command=self.abrir_pasta_execucao)
-        self.btn_abrir_pasta.pack(side="left", padx=(0, 8), ipady=5)
+        self.btn_abrir_xlsx = ttk.Button(tb_row1, text="Abrir XLSX", style="Toolbar.TButton", command=self.abrir_ultimo)
+        self.btn_abrir_xlsx.pack(side="left", padx=(0, 8), ipady=3)
+
+        self.btn_abrir_pasta = ttk.Button(tb_row1, text="Abrir pasta local", style="Toolbar.TButton", command=self.abrir_pasta_execucao)
+        self.btn_abrir_pasta.pack(side="left", padx=(0, 8), ipady=3)
+
+        self.btn_abrir_drive = ttk.Button(tb_row1, text="Abrir Drive", style="Toolbar.TButton", command=self.abrir_drive)
+        self.btn_abrir_drive.pack(side="left", ipady=3)
+
+        self.btn_gerar_sel = ttk.Button(tb_row2, text="Gerar relatorio selecionados", style="Toolbar.TButton", command=self.gerar_selecionados)
+        self.btn_gerar_sel.pack(side="left", padx=(0, 8), ipady=3)
         
-        self.btn_abrir_drive = ttk.Button(tb_open, text="Abrir Drive", style="Toolbar.TButton", command=self.abrir_drive)
-        self.btn_abrir_drive.pack(side="left", padx=(0, 8), ipady=5)
-        
-        self.btn_abrir_html = ttk.Button(tb_open, text="Abrir HTML", style="Toolbar.TButton", command=lambda: self.abrir_tipo("html"))
-        self.btn_abrir_html.pack(side="left", padx=(0, 8), ipady=5)
-        
-        self.btn_abrir_pdf = ttk.Button(tb_open, text="Abrir PDF", style="Toolbar.TButton", command=lambda: self.abrir_tipo("pdf"))
-        self.btn_abrir_pdf.pack(side="left", padx=(0, 8), ipady=5)
-        
-        self.btn_abrir_xlsx = ttk.Button(tb_open, text="Abrir XLSX", style="Toolbar.TButton", command=self.abrir_ultimo)
-        self.btn_abrir_xlsx.pack(side="left", padx=(0, 8), ipady=5)
-        
-        recentes_box = tk.Frame(tb_recent, bg=self.ui_panel)
+        self.btn_gerar_todos = ttk.Button(tb_row2, text="Gerar clientes ativos", style="Toolbar.TButton", command=self.gerar_todos_ativos)
+        self.btn_gerar_todos.pack(side="left", padx=(0, 8), ipady=3)
+
+        self.btn_abrir_html = ttk.Button(tb_row2, text="Abrir HTML", style="Toolbar.TButton", command=lambda: self.abrir_tipo("html"))
+        self.btn_abrir_html.pack(side="left", padx=(0, 8), ipady=3)
+
+        self.btn_abrir_pdf = ttk.Button(tb_row2, text="Abrir PDF", style="Toolbar.TButton", command=lambda: self.abrir_tipo("pdf"))
+        self.btn_abrir_pdf.pack(side="left", padx=(0, 16), ipady=3)
+
+        recentes_box = tk.Frame(tb_row2, bg=self.ui_panel)
         recentes_box.pack(side="left", fill="x", expand=True)
         self._label(recentes_box, "Planilhas recentes", 9, "normal", self.ui_muted, self.ui_panel).pack(side="left", padx=(0, 8))
         self.xlsx_combo = ttk.Combobox(recentes_box, state="readonly", width=42, style="Modern.TCombobox")
-        self.xlsx_combo.pack(side="left", fill="x", expand=True, ipady=4)
+        self.xlsx_combo.pack(side="left", fill="x", expand=True, ipady=3)
         self.xlsx_combo.bind("<<ComboboxSelected>>", self.abrir_xlsx_selecionado)
 
         # -------------------------------------------------------------
@@ -657,8 +535,16 @@ class WideAppInterface:
         progress_panel.destroy()
         self._montar_painel_progresso(status_box).pack(anchor="e")
 
-        filtros_panel = self._panel(self.root, padx=16, pady=14)
-        filtros_panel.pack(fill="x", padx=22, pady=(0, 8))
+        main_area = tk.Frame(self.root, bg=self.ui_bg)
+        self.main_area = main_area
+        main_area.pack(fill="both", expand=True, padx=22, pady=(0, 8))
+
+        content_area = tk.Frame(main_area, bg=self.ui_bg)
+        self.content_area = content_area
+        content_area.pack(fill="both", expand=True)
+
+        filtros_panel = self._panel(content_area, padx=16, pady=14)
+        filtros_panel.pack(fill="x", pady=(0, 8))
         filtros = filtros_panel.inner
         busca_box = tk.Frame(filtros, bg=self.ui_panel)
         busca_box.pack(side="left", fill="x", expand=True, padx=(0, 16))
@@ -700,9 +586,9 @@ class WideAppInterface:
         self.quadra_lote_combo.bind("<<ComboboxSelected>>", lambda _e: self.aplicar_filtro())
         ttk.Button(filtros, text="Limpar filtros", style="Toolbar.TButton", command=self.limpar_filtros).pack(side="left", ipady=7, pady=(18, 0))
 
-        workspace_tabs = ttk.Notebook(self.root)
+        workspace_tabs = ttk.Notebook(content_area)
         self.workspace_tabs = workspace_tabs
-        workspace_tabs.pack(fill="both", expand=True, padx=22, pady=(0, 8))
+        workspace_tabs.pack(fill="both", expand=True)
 
         clientes_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
         banco_tab = tk.Frame(workspace_tabs, bg=self.ui_bg)
@@ -719,6 +605,21 @@ class WideAppInterface:
         workspace_tabs.add(logs_tab, text="Logs")
         workspace_tabs.add(resumo_tab, text="Resumo / status")
         workspace_tabs.add(auditoria_tab, text="Auditoria")
+        workspace_tabs.bind("<<NotebookTabChanged>>", lambda _e: self.atualizar_aba_auditoria())
+
+        # Define display columns visually excluding observacoes by default
+        display_cols = [c[0] for c in COLUNAS if c[0] != "observacoes"]
+        try:
+            import json
+            config_path = config.DATA_DIR / "colunas_config.json"
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    saved_cols = json.load(f)
+                valid_saved = [col for col in saved_cols if col in [c[0] for c in COLUNAS]]
+                if valid_saved:
+                    display_cols = valid_saved
+        except Exception:
+            pass
 
         clientes_paned = ttk.PanedWindow(clientes_tab, orient="vertical")
         self.clientes_paned = clientes_paned
@@ -728,20 +629,25 @@ class WideAppInterface:
         self.tabela_panel = tabela_panel
         tabela = tabela_panel.inner
         self.tree = ttk.Treeview(tabela, columns=[c[0] for c in COLUNAS], show="tree headings", selectmode="extended", style="Modern.Treeview")
-        self.tree.heading("#0", text="STATUS", command=lambda: self.ordenar_por_coluna("#0"))
+        self.tree["displaycolumns"] = display_cols
+        
+        self.tree.heading("#0", text="STATUS")
         self.tree.column("#0", width=86, minwidth=72, anchor="center", stretch=False)
         for key, label, width in COLUNAS:
-            self.tree.heading(key, text=label, command=lambda k=key: self.ordenar_por_coluna(k))
+            self.tree.heading(key, text=label)
             anchor = "w" if key == "cliente" else "center"
-            self.tree.column(key, width=width, anchor=anchor)
+            self.tree.column(key, width=width, anchor=anchor, stretch=True)
 
         scroll_y = ttk.Scrollbar(tabela, orient="vertical", command=self.tree.yview)
-        scroll_x = ttk.Scrollbar(tabela, orient="horizontal", command=self.tree.xview)
         scroll_y.pack(side="right", fill="y")
-        scroll_x.pack(side="bottom", fill="x")
         self.tree.pack(side="top", fill="both", expand=True)
-        self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
-        self.tree.bind("<ButtonRelease-1>", lambda _e: self.sincronizar_selecao_tree())
+        self.tree.configure(yscrollcommand=scroll_y.set)
+        
+        # Handlers for click to sort vs click-and-drag to reorder columns
+        self.tree.bind("<ButtonPress-1>", self.on_tree_press)
+        self.tree.bind("<B1-Motion>", self.on_tree_motion)
+        self.tree.bind("<ButtonRelease-1>", self.on_tree_release)
+        
         self.tree.bind("<Button-3>", self.mostrar_menu_contexto)
         self.tree.bind("<Double-1>", lambda _e: self.abrir_pasta_cliente_selecionado())
         self.tree.bind("<MouseWheel>", self._rolar_tree)
@@ -836,16 +742,27 @@ class WideAppInterface:
 
         auditoria_panel = self._panel(auditoria_tab, padx=16, pady=14)
         auditoria_panel.pack(fill="both", expand=True, padx=8, pady=8)
-        self._label(auditoria_panel.inner, "Auditoria visual", 14, "bold", self.ui_text, self.ui_panel).pack(anchor="w")
-        auditoria_txt = tk.Text(auditoria_panel.inner, height=10, wrap="word", bg="#101B21", fg=self.ui_text, insertbackground=self.ui_text, font=("Consolas", 9), bd=0)
-        auditoria_txt.pack(fill="both", expand=True, pady=(10, 0))
-        auditoria_txt.insert("end", "Protecoes ativas:\n")
-        auditoria_txt.insert("end", "- Botao azul Visualizar banco de dados preservado.\n")
-        auditoria_txt.insert("end", "- Painel de progresso preso ao canto superior direito.\n")
-        auditoria_txt.insert("end", "- Toolbar presa ao bloco do titulo.\n")
-        auditoria_txt.insert("end", "- Lista, log e resumo dentro de divisores redimensionaveis.\n")
-        auditoria_txt.insert("end", "- Abas para clientes, banco, logs, resumo/status e auditoria.\n")
-        auditoria_txt.configure(state="disabled")
+        self._label(auditoria_panel.inner, "Auditoria Financeira e de Conformidade", 14, "bold", self.ui_text, self.ui_panel).pack(anchor="w")
+        
+        auditoria_scroll = ttk.Scrollbar(auditoria_panel.inner, orient="vertical")
+        auditoria_scroll.pack(side="right", fill="y", pady=(10, 0))
+        
+        self.auditoria_txt = tk.Text(
+            auditoria_panel.inner,
+            height=12,
+            wrap="word",
+            bg="#101B21",
+            fg=self.ui_text,
+            insertbackground=self.ui_text,
+            selectbackground="#0B7F45",
+            selectforeground="#FFFFFF",
+            font=("Consolas", 9),
+            bd=0,
+            yscrollcommand=auditoria_scroll.set
+        )
+        self.auditoria_txt.pack(fill="both", expand=True, pady=(10, 0))
+        auditoria_scroll.config(command=self.auditoria_txt.yview)
+        self.atualizar_aba_auditoria()
 
         clientes_paned.add(tabela_panel, weight=5)
         clientes_paned.add(inferior, weight=2)
@@ -1058,6 +975,132 @@ class WideAppInterface:
                 self.btn_visualizar_db.configure(state="normal")
             self.root.after(0, _restore_buttons)
 
+    def on_tree_press(self, event):
+        region = self.tree.identify_region(event.x, event.y)
+        if region == "heading":
+            col_id = self.tree.identify_column(event.x)
+            self._drag_col = col_id
+            self._drag_start_x = event.x
+            self._drag_start_time = time.time()
+            self._dragged = False
+        else:
+            self._drag_col = None
+
+    def on_tree_motion(self, event):
+        if hasattr(self, "_drag_col") and self._drag_col:
+            if abs(event.x - self._drag_start_x) > 12:
+                self._dragged = True
+
+    def on_tree_release(self, event):
+        if hasattr(self, "_drag_col") and self._drag_col:
+            region = self.tree.identify_region(event.x, event.y)
+            if getattr(self, "_dragged", False):
+                if region == "heading":
+                    dst_col = self.tree.identify_column(event.x)
+                    if dst_col and dst_col != self._drag_col:
+                        self.reordenar_colunas(self._drag_col, dst_col)
+            else:
+                elapsed = time.time() - self._drag_start_time
+                if elapsed < 0.5:
+                    col_id = self._drag_col
+                    if col_id == "#0":
+                        self.ordenar_por_coluna("#0")
+                    else:
+                        try:
+                            visual_idx = int(col_id.replace("#", "")) - 1
+                            display_cols = list(self.tree["displaycolumns"])
+                            if not display_cols or display_cols == ["#all"]:
+                                display_cols = [c[0] for c in COLUNAS if c[0] != "observacoes"]
+                            if 0 <= visual_idx < len(display_cols):
+                                col_name = display_cols[visual_idx]
+                                self.ordenar_por_coluna(col_name)
+                        except ValueError:
+                            pass
+            self._drag_col = None
+        self.sincronizar_selecao_tree()
+
+    def reordenar_colunas(self, src_visual, dst_visual):
+        if src_visual == "#0" or dst_visual == "#0":
+            return
+            
+        try:
+            src_idx = int(src_visual.replace("#", "")) - 1
+            dst_idx = int(dst_visual.replace("#", "")) - 1
+        except ValueError:
+            return
+            
+        display_cols = list(self.tree["displaycolumns"])
+        if not display_cols or display_cols == ["#all"]:
+            display_cols = [c[0] for c in COLUNAS if c[0] != "observacoes"]
+            
+        if 0 <= src_idx < len(display_cols) and 0 <= dst_idx < len(display_cols):
+            col_name = display_cols.pop(src_idx)
+            display_cols.insert(dst_idx, col_name)
+            self.tree["displaycolumns"] = display_cols
+            
+            try:
+                import json
+                config_path = config.DATA_DIR / "colunas_config.json"
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(display_cols, f, indent=4, ensure_ascii=False)
+            except Exception:
+                pass
+            
+            self.log(f"Coluna '{col_name}' reordenada para visual index {dst_idx+1}.")
+
+    def atualizar_aba_auditoria(self):
+        if not hasattr(self, "auditoria_txt"):
+            return
+            
+        self.auditoria_txt.configure(state="normal")
+        self.auditoria_txt.delete("1.0", "end")
+        
+        self.auditoria_txt.insert("end", "=== PAINEL DE AUDITORIA E CONFORMIDADE FINANCEIRA ===\n\n")
+        
+        total_clientes = len(self.registros)
+        com_divergencia = [r for r in self.registros if r.get("divergencias")]
+        sem_contrato = [r for r in self.registros if r.get("contrato") != "Encontrado"]
+        pendentes_wp = [r for r in self.registros if r.get("situacao_final") == "Pendente validacao WidePay" or "Pendente" in str(r.get("situacao_final"))]
+        erros = [r for r in self.registros if r.get("situacao_final") == "ERRO" or r.get("status_atraso_qtd") == -1]
+        
+        self.auditoria_txt.insert("end", f"Total de Clientes na Base: {total_clientes}\n")
+        self.auditoria_txt.insert("end", f"Clientes Conciliados com Sucesso: {total_clientes - len(com_divergencia)}\n")
+        self.auditoria_txt.insert("end", f"Clientes com Divergências Ativas: {len(com_divergencia)}\n")
+        self.auditoria_txt.insert("end", f"Clientes sem Contrato Físico Confirmado: {len(sem_contrato)}\n")
+        self.auditoria_txt.insert("end", f"Pendentes de Validação no WidePay: {len(pendentes_wp)}\n")
+        self.auditoria_txt.insert("end", f"Erros ou Falhas Críticas: {len(erros)}\n\n")
+        
+        self.auditoria_txt.insert("end", "--- DETALHES DAS DIVERGÊNCIAS ATIVAS ---\n")
+        if not com_divergencia:
+            self.auditoria_txt.insert("end", "Nenhuma divergência financeira/matemática detectada na base atual.\n")
+        else:
+            for idx, r in enumerate(com_divergencia, 1):
+                cliente = r.get("cliente", "Desconhecido")
+                lote = r.get("lote", "-")
+                quadra = r.get("quadra", "-")
+                divs = r.get("divergencias", "")
+                self.auditoria_txt.insert("end", f"{idx}. {cliente} (Lote: {lote} / Qd: {quadra}):\n   -> {divs}\n")
+                
+        self.auditoria_txt.insert("end", "\n--- PENDÊNCIAS DE CONTRATOS FÍSICOS ---\n")
+        if not sem_contrato:
+            self.auditoria_txt.insert("end", "Todos os clientes ativos possuem contratos confirmados.\n")
+        else:
+            for idx, r in enumerate(sem_contrato, 1):
+                cliente = r.get("cliente", "Desconhecido")
+                lote = r.get("lote", "-")
+                self.auditoria_txt.insert("end", f"{idx}. {cliente} (Lote: {lote}) - Contrato Físico Faltando ou Não Confirmado\n")
+                
+        self.auditoria_txt.insert("end", "\n--- CLIENTES COM ERROS OU INCONSISTÊNCIAS WIDEPAY ---\n")
+        if not erros:
+            self.auditoria_txt.insert("end", "Nenhum erro de processamento cadastral detectada no WidePay.\n")
+        else:
+            for idx, r in enumerate(erros, 1):
+                cliente = r.get("cliente", "Desconhecido")
+                sit = r.get("situacao_final", "ERRO")
+                self.auditoria_txt.insert("end", f"{idx}. {cliente} - Situação: {sit}\n")
+                
+        self.auditoria_txt.configure(state="disabled")
+
     def _obter_imagem_barrinha_legacy(self, boletos_atrasados):
         """Gera e retorna uma imagem de barrinha colorida dinamicamente baseada nos boletos vencidos."""
         chave_cache = str(boletos_atrasados)
@@ -1260,6 +1303,7 @@ class WideAppInterface:
             if self._chave(item) in self.selecionados:
                 self.tree.selection_add(iid)
         self.atualizar_resumo_visual()
+        self.atualizar_aba_auditoria()
         self.log(f"Filtro aplicado: {len(self.filtrados)} resultado(s).")
 
     def atualizar_resumo_visual(self):
@@ -1741,6 +1785,9 @@ def smoke_test():
     assert int(app.progress_mini_log.cget("height")) in (2, 3)
     assert hasattr(app, "workspace_tabs")
     assert len(app.workspace_tabs.tabs()) >= 5
+    assert hasattr(app, "logo_photo")
+    assert hasattr(app, "auditoria_txt")
+    assert "PAINEL DE AUDITORIA" in app.auditoria_txt.get("1.0", "end")
     assert hasattr(app, "clientes_paned")
     assert hasattr(app, "inferior_paned")
     assert app.logs.winfo_exists()
