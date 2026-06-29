@@ -260,8 +260,9 @@ def obter_celula_pagamento_recente(item, mes):
         texto1 = mes_data.get("texto1", "-")
         texto2 = mes_data.get("texto2", "-")
         
-        # Se for Pago mas sem valor real, tentamos buscar no raw/WidePay
-        if status_str in ("Pago", "Recebido") and (texto1 in ("Pago", "Recebido", "-", "Sem boleto")):
+        # Se for Pago mas sem valor real, OU se for "Sem boleto" (para curar cache corrompido),
+        # tentamos buscar no raw/WidePay
+        if (status_str in ("Pago", "Recebido") and (texto1 in ("Pago", "Recebido", "-", "Sem boleto"))) or (status_str == "Sem boleto"):
             if cliente_nome:
                 raw = montar_raw_cliente(
                     cliente=cliente_nome,
@@ -272,19 +273,36 @@ def obter_celula_pagamento_recente(item, mes):
                 if raw:
                     normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
                     cobrancas = normalizado.get("cobrancas") or []
+                    encontrou = False
                     for cob in cobrancas:
                         if cob.get("duplicidade"):
                             continue
                         dt_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
                         if dt_ref and f"{dt_ref.year:04d}-{dt_ref.month:02d}" == chave:
-                            v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
-                            f_val = formatar_valor_monetario(v_pago)
-                            if f_val != "-":
-                                texto1 = f_val
-                                texto2 = f"{dt_ref.day:02d}/{dt_ref.month:02d}"
-                                break
-            if texto1 in ("Pago", "Recebido", "-", "Sem boleto") and valor_base:
-                texto1 = formatar_valor_monetario(valor_base)
+                            bruto = normalizar(str(cob.get("status") or "")).lower()
+                            if bruto in ("recebido", "pago", "quitado", "liquidado"):
+                                v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
+                                texto1 = formatar_moeda(v_pago)
+                                status_str = "Pago"
+                            elif bruto in ("vencido",):
+                                texto1 = "Vencido"
+                                status_str = "Vencido"
+                            elif bruto in ("aguardando", "aberto", "pendente", "pendencia"):
+                                ref_date = dt_ref.date() if hasattr(dt_ref, "date") else dt_ref
+                                if ref_date < datetime.now().date():
+                                    texto1 = "Vencido"
+                                    status_str = "Vencido"
+                                else:
+                                    texto1 = "Pendente"
+                                    status_str = "Pendente"
+                            texto2 = f"{dt_ref.day:02d}/{dt_ref.month:02d}"
+                            encontrou = True
+                            break
+                    if not encontrou and status_str == "Sem boleto":
+                        texto1 = "Sem boleto"
+                        texto2 = "-"
+            if status_str in ("Pago", "Recebido") and (texto1 in ("Pago", "Recebido", "-", "Sem boleto")) and valor_base:
+                texto1 = formatar_moeda(valor_base)
                 
         return {"status": status_str, "texto1": texto1, "texto2": texto2}
         
@@ -311,11 +329,11 @@ def obter_celula_pagamento_recente(item, mes):
                         dt_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
                         if dt_ref and f"{dt_ref.year:04d}-{dt_ref.month:02d}" == chave:
                             v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor")
-                            val_texto = formatar_valor_monetario(v_pago)
+                            val_texto = formatar_moeda(v_pago)
                             dia_texto = f"{dt_ref.day:02d}/{dt_ref.month:02d}"
                             break
             if val_texto == "-" and valor_base:
-                val_texto = formatar_valor_monetario(valor_base)
+                val_texto = formatar_moeda(valor_base)
             if val_texto == "-":
                 val_texto = "Pago"
             return {"status": "Pago", "texto1": val_texto, "texto2": dia_texto}
@@ -384,7 +402,7 @@ def obter_celula_pagamento_recente(item, mes):
                     bruto = normalizar(str(cob.get("status") or "")).lower()
                     if bruto in ("recebido", "pago", "quitado", "liquidado"):
                         v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
-                        val_texto = formatar_valor_monetario(v_pago)
+                        val_texto = formatar_moeda(v_pago)
                         return {"status": "Pago", "texto1": val_texto, "texto2": f"{dt_ref.day:02d}/{dt_ref.month:02d}"}
                     elif bruto in ("vencido",):
                         return {"status": "Vencido", "texto1": "Vencido", "texto2": f"{dt_ref.day:02d}/{dt_ref.month:02d}"}
@@ -444,19 +462,7 @@ def _status_pagamento_recente(status):
     return ""
 
 
-def formatar_valor_monetario(val):
-    if not val or str(val).strip() == "-":
-        return "-"
-    try:
-        val_str = str(val).replace("R$", "").strip()
-        if "," in val_str and "." in val_str:
-            val_str = val_str.replace(".", "").replace(",", ".")
-        elif "," in val_str:
-            val_str = val_str.replace(",", ".")
-        val_float = float(val_str)
-        return f"R$ {val_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except Exception:
-        return str(val)
+
 
 def calcular_pagamentos_recentes_5m(cobrancas, valor_base=None, quantidade=10):
     resultado = {mes["chave"]: {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"} for mes in janela_pagamentos_recentes(quantidade=quantidade)}
@@ -1699,6 +1705,14 @@ def carregar_cache():
         registro = normalizar_registro_cache(item)
         mapa = registro.get("pagamentos_recentes_5m", {})
         is_rico = isinstance(mapa, dict) and mapa.get("_enriquecido") is True and len(mapa) >= 10
+        if is_rico:
+            # Se for rico mas todos os meses forem "Sem boleto" mesmo o contrato sendo "Encontrado",
+            # significa que o cache foi envenenado na geracao antiga. Forcamos re-enriquecimento.
+            valores_meses = [v.get("status") for k, v in mapa.items() if k != "_enriquecido"]
+            if len(valores_meses) > 0 and all(v == "Sem boleto" for v in valores_meses):
+                if registro.get("contrato") == "Encontrado":
+                    is_rico = False
+                    
         if not is_rico:
             registro = enriquecer_pagamentos_recentes_cache(registro)
             modificado = True
