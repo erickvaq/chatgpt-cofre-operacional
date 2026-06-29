@@ -1479,8 +1479,7 @@ class WideAppInterface:
             
             # 6. Atualizado em
             att = item.get("ultima_atualizacao_widepay") or item.get("data_atualizacao") or ""
-            att = str(att)
-            if len(att) > 16: att = att[:16]
+            att = indexador_clientes.formatar_data_hora(att)
             lbl_att = tk.Label(frame, text=att, bg=bg_color, fg=fg_color, font=("Segoe UI", 9))
             lbl_att.grid(row=row, column=col_offset+1, sticky="nsew", padx=1, pady=1)
             

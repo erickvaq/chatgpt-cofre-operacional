@@ -261,6 +261,8 @@ def normalizar_pagamentos_recentes_5m(mapa=None, quantidade=10):
                 normalizado[mes["chave"]] = {"status": "Pendente", "texto1": "Pendente", "texto2": "-"}
             else:
                 normalizado[mes["chave"]] = {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
+    if isinstance(mapa, dict) and mapa.get("_enriquecido"):
+        normalizado["_enriquecido"] = True
     return normalizado
 
 
@@ -365,17 +367,14 @@ def calcular_pagamentos_recentes_5m(cobrancas, valor_base=None, quantidade=10):
             texto2 = f"{data_ref.day:02d}/{data_ref.month:02d}"
             resultado[chave] = {"status": status_str, "texto1": texto1, "texto2": texto2}
 
-    return normalizar_pagamentos_recentes_5m(resultado, quantidade=quantidade)
+    res = normalizar_pagamentos_recentes_5m(resultado, quantidade=quantidade)
+    res["_enriquecido"] = True
+    return res
 
 
 def enriquecer_pagamentos_recentes_cache(registro):
     item = normalizar_registro_cache(registro)
     atual = item.get("pagamentos_recentes_5m") if isinstance(item.get("pagamentos_recentes_5m"), dict) else {}
-    is_rico = len(atual) >= 10 and all(isinstance(v, dict) and "status" in v for v in atual.values())
-    if is_rico:
-        item["pagamentos_recentes_5m"] = normalizar_pagamentos_recentes_5m(atual, quantidade=10)
-        return item
-
     raw = montar_raw_cliente(
         cliente=item.get("cliente", ""),
         lote=item.get("lote", ""),
@@ -383,7 +382,9 @@ def enriquecer_pagamentos_recentes_cache(registro):
         pasta_local=item.get("pasta_local", ""),
     )
     if not raw:
-        item["pagamentos_recentes_5m"] = normalizar_pagamentos_recentes_5m(atual, quantidade=10)
+        res = normalizar_pagamentos_recentes_5m(atual, quantidade=10)
+        res["_enriquecido"] = True
+        item["pagamentos_recentes_5m"] = res
         return item
 
     valor_base = decimal(item.get("valor_base_parcela"))
@@ -1550,10 +1551,27 @@ def carregar_cache():
     with open(config.CLIENTES_JSON, "r", encoding="utf-8") as f:
         payload = json.load(f)
     registros = []
+    modificado = False
     for item in payload.get("registros", []):
         registro = normalizar_registro_cache(item)
-        if not any(v.get("status") in ("Pago", "Vencido") if isinstance(v, dict) else v in ("Pago", "Vencido") for v in registro.get("pagamentos_recentes_5m", {}).values()):
+        mapa = registro.get("pagamentos_recentes_5m", {})
+        is_rico = isinstance(mapa, dict) and mapa.get("_enriquecido") is True and len(mapa) >= 10
+        if not is_rico:
             registro = enriquecer_pagamentos_recentes_cache(registro)
+            modificado = True
         registros.append(registro)
-    registros, _resumo = saneamento_clientes.aplicar_saneamento(registros)
+        
+    registros, resumo_saneamento = saneamento_clientes.aplicar_saneamento(registros)
+    
+    if modificado:
+        payload["registros"] = registros
+        payload["resumo_saneamento"] = resumo_saneamento
+        payload["gerado_em"] = datetime.now().isoformat(timespec="seconds")
+        try:
+            with open(config.CLIENTES_JSON, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            print("Cache de clientes enriquecido para 10 meses e salvo com sucesso.")
+        except Exception as e:
+            print(f"Erro ao salvar cache enriquecido: {e}")
+            
     return registros
