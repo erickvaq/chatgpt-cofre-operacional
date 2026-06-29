@@ -41,6 +41,16 @@ REMOVE_WORDS_RE = re.compile(
     re.IGNORECASE,
 )
 MESES_ABREV = ("Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")
+COLUNAS_XLSX_PAGAMENTOS_RECENTES = [
+    ("cliente", "Cliente"),
+    ("lote", "Lote / Quadra"),
+    ("contrato_resumo", "Contrato"),
+    ("parcelas_resumo", "Parcelas"),
+    ("situacao_final", "Situacao"),
+    ("ultima_atualizacao_widepay", "Atualizado em"),
+    ("valor_total_contratado", "Valor Lote"),
+    ("valor_total_pago", "Total pago"),
+]
 
 PERSISTIR_CAMPOS = (
     "status",
@@ -1587,7 +1597,7 @@ def salvar_xlsx(registros):
 
     preparar_planilha(ws, "Ativos", grupos["ativos"])
     pagamentos_recentes = wb.create_sheet("Pagamentos_Recentes")
-    recentes_headers = [label for _key, label, _width in COLUNAS if label != "Observacoes"]
+    recentes_headers = [label for _key, label in COLUNAS_XLSX_PAGAMENTOS_RECENTES]
     meses_recentes = janela_pagamentos_recentes()
     pagamentos_recentes.append(recentes_headers + [mes["rotulo"] for mes in meses_recentes])
     header_fill = PatternFill("solid", fgColor="1C2B33")
