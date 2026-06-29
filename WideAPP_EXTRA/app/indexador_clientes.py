@@ -503,7 +503,7 @@ def calcular_pagamentos_recentes_5m(cobrancas, valor_base=None, quantidade=10):
         if prioridade[status_str] >= prioridade[atual_status]:
             if status_str == "Pago":
                 v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
-                texto1 = formatar_valor_monetario(v_pago)
+                texto1 = formatar_moeda(v_pago)
                 if texto1 == "-":
                     texto1 = "Pago"
             elif status_str == "Pendente":
