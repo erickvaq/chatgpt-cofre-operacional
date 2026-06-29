@@ -244,23 +244,166 @@ def janela_pagamentos_recentes(quantidade=10, referencia=None):
     return meses
 
 
+def obter_celula_pagamento_recente(item, mes):
+    mapa = item.get("pagamentos_recentes_10m") or item.get("pagamentos_recentes_5m") or {}
+    if not isinstance(mapa, dict):
+        mapa = {}
+        
+    chave = mes["chave"]
+    mes_data = mapa.get(chave)
+    cliente_nome = str(item.get("cliente", "")).strip()
+    valor_base = decimal(item.get("valor_base_parcela"))
+    
+    # 1. Se for dicionario rico
+    if isinstance(mes_data, dict) and "status" in mes_data:
+        status_str = mes_data.get("status", "Sem boleto")
+        texto1 = mes_data.get("texto1", "-")
+        texto2 = mes_data.get("texto2", "-")
+        
+        # Se for Pago mas sem valor real, tentamos buscar no raw/WidePay
+        if status_str in ("Pago", "Recebido") and (texto1 in ("Pago", "Recebido", "-", "Sem boleto")):
+            if cliente_nome:
+                raw = montar_raw_cliente(
+                    cliente=cliente_nome,
+                    lote=item.get("lote", ""),
+                    quadra=item.get("quadra", ""),
+                    pasta_local=item.get("pasta_local", ""),
+                )
+                if raw:
+                    normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
+                    cobrancas = normalizado.get("cobrancas") or []
+                    for cob in cobrancas:
+                        if cob.get("duplicidade"):
+                            continue
+                        dt_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
+                        if dt_ref and f"{dt_ref.year:04d}-{dt_ref.month:02d}" == chave:
+                            v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
+                            f_val = formatar_valor_monetario(v_pago)
+                            if f_val != "-":
+                                texto1 = f_val
+                                texto2 = f"{dt_ref.day:02d}/{dt_ref.month:02d}"
+                                break
+            if texto1 in ("Pago", "Recebido", "-", "Sem boleto") and valor_base:
+                texto1 = formatar_valor_monetario(valor_base)
+                
+        return {"status": status_str, "texto1": texto1, "texto2": texto2}
+        
+    # 2. Se for string (formato legado)
+    if mes_data is not None:
+        v_str = str(mes_data).strip()
+        
+        if v_str in ("Pago", "Recebido", "Recebida"):
+            val_texto = "-"
+            dia_texto = "-"
+            if cliente_nome:
+                raw = montar_raw_cliente(
+                    cliente=cliente_nome,
+                    lote=item.get("lote", ""),
+                    quadra=item.get("quadra", ""),
+                    pasta_local=item.get("pasta_local", ""),
+                )
+                if raw:
+                    normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
+                    cobrancas = normalizado.get("cobrancas") or []
+                    for cob in cobrancas:
+                        if cob.get("duplicidade"):
+                            continue
+                        dt_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
+                        if dt_ref and f"{dt_ref.year:04d}-{dt_ref.month:02d}" == chave:
+                            v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor")
+                            val_texto = formatar_valor_monetario(v_pago)
+                            dia_texto = f"{dt_ref.day:02d}/{dt_ref.month:02d}"
+                            break
+            if val_texto == "-" and valor_base:
+                val_texto = formatar_valor_monetario(valor_base)
+            if val_texto == "-":
+                val_texto = "Pago"
+            return {"status": "Pago", "texto1": val_texto, "texto2": dia_texto}
+            
+        elif v_str == "Vencido":
+            dia_texto = "-"
+            if cliente_nome:
+                raw = montar_raw_cliente(
+                    cliente=cliente_nome,
+                    lote=item.get("lote", ""),
+                    quadra=item.get("quadra", ""),
+                    pasta_local=item.get("pasta_local", ""),
+                )
+                if raw:
+                    normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
+                    cobrancas = normalizado.get("cobrancas") or []
+                    for cob in cobrancas:
+                        if cob.get("duplicidade"):
+                            continue
+                        dt_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
+                        if dt_ref and f"{dt_ref.year:04d}-{dt_ref.month:02d}" == chave:
+                            dia_texto = f"{dt_ref.day:02d}/{dt_ref.month:02d}"
+                            break
+            return {"status": "Vencido", "texto1": "Vencido", "texto2": dia_texto}
+            
+        elif v_str == "Pendente":
+            dia_texto = "-"
+            if cliente_nome:
+                raw = montar_raw_cliente(
+                    cliente=cliente_nome,
+                    lote=item.get("lote", ""),
+                    quadra=item.get("quadra", ""),
+                    pasta_local=item.get("pasta_local", ""),
+                )
+                if raw:
+                    normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
+                    cobrancas = normalizado.get("cobrancas") or []
+                    for cob in cobrancas:
+                        if cob.get("duplicidade"):
+                            continue
+                        dt_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
+                        if dt_ref and f"{dt_ref.year:04d}-{dt_ref.month:02d}" == chave:
+                            dia_texto = f"{dt_ref.day:02d}/{dt_ref.month:02d}"
+                            break
+            return {"status": "Pendente", "texto1": "Pendente", "texto2": dia_texto}
+            
+        elif v_str in ("Sem boleto", "-", ""):
+            return {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
+            
+    # 3. Fallback: procurar no WidePay brutos se o cliente for informado
+    if cliente_nome:
+        raw = montar_raw_cliente(
+            cliente=cliente_nome,
+            lote=item.get("lote", ""),
+            quadra=item.get("quadra", ""),
+            pasta_local=item.get("pasta_local", ""),
+        )
+        if raw:
+            normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
+            cobrancas = normalizado.get("cobrancas") or []
+            for cob in cobrancas:
+                if cob.get("duplicidade"):
+                    continue
+                dt_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
+                if dt_ref and f"{dt_ref.year:04d}-{dt_ref.month:02d}" == chave:
+                    bruto = normalizar(str(cob.get("status") or "")).lower()
+                    if bruto in ("recebido", "pago", "quitado", "liquidado"):
+                        v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
+                        val_texto = formatar_valor_monetario(v_pago)
+                        return {"status": "Pago", "texto1": val_texto, "texto2": f"{dt_ref.day:02d}/{dt_ref.month:02d}"}
+                    elif bruto in ("vencido",):
+                        return {"status": "Vencido", "texto1": "Vencido", "texto2": f"{dt_ref.day:02d}/{dt_ref.month:02d}"}
+                    elif bruto in ("aguardando", "aberto", "pendente", "pendencia"):
+                        ref_date = dt_ref.date() if hasattr(dt_ref, "date") else dt_ref
+                        if ref_date < datetime.now().date():
+                            return {"status": "Vencido", "texto1": "Vencido", "texto2": f"{dt_ref.day:02d}/{dt_ref.month:02d}"}
+                        else:
+                            return {"status": "Pendente", "texto1": "Pendente", "texto2": f"{dt_ref.day:02d}/{dt_ref.month:02d}"}
+
+    return {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
+
+
 def normalizar_pagamentos_recentes_5m(mapa=None, quantidade=10):
     atual = mapa if isinstance(mapa, dict) else {}
     normalizado = {}
+    dummy_item = {"pagamentos_recentes_5m": atual}
     for mes in janela_pagamentos_recentes(quantidade=quantidade):
-        val = atual.get(mes["chave"])
-        if isinstance(val, dict):
-            normalizado[mes["chave"]] = val
-        else:
-            v_str = str(val or "-").strip()
-            if v_str in ("Pago", "Recebido"):
-                normalizado[mes["chave"]] = {"status": "Pago", "texto1": "Pago", "texto2": "-"}
-            elif v_str == "Vencido":
-                normalizado[mes["chave"]] = {"status": "Vencido", "texto1": "Vencido", "texto2": "-"}
-            elif v_str == "Pendente":
-                normalizado[mes["chave"]] = {"status": "Pendente", "texto1": "Pendente", "texto2": "-"}
-            else:
-                normalizado[mes["chave"]] = {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
+        normalizado[mes["chave"]] = obter_celula_pagamento_recente(dummy_item, mes)
     if isinstance(mapa, dict) and mapa.get("_enriquecido"):
         normalizado["_enriquecido"] = True
     return normalizado

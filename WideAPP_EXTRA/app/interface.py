@@ -1450,14 +1450,9 @@ class WideAppInterface:
             lbl_lote.grid(row=row, column=2, sticky="nsew", padx=1, pady=1)
             
             # 4. Meses
-            mapa = item.get("pagamentos_recentes_5m", {})
-            if not isinstance(mapa, dict): mapa = {}
-            
             col_offset = 3
             for i, mes in enumerate(meses):
-                mes_data = mapa.get(mes["chave"], {})
-                if not isinstance(mes_data, dict):
-                    mes_data = {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
+                mes_data = indexador_clientes.obter_celula_pagamento_recente(item, mes)
                 
                 fundo = mes_color(mes_data.get("status", "Sem boleto"))
                 texto = f"{mes_data.get('texto1', '-')}\n{mes_data.get('texto2', '-')}"
