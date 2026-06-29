@@ -821,35 +821,70 @@ class WideAppInterface:
         panel = self._panel(parent, padx=14, pady=10)
         panel.pack(fill="both", expand=True, padx=8, pady=8)
         
-        canvas = tk.Canvas(panel.inner, bg=self.ui_bg, highlightthickness=0)
-        scroll_y = ttk.Scrollbar(panel.inner, orient="vertical", command=canvas.yview)
-        scroll_x = ttk.Scrollbar(panel.inner, orient="horizontal", command=canvas.xview)
+        header_canvas = tk.Canvas(panel.inner, bg=self.ui_bg, height=35, highlightthickness=0)
+        body_canvas = tk.Canvas(panel.inner, bg=self.ui_bg, highlightthickness=0)
+        
+        scroll_y = ttk.Scrollbar(panel.inner, orient="vertical", command=body_canvas.yview)
+        scroll_x = ttk.Scrollbar(panel.inner, orient="horizontal")
         
         scroll_y.pack(side="right", fill="y")
         scroll_x.pack(side="bottom", fill="x")
-        canvas.pack(side="left", fill="both", expand=True)
         
-        canvas.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+        header_canvas.pack(side="top", fill="x")
+        body_canvas.pack(side="top", fill="both", expand=True)
         
-        inner_frame = tk.Frame(canvas, bg=self.ui_bg)
-        canvas_window = canvas.create_window((0, 0), window=inner_frame, anchor="nw")
+        header_frame = tk.Frame(header_canvas, bg=self.ui_bg)
+        body_frame = tk.Frame(body_canvas, bg=self.ui_bg)
         
-        def on_configure_inner(event):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-        inner_frame.bind("<Configure>", on_configure_inner)
+        header_window = header_canvas.create_window((0, 0), window=header_frame, anchor="nw")
+        body_window = body_canvas.create_window((0, 0), window=body_frame, anchor="nw")
         
-        def on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        def on_configure_header(event):
+            header_canvas.configure(scrollregion=header_canvas.bbox("all"), height=header_frame.winfo_reqheight())
+        header_frame.bind("<Configure>", on_configure_header)
+        
+        def on_configure_body(event):
+            body_canvas.configure(scrollregion=body_canvas.bbox("all"))
+        body_frame.bind("<Configure>", on_configure_body)
+        
+        # Synced horizontal scroll
+        def sync_xview(*args):
+            header_canvas.xview(*args)
+            body_canvas.xview(*args)
+        scroll_x.configure(command=sync_xview)
+        
+        def sync_xscroll(*args):
+            scroll_x.set(*args)
+            header_canvas.xview_moveto(args[0])
             
-        canvas.bind_all("<MouseWheel>", on_mousewheel)
+        body_canvas.configure(xscrollcommand=sync_xscroll, yscrollcommand=scroll_y.set)
+        header_canvas.configure(xscrollcommand=scroll_x.set)
         
-        self.canvas_recentes = canvas
-        self.frame_recentes = inner_frame
+        # Mousewheel scroll vertical only on body
+        def on_mousewheel_y(event):
+            body_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            
+        body_canvas.bind("<MouseWheel>", on_mousewheel_y)
+        body_frame.bind("<MouseWheel>", on_mousewheel_y)
         
-        # Set dummy tree_recentes to avoid crashing existing tree checks
-        self.tree_recentes = canvas
+        # Shift-Mousewheel horizontal scroll
+        def on_mousewheel_x(event):
+            amount = int(-1 * (event.delta / 120))
+            header_canvas.xview_scroll(amount, "units")
+            body_canvas.xview_scroll(amount, "units")
+            
+        body_canvas.bind("<Shift-MouseWheel>", on_mousewheel_x)
+        body_frame.bind("<Shift-MouseWheel>", on_mousewheel_x)
         
-        return canvas
+        self.header_canvas_recentes = header_canvas
+        self.frame_header_recentes = header_frame
+        self.canvas_recentes = body_canvas
+        self.frame_recentes = body_frame
+        
+        # Set dummy tree_recentes to avoid breaking tests
+        self.tree_recentes = body_canvas
+        
+        return body_canvas
 
     def _registrar_diagnostico_inicial(self):
         import sys
@@ -1339,29 +1374,47 @@ class WideAppInterface:
         # Limpar grid anterior
         for widget in frame.winfo_children():
             widget.destroy()
+        for widget in self.frame_header_recentes.winfo_children():
+            widget.destroy()
             
         meses = self._colunas_pagamentos_recentes()
         
         bg_color = self.ui_bg
         fg_color = self.ui_text
         
-        # Headers
-        headers = [
-            ("STATUS", 8),
-            ("Cliente", 25),
-            ("Lote / Quadra", 12)
+        # Define exact column widths in pixels
+        widths = [
+            60,   # STATUS
+            220,  # Cliente
+            110,  # Lote / Quadra
         ]
-        
-        for mes in meses:
-            headers.append((f"[M] {mes['rotulo']}", 10))
-            
-        headers.extend([
-            ("Parcelas", 12),
-            ("Atualizado em", 16)
+        for _ in meses:
+            widths.append(100)
+        widths.extend([
+            120,  # Parcelas
+            130   # Atualizado em
         ])
         
-        for col, (titulo, width) in enumerate(headers):
-            lbl = tk.Label(frame, text=titulo, bg="#1E2F38", fg="#95A5A6", font=("Segoe UI", 9, "bold"), width=width, borderwidth=1, relief="solid")
+        # Apply column configure to both header and body frames
+        for col, w in enumerate(widths):
+            self.frame_header_recentes.grid_columnconfigure(col, minsize=w)
+            frame.grid_columnconfigure(col, minsize=w)
+            
+        # Draw Headers
+        headers = [
+            ("STATUS", 60),
+            ("Cliente", 220),
+            ("Lote / Quadra", 110)
+        ]
+        for mes in meses:
+            headers.append((f"[M] {mes['rotulo']}", 100))
+        headers.extend([
+            ("Parcelas", 120),
+            ("Atualizado em", 130)
+        ])
+        
+        for col, (titulo, w) in enumerate(headers):
+            lbl = tk.Label(self.frame_header_recentes, text=titulo, bg="#1E2F38", fg="#95A5A6", font=("Segoe UI", 9, "bold"), borderwidth=1, relief="solid")
             lbl.grid(row=0, column=col, sticky="nsew", padx=1, pady=1, ipady=4)
         
         def status_color(num_alertas):
@@ -1415,16 +1468,31 @@ class WideAppInterface:
             col_offset += len(meses)
             
             # 5. Parcelas
-            parcelas = f"{item.get('parcelas_pagas', 0)} / {item.get('parcelas_total', '?')} pagas"
+            parcelas = item.get("parcelas_resumo")
+            if not parcelas:
+                p_pagas = item.get("parcelas_pagas_identificadas", 0)
+                p_total = item.get("parcelas_total_contrato", "?")
+                parcelas = f"{p_pagas} / {p_total} pagas"
+                
             lbl_parc = tk.Label(frame, text=parcelas, bg=bg_color, fg=fg_color, font=("Segoe UI", 9))
             lbl_parc.grid(row=row, column=col_offset, sticky="nsew", padx=1, pady=1)
             
             # 6. Atualizado em
-            att = str(item.get("atualizado_em", ""))
+            att = item.get("ultima_atualizacao_widepay") or item.get("data_atualizacao") or ""
+            att = str(att)
             if len(att) > 16: att = att[:16]
             lbl_att = tk.Label(frame, text=att, bg=bg_color, fg=fg_color, font=("Segoe UI", 9))
             lbl_att.grid(row=row, column=col_offset+1, sticky="nsew", padx=1, pady=1)
+            
+        # Bind mousewheel to all newly created widgets in frame
+        def bind_mw(w):
+            w.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+            for c in w.winfo_children():
+                bind_mw(c)
+        bind_mw(frame)
         
+        self.frame_header_recentes.update_idletasks()
+        self.header_canvas_recentes.configure(scrollregion=self.header_canvas_recentes.bbox("all"))
         frame.update_idletasks()
         canvas.configure(scrollregion=canvas.bbox("all"))
 

@@ -232,7 +232,7 @@ def _deslocar_mes(ano, mes, deslocamento):
     return novo_ano, novo_mes
 
 
-def janela_pagamentos_recentes(quantidade=5, referencia=None):
+def janela_pagamentos_recentes(quantidade=10, referencia=None):
     referencia = referencia or datetime.now().date()
     meses = []
     inicio = -(max(1, quantidade) - 1)
@@ -244,16 +244,16 @@ def janela_pagamentos_recentes(quantidade=5, referencia=None):
     return meses
 
 
-def normalizar_pagamentos_recentes_5m(mapa=None):
+def normalizar_pagamentos_recentes_5m(mapa=None, quantidade=10):
     atual = mapa if isinstance(mapa, dict) else {}
     normalizado = {}
-    for mes in janela_pagamentos_recentes():
+    for mes in janela_pagamentos_recentes(quantidade=quantidade):
         val = atual.get(mes["chave"])
         if isinstance(val, dict):
             normalizado[mes["chave"]] = val
         else:
             v_str = str(val or "-").strip()
-            if v_str == "Pago":
+            if v_str in ("Pago", "Recebido"):
                 normalizado[mes["chave"]] = {"status": "Pago", "texto1": "Pago", "texto2": "-"}
             elif v_str == "Vencido":
                 normalizado[mes["chave"]] = {"status": "Vencido", "texto1": "Vencido", "texto2": "-"}
@@ -299,8 +299,22 @@ def _status_pagamento_recente(status):
     return ""
 
 
-def calcular_pagamentos_recentes_5m(cobrancas):
-    resultado = {mes["chave"]: {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"} for mes in janela_pagamentos_recentes()}
+def formatar_valor_monetario(val):
+    if not val or str(val).strip() == "-":
+        return "-"
+    try:
+        val_str = str(val).replace("R$", "").strip()
+        if "," in val_str and "." in val_str:
+            val_str = val_str.replace(".", "").replace(",", ".")
+        elif "," in val_str:
+            val_str = val_str.replace(",", ".")
+        val_float = float(val_str)
+        return f"R$ {val_float:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return str(val)
+
+def calcular_pagamentos_recentes_5m(cobrancas, valor_base=None, quantidade=10):
+    resultado = {mes["chave"]: {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"} for mes in janela_pagamentos_recentes(quantidade=quantidade)}
     prioridade = {"Sem boleto": 0, "Pendente": 1, "Vencido": 2, "Pago": 3}
 
     for cob in cobrancas or []:
@@ -336,31 +350,30 @@ def calcular_pagamentos_recentes_5m(cobrancas):
         
         atual_status = resultado[chave]["status"]
         if prioridade[status_str] >= prioridade[atual_status]:
-            valor_bruto = cob.get("valor", "-")
-            if isinstance(valor_bruto, (int, float)):
-                texto1 = f"R$ {valor_bruto:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            if status_str == "Pago":
+                v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
+                texto1 = formatar_valor_monetario(v_pago)
+                if texto1 == "-":
+                    texto1 = "Pago"
+            elif status_str == "Pendente":
+                texto1 = "Pendente"
+            elif status_str == "Vencido":
+                texto1 = "Vencido"
             else:
-                texto1 = str(valor_bruto)
-                if texto1 != "-" and not texto1.startswith("R$"):
-                    try:
-                        texto1 = f"R$ {float(texto1):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                    except:
-                        pass
-            
-            if status_str != "Pago":
-                texto1 = status_str
+                texto1 = "Sem boleto"
                 
             texto2 = f"{data_ref.day:02d}/{data_ref.month:02d}"
             resultado[chave] = {"status": status_str, "texto1": texto1, "texto2": texto2}
 
-    return normalizar_pagamentos_recentes_5m(resultado)
+    return normalizar_pagamentos_recentes_5m(resultado, quantidade=quantidade)
 
 
 def enriquecer_pagamentos_recentes_cache(registro):
     item = normalizar_registro_cache(registro)
     atual = item.get("pagamentos_recentes_5m") if isinstance(item.get("pagamentos_recentes_5m"), dict) else {}
-    if all(valor in ("Pago", "Vencido") for valor in atual.values()) and len(atual) >= 5:
-        item["pagamentos_recentes_5m"] = normalizar_pagamentos_recentes_5m(atual)
+    is_rico = len(atual) >= 10 and all(isinstance(v, dict) and "status" in v for v in atual.values())
+    if is_rico:
+        item["pagamentos_recentes_5m"] = normalizar_pagamentos_recentes_5m(atual, quantidade=10)
         return item
 
     raw = montar_raw_cliente(
@@ -370,12 +383,12 @@ def enriquecer_pagamentos_recentes_cache(registro):
         pasta_local=item.get("pasta_local", ""),
     )
     if not raw:
-        item["pagamentos_recentes_5m"] = normalizar_pagamentos_recentes_5m(atual)
+        item["pagamentos_recentes_5m"] = normalizar_pagamentos_recentes_5m(atual, quantidade=10)
         return item
 
     valor_base = decimal(item.get("valor_base_parcela"))
     normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
-    item["pagamentos_recentes_5m"] = calcular_pagamentos_recentes_5m(normalizado.get("cobrancas") or [])
+    item["pagamentos_recentes_5m"] = calcular_pagamentos_recentes_5m(normalizado.get("cobrancas") or [], valor_base=valor_base, quantidade=10)
     return item
 
 
@@ -1443,7 +1456,13 @@ def salvar_xlsx(registros):
             formatar_moeda(item.get("valor_total_pago")),
         ]
         mapa_recentes = normalizar_pagamentos_recentes_5m(item.get("pagamentos_recentes_5m"))
-        pagamentos_recentes.append(linha_base + [mapa_recentes.get(mes["chave"], "-") for mes in meses_recentes])
+        linha_meses = []
+        for mes in meses_recentes:
+            val_mes = mapa_recentes.get(mes["chave"], "-")
+            if isinstance(val_mes, dict):
+                val_mes = val_mes.get("status") or "-"
+            linha_meses.append(val_mes)
+        pagamentos_recentes.append(linha_base + linha_meses)
     for col in pagamentos_recentes.columns:
         width = min(max(len(str(cell.value or "")) for cell in col) + 2, 24)
         pagamentos_recentes.column_dimensions[col[0].column_letter].width = width
