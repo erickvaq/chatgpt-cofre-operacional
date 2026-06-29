@@ -248,10 +248,19 @@ def normalizar_pagamentos_recentes_5m(mapa=None):
     atual = mapa if isinstance(mapa, dict) else {}
     normalizado = {}
     for mes in janela_pagamentos_recentes():
-        valor = str(atual.get(mes["chave"], "-") or "-").strip()
-        if valor not in ("Pago", "Vencido"):
-            valor = "-"
-        normalizado[mes["chave"]] = valor
+        val = atual.get(mes["chave"])
+        if isinstance(val, dict):
+            normalizado[mes["chave"]] = val
+        else:
+            v_str = str(val or "-").strip()
+            if v_str == "Pago":
+                normalizado[mes["chave"]] = {"status": "Pago", "texto1": "Pago", "texto2": "-"}
+            elif v_str == "Vencido":
+                normalizado[mes["chave"]] = {"status": "Vencido", "texto1": "Vencido", "texto2": "-"}
+            elif v_str == "Pendente":
+                normalizado[mes["chave"]] = {"status": "Pendente", "texto1": "Pendente", "texto2": "-"}
+            else:
+                normalizado[mes["chave"]] = {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
     return normalizado
 
 
@@ -291,8 +300,8 @@ def _status_pagamento_recente(status):
 
 
 def calcular_pagamentos_recentes_5m(cobrancas):
-    resultado = {mes["chave"]: "-" for mes in janela_pagamentos_recentes()}
-    prioridade = {"-": 0, "Vencido": 1, "Pago": 2}
+    resultado = {mes["chave"]: {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"} for mes in janela_pagamentos_recentes()}
+    prioridade = {"Sem boleto": 0, "Pendente": 1, "Vencido": 2, "Pago": 3}
 
     for cob in cobrancas or []:
         if cob.get("duplicidade"):
@@ -303,19 +312,46 @@ def calcular_pagamentos_recentes_5m(cobrancas):
         if classificacao not in ("parcela normal", "pendencia") and not cob.get("pertence_a_carne"):
             continue
 
-        status = _status_pagamento_recente(cob.get("status"))
-        if not status:
-            continue
-
         data_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
         if not data_ref:
+            continue
+
+        bruto = normalizar(str(cob.get("status") or "")).lower()
+        if bruto in ("recebido", "pago", "quitado", "liquidado"):
+            status_str = "Pago"
+        elif bruto in ("vencido",):
+            status_str = "Vencido"
+        elif bruto in ("aguardando", "aberto", "pendente", "pendencia"):
+            ref_date = data_ref.date() if hasattr(data_ref, "date") else data_ref
+            if ref_date < datetime.now().date():
+                status_str = "Vencido"
+            else:
+                status_str = "Pendente"
+        else:
             continue
 
         chave = f"{data_ref.year:04d}-{data_ref.month:02d}"
         if chave not in resultado:
             continue
-        if prioridade[status] >= prioridade[resultado[chave]]:
-            resultado[chave] = status
+        
+        atual_status = resultado[chave]["status"]
+        if prioridade[status_str] >= prioridade[atual_status]:
+            valor_bruto = cob.get("valor", "-")
+            if isinstance(valor_bruto, (int, float)):
+                texto1 = f"R$ {valor_bruto:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            else:
+                texto1 = str(valor_bruto)
+                if texto1 != "-" and not texto1.startswith("R$"):
+                    try:
+                        texto1 = f"R$ {float(texto1):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    except:
+                        pass
+            
+            if status_str != "Pago":
+                texto1 = status_str
+                
+            texto2 = f"{data_ref.day:02d}/{data_ref.month:02d}"
+            resultado[chave] = {"status": status_str, "texto1": texto1, "texto2": texto2}
 
     return normalizar_pagamentos_recentes_5m(resultado)
 
@@ -1497,7 +1533,7 @@ def carregar_cache():
     registros = []
     for item in payload.get("registros", []):
         registro = normalizar_registro_cache(item)
-        if not any(valor in ("Pago", "Vencido") for valor in registro.get("pagamentos_recentes_5m", {}).values()):
+        if not any(v.get("status") in ("Pago", "Vencido") if isinstance(v, dict) else v in ("Pago", "Vencido") for v in registro.get("pagamentos_recentes_5m", {}).values()):
             registro = enriquecer_pagamentos_recentes_cache(registro)
         registros.append(registro)
     registros, _resumo = saneamento_clientes.aplicar_saneamento(registros)

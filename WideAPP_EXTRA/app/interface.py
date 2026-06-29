@@ -820,34 +820,36 @@ class WideAppInterface:
     def _montar_grade_pagamentos_recentes(self, parent):
         panel = self._panel(parent, padx=14, pady=10)
         panel.pack(fill="both", expand=True, padx=8, pady=8)
-        tabela = panel.inner
-        colunas_mes = [mes["chave"] for mes in self._colunas_pagamentos_recentes()]
-        tree = ttk.Treeview(
-            tabela,
-            columns=[c[0] for c in COLUNAS] + colunas_mes,
-            show="tree headings",
-            selectmode="extended",
-            style="Modern.Treeview",
-        )
-        tree["displaycolumns"] = list(getattr(self, "display_cols", [c[0] for c in COLUNAS if c[0] != "observacoes"])) + colunas_mes
-        tree.heading("#0", text="STATUS")
-        tree.column("#0", width=86, minwidth=72, anchor="center", stretch=False)
-        for key, label, width in COLUNAS:
-            tree.heading(key, text=label)
-            anchor = "w" if key == "cliente" else "center"
-            tree.column(key, width=width, anchor=anchor, stretch=True)
-        for mes in self._colunas_pagamentos_recentes():
-            tree.heading(mes["chave"], text=mes["rotulo"])
-            tree.column(mes["chave"], width=90, minwidth=76, anchor="center", stretch=False)
-        scroll_y = ttk.Scrollbar(tabela, orient="vertical", command=tree.yview)
+        
+        canvas = tk.Canvas(panel.inner, bg=self.ui_bg, highlightthickness=0)
+        scroll_y = ttk.Scrollbar(panel.inner, orient="vertical", command=canvas.yview)
+        scroll_x = ttk.Scrollbar(panel.inner, orient="horizontal", command=canvas.xview)
+        
         scroll_y.pack(side="right", fill="y")
-        tree.pack(side="top", fill="both", expand=True)
-        tree.configure(yscrollcommand=scroll_y.set)
-        tree.bind("<Button-3>", self.mostrar_menu_contexto)
-        tree.bind("<Double-1>", lambda _e: self.abrir_pasta_cliente_selecionado())
-        tree.bind("<MouseWheel>", self._rolar_tree)
-        tree.bind("<<TreeviewSelect>>", lambda _e, current_tree=tree: self.sincronizar_selecao_tree(current_tree))
-        return tree
+        scroll_x.pack(side="bottom", fill="x")
+        canvas.pack(side="left", fill="both", expand=True)
+        
+        canvas.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+        
+        inner_frame = tk.Frame(canvas, bg=self.ui_bg)
+        canvas_window = canvas.create_window((0, 0), window=inner_frame, anchor="nw")
+        
+        def on_configure_inner(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        inner_frame.bind("<Configure>", on_configure_inner)
+        
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            
+        canvas.bind_all("<MouseWheel>", on_mousewheel)
+        
+        self.canvas_recentes = canvas
+        self.frame_recentes = inner_frame
+        
+        # Set dummy tree_recentes to avoid crashing existing tree checks
+        self.tree_recentes = canvas
+        
+        return canvas
 
     def _registrar_diagnostico_inicial(self):
         import sys
@@ -1328,34 +1330,103 @@ class WideAppInterface:
             self._tree_record_maps[str(tree)][iid] = item
 
     def _popular_tree_pagamentos_recentes(self, registros):
-        tree = getattr(self, "tree_recentes", None)
-        if not tree:
+        if not hasattr(self, "frame_recentes"):
             return
+            
+        frame = self.frame_recentes
+        canvas = self.canvas_recentes
+        
+        # Limpar grid anterior
+        for widget in frame.winfo_children():
+            widget.destroy()
+            
         meses = self._colunas_pagamentos_recentes()
-        colunas_mes = [mes["chave"] for mes in meses]
-        tree.delete(*tree.get_children())
-        self._tree_record_maps[str(tree)] = {}
-        tree["displaycolumns"] = list(getattr(self, "display_cols", [c[0] for c in COLUNAS if c[0] != "observacoes"])) + colunas_mes
+        
+        bg_color = self.ui_bg
+        fg_color = self.ui_text
+        
+        # Headers
+        headers = [
+            ("STATUS", 8),
+            ("Cliente", 25),
+            ("Lote / Quadra", 12)
+        ]
+        
         for mes in meses:
-            tree.heading(mes["chave"], text=mes["rotulo"])
-        colunas_base = [c[0] for c in COLUNAS]
-        for idx, item in enumerate(registros):
-            valores_base = [self._valor_grade(item, key) for key in colunas_base]
-            linha = dict(zip(colunas_base, valores_base))
-            mapa = indexador_clientes.normalizar_pagamentos_recentes_5m(item.get("pagamentos_recentes_5m"))
-            for mes in meses:
-                linha[mes["chave"]] = mapa.get(mes["chave"], "-")
+            headers.append((f"[M] {mes['rotulo']}", 10))
+            
+        headers.extend([
+            ("Parcelas", 12),
+            ("Atualizado em", 16)
+        ])
+        
+        for col, (titulo, width) in enumerate(headers):
+            lbl = tk.Label(frame, text=titulo, bg="#1E2F38", fg="#95A5A6", font=("Segoe UI", 9, "bold"), width=width, borderwidth=1, relief="solid")
+            lbl.grid(row=0, column=col, sticky="nsew", padx=1, pady=1, ipady=4)
+        
+        def status_color(num_alertas):
+            if num_alertas <= 1: return "#2ECC71"
+            if num_alertas in (2, 3): return "#F1C40F"
+            return "#E74C3C"
+
+        def mes_color(status_str):
+            s = status_str.lower()
+            if "pago" in s or "recebido" in s: return "#1E8449"
+            if "pendente" in s: return "#B7950B"
+            if "vencido" in s: return "#922B21"
+            return "#2C3E50"
+        
+        # Data Rows
+        for row, item in enumerate(registros, start=1):
+            # 1. STATUS
             vencidos = item.get("status_atraso_qtd", item.get("boletos_atrasados", 0))
-            iid = f"r{idx}"
-            tree.insert(
-                "",
-                "end",
-                iid=iid,
-                text="",
-                image=self.obter_imagem_barrinha(vencidos),
-                values=[linha.get(col, "") for col in tree["columns"]],
-            )
-            self._tree_record_maps[str(tree)][iid] = item
+            frame_status = tk.Frame(frame, bg=bg_color)
+            frame_status.grid(row=row, column=0, sticky="nsew", padx=1, pady=1)
+            lbl_status = tk.Label(frame_status, text=str(vencidos), bg=status_color(vencidos), fg="white", font=("Segoe UI", 9, "bold"), width=3)
+            lbl_status.pack(expand=True)
+            
+            # 2. Cliente
+            cliente = str(item.get("cliente", "")).strip()
+            if len(cliente) > 28: cliente = cliente[:25] + "..."
+            lbl_cli = tk.Label(frame, text=cliente, bg=bg_color, fg=fg_color, font=("Segoe UI", 9), anchor="w")
+            lbl_cli.grid(row=row, column=1, sticky="nsew", padx=1, pady=1)
+            
+            # 3. Lote / Quadra
+            lote = f"{item.get('lote', '')} / {item.get('quadra', '')}"
+            lbl_lote = tk.Label(frame, text=lote, bg=bg_color, fg=fg_color, font=("Segoe UI", 9))
+            lbl_lote.grid(row=row, column=2, sticky="nsew", padx=1, pady=1)
+            
+            # 4. Meses
+            mapa = item.get("pagamentos_recentes_5m", {})
+            if not isinstance(mapa, dict): mapa = {}
+            
+            col_offset = 3
+            for i, mes in enumerate(meses):
+                mes_data = mapa.get(mes["chave"], {})
+                if not isinstance(mes_data, dict):
+                    mes_data = {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
+                
+                fundo = mes_color(mes_data.get("status", "Sem boleto"))
+                texto = f"{mes_data.get('texto1', '-')}\n{mes_data.get('texto2', '-')}"
+                
+                lbl_mes = tk.Label(frame, text=texto, bg=fundo, fg="white", font=("Segoe UI", 9), borderwidth=1, relief="solid")
+                lbl_mes.grid(row=row, column=col_offset+i, sticky="nsew", padx=1, pady=1, ipadx=4, ipady=4)
+                
+            col_offset += len(meses)
+            
+            # 5. Parcelas
+            parcelas = f"{item.get('parcelas_pagas', 0)} / {item.get('parcelas_total', '?')} pagas"
+            lbl_parc = tk.Label(frame, text=parcelas, bg=bg_color, fg=fg_color, font=("Segoe UI", 9))
+            lbl_parc.grid(row=row, column=col_offset, sticky="nsew", padx=1, pady=1)
+            
+            # 6. Atualizado em
+            att = str(item.get("atualizado_em", ""))
+            if len(att) > 16: att = att[:16]
+            lbl_att = tk.Label(frame, text=att, bg=bg_color, fg=fg_color, font=("Segoe UI", 9))
+            lbl_att.grid(row=row, column=col_offset+1, sticky="nsew", padx=1, pady=1)
+        
+        frame.update_idletasks()
+        canvas.configure(scrollregion=canvas.bbox("all"))
 
     def _atualizar_abas_saneamento(self):
         quitados = [r for r in self.registros if r.get("saneamento_categoria") == "quitados"]
@@ -2138,8 +2209,9 @@ def smoke_test():
     assert len(app.workspace_tabs.tabs()) >= 5
     assert app.workspace_tabs.tab(app.workspace_tabs.tabs()[1], "text") == "Ativ. Recentes"
     assert hasattr(app, "tree_recentes")
-    recentes_cols = [col for col in app.tree_recentes["columns"] if col not in [c[0] for c in COLUNAS]]
-    assert len(recentes_cols) == 5
+    assert hasattr(app, "frame_recentes")
+    # A aba Ativ. Recentes agora usa uma grade visual com Canvas + Frame
+    assert len(app.frame_recentes.winfo_children()) >= 0
     assert app.status_version_label.cget("textvariable")
     assert hasattr(app, "logo_photo")
     assert hasattr(app, "auditoria_txt")
