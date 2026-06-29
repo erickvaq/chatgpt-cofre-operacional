@@ -27,5 +27,11 @@
 * **Gerado**: `05_PROMPTS_E_REGRAS/REGISTROS_ANTIGRAVITY/STATUS_WIDEAPP_EXTRA_SANEAMENTO_CLIENTES_MANUAL_20260628.md`
 * **Gerado**: `WideAPP_EXTRA/logs/previa_saneamento_clientes_20260628.md`
 
-## 6. Próximos Passos
+## 6. Validação Controlada de Fallbacks e CDP
+* **Teste Realizado**: Leitura de documento/registro do projeto preferindo fontes locais/Drive sincronizado.
+* **Resultado**: O Google Doc do regimento de saneamento foi baixado e lido localmente a partir de `00_IMPORTAR_DOCUMENTOS/REGIMENTO_SANEAMENTO_MANUAL.docx`. Nenhum navegador Chrome ou sessão CDP foi iniciada ou mantida aberta para essa finalidade.
+* **Prevenção contra Vazamentos**: O script de transcodificação de áudios `transcribe_audios.py` foi atualizado para rastrear o `targetId` do CDP e fechar a aba temporária automaticamente por meio de `Target.closeTarget` ao concluir. A instância headless do Chrome foi encerrada com sucesso usando `Browser.close`.
+* **Log do Fallback**: `Leitura de Google Doc resolvida localmente (DOCX local); CDP não acionado.`
+
+## 7. Próximos Passos
 * [ ] Aguardar a aprovação do usuário para avançar para a **Fase 2** (aplicação prática do saneamento com exclusão lógica).
