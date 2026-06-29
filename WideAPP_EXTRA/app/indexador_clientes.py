@@ -1708,7 +1708,14 @@ def carregar_cache():
         if is_rico:
             # Se for rico mas todos os meses forem "Sem boleto" mesmo o contrato sendo "Encontrado",
             # significa que o cache foi envenenado na geracao antiga. Forcamos re-enriquecimento.
-            valores_meses = [v.get("status") for k, v in mapa.items() if k != "_enriquecido"]
+            valores_meses = []
+            for k, v in mapa.items():
+                if k == "_enriquecido":
+                    continue
+                if isinstance(v, dict):
+                    valores_meses.append(v.get("status"))
+                else:
+                    valores_meses.append(str(v).strip())
             if len(valores_meses) > 0 and all(v == "Sem boleto" for v in valores_meses):
                 if registro.get("contrato") == "Encontrado":
                     is_rico = False
