@@ -6,6 +6,7 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 from pathlib import Path
+import json
 from PIL import Image, ImageDraw, ImageTk, ImageFont
 
 from app import config
@@ -135,6 +136,8 @@ class ConfirmacaoSelecaoDialogo:
 
 class WideAppInterface:
     def __init__(self, root):
+        self._perf_start = time.perf_counter()
+        self._pending_logs = []
         self.root = root
         self.root.title(APP_WINDOW_TITLE)
         self.root.geometry("1500x900")
@@ -251,12 +254,23 @@ class WideAppInterface:
             foreground=[("selected", "#FFFFFF"), ("active", "#FFFFFF")]
         )
 
+        cache_start = time.perf_counter()
         self.registros = indexador_clientes.carregar_cache()
+        self._perf("carregar cache", cache_start)
         self.filtrados = []
         self.selecionados = set()
         self.sort_column = "cliente"
         self.sort_descending = False
         self.imagens_barrinha = {}
+        self._pagamentos_recentes_cache = {}
+        self._recentes_render_after = None
+        self._recentes_render_token = 0
+        self._recentes_header_ready = False
+        self._recentes_grid_columns = 0
+        self.ativ_recentes_meses_opcoes = (3, 6, 8, 10, 12)
+        self.ativ_recentes_meses = self._carregar_preferencia_meses()
+        self.ativ_recentes_meses_var = tk.StringVar(value=f"{self.ativ_recentes_meses} meses")
+        self._tab_rendered = {"recentes": False, "quitados": False, "bloqueados": False, "auditoria": False}
         self.ultimo_arquivo = None
         self.ultima_pasta = config.OUTPUT_DIR
         self.ultimos = {"xlsx": [], "pdf": [], "html": [], "md": [], "json": [], "log": []}
@@ -271,10 +285,48 @@ class WideAppInterface:
         self.progress_pct_var = tk.StringVar(value="0%")
         self.progress_reg_var = tk.StringVar(value="0")
         self.progress_cli_var = tk.StringVar(value="0")
+        montar_start = time.perf_counter()
         self._montar()
+        self._perf("montar layout", montar_start)
         self.aplicar_filtro()
-        self.atualizar_combo_xlsx()
+        if hasattr(self, "xlsx_combo"):
+            self.xlsx_combo.set("Carregando planilhas recentes...")
+        self.root.after(350, self.atualizar_combo_xlsx)
+        self.root.after(500, lambda: self._perf("abertura total", self._perf_start))
         self._trazer_para_frente()
+
+    def _perf(self, rotulo, inicio, detalhe=""):
+        elapsed_ms = (time.perf_counter() - inicio) * 1000
+        suffix = f" / {detalhe}" if detalhe else ""
+        self.log(f"[PERF] {rotulo}: {elapsed_ms:.0f} ms{suffix}")
+        return elapsed_ms
+
+    def _preferencias_interface_path(self):
+        return config.DATA_DIR / "preferencias_interface.json"
+
+    def _carregar_preferencia_meses(self):
+        path = self._preferencias_interface_path()
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            meses = int(payload.get("ativ_recentes_meses", 8))
+        except Exception:
+            meses = 8
+        return meses if meses in self.ativ_recentes_meses_opcoes else 8
+
+    def _salvar_preferencia_meses(self):
+        path = self._preferencias_interface_path()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {}
+            if path.exists():
+                try:
+                    payload = json.loads(path.read_text(encoding="utf-8"))
+                except Exception:
+                    payload = {}
+            payload["ativ_recentes_meses"] = self.ativ_recentes_meses
+            path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        except Exception as exc:
+            self.log(f"Erro ao salvar preferencias da interface: {exc}")
 
     def _trazer_para_frente(self):
         def _focus():
@@ -583,7 +635,7 @@ class WideAppInterface:
         workspace_tabs.add(logs_tab, text="Logs")
         workspace_tabs.add(resumo_tab, text="Resumo / status")
         workspace_tabs.add(auditoria_tab, text="Auditoria")
-        workspace_tabs.bind("<<NotebookTabChanged>>", lambda _e: self.atualizar_aba_auditoria())
+        workspace_tabs.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
         # Define display columns visually excluding observacoes by default
         display_cols = [c[0] for c in COLUNAS if c[0] != "observacoes"]
@@ -707,6 +759,7 @@ class WideAppInterface:
         self.logs_tab_text = tk.Text(logs_tab_panel.inner, height=12, wrap="word", bg="#101B21", fg=self.ui_text, insertbackground=self.ui_text, selectbackground="#0B7F45", selectforeground="#FFFFFF", font=("Consolas", 9), bd=0, yscrollcommand=logs_tab_scroll.set)
         self.logs_tab_text.pack(fill="both", expand=True, pady=(8, 0))
         logs_tab_scroll.config(command=self.logs_tab_text.yview)
+        self._flush_pending_logs()
 
         resumo_tab_panel = self._panel(resumo_tab, padx=14, pady=10)
         resumo_tab_panel.pack(fill="both", expand=True, padx=8, pady=8)
@@ -745,7 +798,7 @@ class WideAppInterface:
         )
         self.auditoria_txt.pack(fill="both", expand=True, pady=(10, 0))
         auditoria_scroll.config(command=self.auditoria_txt.yview)
-        self.atualizar_aba_auditoria()
+        self._preparar_aba_auditoria()
 
         clientes_paned.add(tabela_panel, weight=5)
         clientes_paned.add(inferior, weight=2)
@@ -770,6 +823,48 @@ class WideAppInterface:
         self._registrar_diagnostico_inicial()
         if not self.registros:
             self.log("Cache vazio. Clique em Atualizar clientes.")
+
+    def _preparar_aba_auditoria(self):
+        if not hasattr(self, "auditoria_txt"):
+            return
+        self.auditoria_txt.configure(state="normal")
+        self.auditoria_txt.delete("1.0", "end")
+        self.auditoria_txt.insert("end", "=== PAINEL DE AUDITORIA E CONFORMIDADE FINANCEIRA ===\n\n")
+        self.auditoria_txt.insert("end", "Abra esta aba para calcular os detalhes da auditoria.\n")
+        self.auditoria_txt.configure(state="disabled")
+
+    def _current_tab_text(self):
+        if not hasattr(self, "workspace_tabs"):
+            return ""
+        try:
+            current = self.workspace_tabs.select()
+            return self.workspace_tabs.tab(current, "text") if current else ""
+        except Exception:
+            return ""
+
+    def _on_tab_changed(self, _event=None):
+        tab_text = self._current_tab_text()
+        if tab_text == "Ativ. Recentes":
+            start = time.perf_counter()
+            self._popular_tree_pagamentos_recentes(self.filtrados)
+            self._perf("troca para Ativ. Recentes", start)
+        elif tab_text == "Quitados":
+            self._popular_aba_quitados()
+        elif tab_text == "Bloqueados / Removidos":
+            self._popular_aba_bloqueados()
+        elif tab_text == "Auditoria":
+            self.atualizar_aba_auditoria()
+
+    def _render_current_tab(self):
+        tab_text = self._current_tab_text()
+        if tab_text == "Ativ. Recentes":
+            self._popular_tree_pagamentos_recentes(self.filtrados)
+        elif tab_text == "Quitados":
+            self._popular_aba_quitados()
+        elif tab_text == "Bloqueados / Removidos":
+            self._popular_aba_bloqueados()
+        elif tab_text == "Auditoria":
+            self.atualizar_aba_auditoria()
 
     def _criar_card_resumo(self, parent, var, label, accent):
         card = tk.Frame(parent, bg="#14222A", highlightbackground=accent, highlightthickness=1, bd=0)
@@ -814,8 +909,22 @@ class WideAppInterface:
         ).pack(side="left")
         return tree
 
+    def _alterar_meses_ativ_recentes(self, _event=None):
+        bruto = self.ativ_recentes_meses_var.get()
+        try:
+            meses = int(str(bruto).split()[0])
+        except Exception:
+            meses = 8
+        if meses not in self.ativ_recentes_meses_opcoes:
+            meses = 8
+        self.ativ_recentes_meses = meses
+        self.ativ_recentes_meses_var.set(f"{meses} meses")
+        self._salvar_preferencia_meses()
+        if self._current_tab_text() == "Ativ. Recentes":
+            self._popular_tree_pagamentos_recentes(self.filtrados)
+
     def _colunas_pagamentos_recentes(self):
-        return indexador_clientes.janela_pagamentos_recentes()
+        return indexador_clientes.janela_pagamentos_recentes(quantidade=self.ativ_recentes_meses)
 
     def _montar_grade_pagamentos_recentes(self, parent):
         panel = self._panel(parent, padx=14, pady=10)
@@ -825,10 +934,31 @@ class WideAppInterface:
         body_canvas = tk.Canvas(panel.inner, bg=self.ui_bg, highlightthickness=0)
         
         scroll_y = ttk.Scrollbar(panel.inner, orient="vertical", command=body_canvas.yview)
-        scroll_x = ttk.Scrollbar(panel.inner, orient="horizontal")
+        bottom_bar = tk.Frame(panel.inner, bg=self.ui_panel)
+        scroll_x = ttk.Scrollbar(bottom_bar, orient="horizontal")
+        meses_box = tk.Frame(bottom_bar, bg=self.ui_panel)
         
         scroll_y.pack(side="right", fill="y")
-        scroll_x.pack(side="bottom", fill="x")
+        bottom_bar.pack(side="bottom", fill="x")
+        meses_box.pack(side="right", padx=(12, 0), pady=(4, 0))
+        tk.Label(
+            meses_box,
+            text="Meses exibidos:",
+            bg=self.ui_panel,
+            fg=self.ui_muted,
+            font=("Segoe UI", 9),
+        ).pack(side="left", padx=(0, 6))
+        self.combo_meses_recentes = ttk.Combobox(
+            meses_box,
+            textvariable=self.ativ_recentes_meses_var,
+            values=[f"{meses} meses" for meses in self.ativ_recentes_meses_opcoes],
+            width=9,
+            state="readonly",
+            style="Modern.TCombobox",
+        )
+        self.combo_meses_recentes.pack(side="left")
+        self.combo_meses_recentes.bind("<<ComboboxSelected>>", self._alterar_meses_ativ_recentes)
+        scroll_x.pack(side="left", fill="x", expand=True, pady=(4, 0))
         
         header_canvas.pack(side="top", fill="x")
         body_canvas.pack(side="top", fill="both", expand=True)
@@ -839,12 +969,28 @@ class WideAppInterface:
         header_window = header_canvas.create_window((0, 0), window=header_frame, anchor="nw")
         body_window = body_canvas.create_window((0, 0), window=body_frame, anchor="nw")
         
+        header_config_after = {"id": None}
+        body_config_after = {"id": None}
+
         def on_configure_header(event):
-            header_canvas.configure(scrollregion=header_canvas.bbox("all"), height=header_frame.winfo_reqheight())
+            if header_config_after["id"]:
+                header_canvas.after_cancel(header_config_after["id"])
+            header_config_after["id"] = header_canvas.after(
+                80,
+                lambda: header_canvas.configure(
+                    scrollregion=header_canvas.bbox("all"),
+                    height=header_frame.winfo_reqheight(),
+                ),
+            )
         header_frame.bind("<Configure>", on_configure_header)
         
         def on_configure_body(event):
-            body_canvas.configure(scrollregion=body_canvas.bbox("all"))
+            if body_config_after["id"]:
+                body_canvas.after_cancel(body_config_after["id"])
+            body_config_after["id"] = body_canvas.after(
+                80,
+                lambda: body_canvas.configure(scrollregion=body_canvas.bbox("all")),
+            )
         body_frame.bind("<Configure>", on_configure_body)
         
         # Synced horizontal scroll
@@ -863,6 +1009,7 @@ class WideAppInterface:
         # Mousewheel scroll vertical only on body
         def on_mousewheel_y(event):
             body_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            return "break"
             
         body_canvas.bind("<MouseWheel>", on_mousewheel_y)
         body_frame.bind("<MouseWheel>", on_mousewheel_y)
@@ -872,6 +1019,7 @@ class WideAppInterface:
             amount = int(-1 * (event.delta / 120))
             header_canvas.xview_scroll(amount, "units")
             body_canvas.xview_scroll(amount, "units")
+            return "break"
             
         body_canvas.bind("<Shift-MouseWheel>", on_mousewheel_x)
         body_frame.bind("<Shift-MouseWheel>", on_mousewheel_x)
@@ -908,6 +1056,7 @@ class WideAppInterface:
             commit_version = "Sem Git"
 
         self.log(f"[DIAGNOSTICO] Entrada: {main_path}")
+        self.log(f"[DIAGNOSTICO] Versao app: {APP_VERSION_LABEL}")
         self.log(f"[DIAGNOSTICO] Modulo UI: {interface_path}")
         self.log(f"[DIAGNOSTICO] Modificacao UI: {mtime}")
         self.log(f"[DIAGNOSTICO] Versao Git: {commit_version}")
@@ -949,12 +1098,23 @@ class WideAppInterface:
         if threading.current_thread() is not threading.main_thread():
             self.root.after(0, lambda m=msg: self.log(m))
             return
+        delivered = False
         for widget_name in ("logs", "logs_tab_text"):
             widget = getattr(self, widget_name, None)
             if widget is not None:
                 widget.insert("end", msg + "\n")
                 widget.see("end")
-        self.root.update_idletasks()
+                delivered = True
+        if not delivered:
+            self._pending_logs.append(str(msg))
+
+    def _flush_pending_logs(self):
+        if not getattr(self, "_pending_logs", None):
+            return
+        pending = list(self._pending_logs)
+        self._pending_logs.clear()
+        for msg in pending:
+            self.log(msg)
 
     def _append_progress_log(self, linha):
         if not hasattr(self, "progress_mini_log"):
@@ -969,6 +1129,7 @@ class WideAppInterface:
 
     def _recarregar_dados_apos_atualizacao(self):
         self.registros = indexador_clientes.carregar_cache()
+        self._pagamentos_recentes_cache.clear()
         if hasattr(self, "quadra_lote_combo"):
             opcoes = self._opcoes_quadra_lote()
             atual = self.quadra_lote_var.get()
@@ -976,7 +1137,7 @@ class WideAppInterface:
             if atual not in opcoes:
                 self.quadra_lote_var.set("Todos")
         self.aplicar_filtro()
-        self.atualizar_combo_xlsx()
+        self.root.after(250, self.atualizar_combo_xlsx)
 
     def atualizar_async(self):
         self.btn_atualizar_cli.configure(state="disabled")
@@ -1367,56 +1528,93 @@ class WideAppInterface:
     def _popular_tree_pagamentos_recentes(self, registros):
         if not hasattr(self, "frame_recentes"):
             return
-            
-        frame = self.frame_recentes
+
+        start = time.perf_counter()
         canvas = self.canvas_recentes
-        
-        # Limpar grid anterior
-        for widget in frame.winfo_children():
+
+        if self._recentes_render_after:
+            try:
+                self.root.after_cancel(self._recentes_render_after)
+            except Exception:
+                pass
+            self._recentes_render_after = None
+        self._recentes_render_token += 1
+        token = self._recentes_render_token
+
+        self.canvas_recentes.delete("recentes_body")
+        self.header_canvas_recentes.delete("recentes_header")
+        for widget in self.frame_recentes.winfo_children():
             widget.destroy()
         for widget in self.frame_header_recentes.winfo_children():
             widget.destroy()
-            
+
         meses = self._colunas_pagamentos_recentes()
-        
         bg_color = self.ui_bg
         fg_color = self.ui_text
-        
-        # Define exact column widths in pixels
+        grid_color = "#2D4650"
+        header_bg = "#1E2F38"
+        header_fg = "#95A5A6"
+        row_bg = "#0F1A20"
+        row_alt_bg = "#13212A"
+        row_height = 44
+        header_height = 34
+
         widths = [
-            60,   # STATUS
-            220,  # Cliente
-            110,  # Lote / Quadra
+            60,
+            220,
+            110,
         ]
         for _ in meses:
             widths.append(100)
         widths.extend([
-            120,  # Parcelas
-            130   # Atualizado em
+            120,
+            130,
         ])
-        
-        # Apply column configure to both header and body frames
-        for col, w in enumerate(widths):
+        total_width = sum(widths)
+
+        total_cols = max(self._recentes_grid_columns, len(widths))
+        for col in range(total_cols):
+            w = widths[col] if col < len(widths) else 0
             self.frame_header_recentes.grid_columnconfigure(col, minsize=w)
-            frame.grid_columnconfigure(col, minsize=w)
-            
-        # Draw Headers
+            self.frame_recentes.grid_columnconfigure(col, minsize=w)
+        self._recentes_grid_columns = len(widths)
+
+        header_key = tuple(m.get("rotulo") for m in meses)
         headers = [
-            ("STATUS", 60),
-            ("Cliente", 220),
-            ("Lote / Quadra", 110)
+            "STATUS",
+            "Cliente",
+            "Lote / Quadra",
+            *[f"[M] {mes['rotulo']}" for mes in meses],
+            "Parcelas",
+            "Atualizado em",
         ]
-        for mes in meses:
-            headers.append((f"[M] {mes['rotulo']}", 100))
-        headers.extend([
-            ("Parcelas", 120),
-            ("Atualizado em", 130)
-        ])
-        
-        for col, (titulo, w) in enumerate(headers):
-            lbl = tk.Label(self.frame_header_recentes, text=titulo, bg="#1E2F38", fg="#95A5A6", font=("Segoe UI", 9, "bold"), borderwidth=1, relief="solid")
-            lbl.grid(row=0, column=col, sticky="nsew", padx=1, pady=1, ipady=4)
-        
+        x = 0
+        for titulo, w in zip(headers, widths):
+            self.header_canvas_recentes.create_rectangle(
+                x,
+                0,
+                x + w,
+                header_height,
+                fill=header_bg,
+                outline=grid_color,
+                tags=("recentes_header",),
+            )
+            self.header_canvas_recentes.create_text(
+                x + (w / 2),
+                header_height / 2,
+                text=titulo,
+                fill=header_fg,
+                font=("Segoe UI", 9, "bold"),
+                tags=("recentes_header",),
+            )
+            x += w
+        self.header_canvas_recentes.configure(
+            height=header_height,
+            scrollregion=(0, 0, total_width, header_height),
+        )
+        self._recentes_header_ready = True
+        self._recentes_header_key = header_key
+
         def status_color(num_alertas):
             if num_alertas <= 1: return "#2ECC71"
             if num_alertas in (2, 3): return "#F1C40F"
@@ -1428,75 +1626,178 @@ class WideAppInterface:
             if "pendente" in s: return "#B7950B"
             if "vencido" in s: return "#922B21"
             return "#2C3E50"
-        
-        # Data Rows
-        for row, item in enumerate(registros, start=1):
-            # 1. STATUS
+
+        def item_key(item):
+            return self._chave(item)
+
+        def obter_meses_cacheados(item):
+            chave = (item_key(item), header_key)
+            cached = self._pagamentos_recentes_cache.get(chave)
+            if cached is not None:
+                return cached
+            valores = [indexador_clientes.obter_celula_pagamento_recente(item, mes) for mes in meses]
+            self._pagamentos_recentes_cache[chave] = valores
+            return valores
+
+        def texto_truncado(texto, limite):
+            texto = str(texto or "").strip()
+            if len(texto) <= limite:
+                return texto
+            return texto[: max(1, limite - 3)] + "..."
+
+        def draw_cell(x, y, w, h, text, fill, fg=fg_color, anchor="center", font=("Segoe UI", 9), padx=6):
+            self.canvas_recentes.create_rectangle(
+                x,
+                y,
+                x + w,
+                y + h,
+                fill=fill,
+                outline=grid_color,
+                tags=("recentes_body",),
+            )
+            text_x = x + padx if anchor == "w" else x + (w / 2)
+            self.canvas_recentes.create_text(
+                text_x,
+                y + (h / 2),
+                text=text,
+                fill=fg,
+                font=font,
+                anchor=anchor,
+                width=max(10, w - (padx * 2)),
+                tags=("recentes_body",),
+            )
+
+        def desenhar_linha(row, item):
+            y = (row - 1) * row_height
+            x = 0
+            base_fill = row_bg if row % 2 else row_alt_bg
+
             vencidos = item.get("status_atraso_qtd", item.get("boletos_atrasados", 0))
-            frame_status = tk.Frame(frame, bg=bg_color)
-            frame_status.grid(row=row, column=0, sticky="nsew", padx=1, pady=1)
-            lbl_status = tk.Label(frame_status, text=str(vencidos), bg=status_color(vencidos), fg="white", font=("Segoe UI", 9, "bold"), width=3)
-            lbl_status.pack(expand=True)
-            
-            # 2. Cliente
+            draw_cell(x, y, widths[0], row_height, str(vencidos), base_fill, "white", font=("Segoe UI", 9, "bold"))
+            badge_w = 34
+            badge_h = 20
+            badge_x = x + (widths[0] - badge_w) / 2
+            badge_y = y + (row_height - badge_h) / 2
+            self.canvas_recentes.create_rectangle(
+                badge_x,
+                badge_y,
+                badge_x + badge_w,
+                badge_y + badge_h,
+                fill=status_color(vencidos),
+                outline=status_color(vencidos),
+                tags=("recentes_body",),
+            )
+            self.canvas_recentes.create_text(
+                x + (widths[0] / 2),
+                y + (row_height / 2),
+                text=str(vencidos),
+                fill="white",
+                font=("Segoe UI", 9, "bold"),
+                tags=("recentes_body",),
+            )
+            x += widths[0]
+
             cliente = str(item.get("cliente", "")).strip()
-            if len(cliente) > 28: cliente = cliente[:25] + "..."
-            lbl_cli = tk.Label(frame, text=cliente, bg=bg_color, fg=fg_color, font=("Segoe UI", 9), anchor="w")
-            lbl_cli.grid(row=row, column=1, sticky="nsew", padx=1, pady=1)
-            
-            # 3. Lote / Quadra
+            draw_cell(x, y, widths[1], row_height, texto_truncado(cliente, 30), base_fill, fg_color, anchor="w")
+            x += widths[1]
+
             lote = f"{item.get('lote', '')} / {item.get('quadra', '')}"
-            lbl_lote = tk.Label(frame, text=lote, bg=bg_color, fg=fg_color, font=("Segoe UI", 9))
-            lbl_lote.grid(row=row, column=2, sticky="nsew", padx=1, pady=1)
-            
-            # 4. Meses
+            draw_cell(x, y, widths[2], row_height, texto_truncado(lote, 16), base_fill, fg_color)
+            x += widths[2]
+
             col_offset = 3
-            for i, mes in enumerate(meses):
-                mes_data = indexador_clientes.obter_celula_pagamento_recente(item, mes)
-                
+            for i, mes_data in enumerate(obter_meses_cacheados(item)):
                 fundo = mes_color(mes_data.get("status", "Sem boleto"))
-                texto = f"{mes_data.get('texto1', '-')}\n{mes_data.get('texto2', '-')}"
-                
-                lbl_mes = tk.Label(frame, text=texto, bg=fundo, fg="white", font=("Segoe UI", 9), borderwidth=1, relief="solid")
-                lbl_mes.grid(row=row, column=col_offset+i, sticky="nsew", padx=1, pady=1, ipadx=4, ipady=4)
-                
+                texto1 = texto_truncado(mes_data.get("texto1", "-"), 15)
+                texto2 = texto_truncado(mes_data.get("texto2", "-"), 15)
+                w = widths[col_offset + i]
+                self.canvas_recentes.create_rectangle(
+                    x,
+                    y,
+                    x + w,
+                    y + row_height,
+                    fill=fundo,
+                    outline=grid_color,
+                    tags=("recentes_body",),
+                )
+                self.canvas_recentes.create_text(
+                    x + (w / 2),
+                    y + 16,
+                    text=texto1,
+                    fill="white",
+                    font=("Segoe UI", 9, "bold"),
+                    width=w - 8,
+                    tags=("recentes_body",),
+                )
+                self.canvas_recentes.create_text(
+                    x + (w / 2),
+                    y + 32,
+                    text=texto2,
+                    fill="white",
+                    font=("Segoe UI", 8),
+                    width=w - 8,
+                    tags=("recentes_body",),
+                )
+                x += w
+
             col_offset += len(meses)
-            
-            # 5. Parcelas
+
             parcelas = item.get("parcelas_resumo")
             if not parcelas:
                 p_pagas = item.get("parcelas_pagas_identificadas", 0)
                 p_total = item.get("parcelas_total_contrato", "?")
                 parcelas = f"{p_pagas} / {p_total} pagas"
-                
-            lbl_parc = tk.Label(frame, text=parcelas, bg=bg_color, fg=fg_color, font=("Segoe UI", 9))
-            lbl_parc.grid(row=row, column=col_offset, sticky="nsew", padx=1, pady=1)
-            
-            # 6. Atualizado em
+            draw_cell(x, y, widths[col_offset], row_height, texto_truncado(parcelas, 18), base_fill, fg_color)
+            x += widths[col_offset]
+
             att = item.get("ultima_atualizacao_widepay") or item.get("data_atualizacao") or ""
             att = indexador_clientes.formatar_data_hora(att)
-            lbl_att = tk.Label(frame, text=att, bg=bg_color, fg=fg_color, font=("Segoe UI", 9))
-            lbl_att.grid(row=row, column=col_offset+1, sticky="nsew", padx=1, pady=1)
-            
-        # Bind mousewheel to all newly created widgets in frame
-        def bind_mw(w):
-            w.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
-            for c in w.winfo_children():
-                bind_mw(c)
-        bind_mw(frame)
-        
-        self.frame_header_recentes.update_idletasks()
-        self.header_canvas_recentes.configure(scrollregion=self.header_canvas_recentes.bbox("all"))
-        frame.update_idletasks()
-        canvas.configure(scrollregion=canvas.bbox("all"))
+            draw_cell(x, y, widths[col_offset + 1], row_height, texto_truncado(att, 18), base_fill, fg_color)
+
+        registros = list(registros)
+        lote_tamanho = 40
+
+        def render_lote(inicio):
+            if token != self._recentes_render_token:
+                return
+            fim = min(inicio + lote_tamanho, len(registros))
+            for idx in range(inicio, fim):
+                desenhar_linha(idx + 1, registros[idx])
+            if fim < len(registros):
+                self._recentes_render_after = self.root.after(1, lambda: render_lote(fim))
+                return
+            total_height = max(1, len(registros) * row_height)
+            canvas.configure(scrollregion=(0, 0, total_width, total_height))
+            self._perf(f"Ativ. Recentes com {len(meses)} meses", start, f"{len(registros)} linhas")
+            self._recentes_render_after = None
+
+        total_height = max(1, len(registros) * row_height)
+        canvas.configure(scrollregion=(0, 0, total_width, total_height))
+        if registros:
+            render_lote(0)
+        else:
+            self._perf(f"Ativ. Recentes com {len(meses)} meses", start, "0 linhas")
 
     def _atualizar_abas_saneamento(self):
+        self._popular_aba_quitados()
+        self._popular_aba_bloqueados()
+
+    def _popular_aba_quitados(self):
+        start = time.perf_counter()
         quitados = [r for r in self.registros if r.get("saneamento_categoria") == "quitados"]
+        filtrados = self._filtrar_registros_visuais(quitados)
+        self._popular_tree_saneamento(getattr(self, "tree_quitados", None), filtrados)
+        self._perf("popular Quitados", start, f"{len(filtrados)} linhas")
+
+    def _popular_aba_bloqueados(self):
+        start = time.perf_counter()
         bloqueados = [r for r in self.registros if r.get("saneamento_categoria") == "bloqueados_removidos"]
-        self._popular_tree_saneamento(getattr(self, "tree_quitados", None), self._filtrar_registros_visuais(quitados))
-        self._popular_tree_saneamento(getattr(self, "tree_bloqueados", None), self._filtrar_registros_visuais(bloqueados))
+        filtrados = self._filtrar_registros_visuais(bloqueados)
+        self._popular_tree_saneamento(getattr(self, "tree_bloqueados", None), filtrados)
+        self._perf("popular Bloqueados", start, f"{len(filtrados)} linhas")
 
     def aplicar_filtro(self):
+        start = time.perf_counter()
         ativos = [r for r in self.registros if r.get("saneamento_categoria", "ativos") == "ativos"]
         self.filtrados = self._filtrar_registros_visuais(ativos)
 
@@ -1577,10 +1878,9 @@ class WideAppInterface:
             self._tree_record_maps[str(self.tree)][iid] = item
             if self._chave(item) in self.selecionados:
                 self.tree.selection_add(iid)
-        self._popular_tree_pagamentos_recentes(self.filtrados)
         self.atualizar_resumo_visual()
-        self._atualizar_abas_saneamento()
-        self.atualizar_aba_auditoria()
+        self._render_current_tab()
+        self._perf("popular Ativos", start, f"{len(self.filtrados)} linhas")
         self.log(f"Filtro aplicado: {len(self.filtrados)} resultado(s).")
 
     def atualizar_resumo_visual(self):
@@ -1923,7 +2223,6 @@ class WideAppInterface:
             else:
                 tempo_str = f"{int(tempo_restante_segundos)}s" if tempo_restante_segundos > 0 else "calculando..."
                 self.progress_label.configure(text=f"Processando pipeline... {pct:.1f}% concluído. Tempo restante estimado: {tempo_str}")
-            self.root.update_idletasks()
         self.root.after(0, _update)
 
     def obter_xlsx_recentes(self):
@@ -1955,6 +2254,7 @@ class WideAppInterface:
         return lista_ordenada
 
     def atualizar_combo_xlsx(self):
+        start = time.perf_counter()
         try:
             self.xlsx_map = {}
             items = []
@@ -1991,6 +2291,8 @@ class WideAppInterface:
                     self.xlsx_combo.set("Nenhuma planilha encontrada")
         except Exception as e:
             self.log(f"Erro ao atualizar dropdown de planilhas: {e}")
+        finally:
+            self._perf("atualizar combo xlsx", start)
 
     def abrir_janela_selecionar_xlsx(self):
         # Create a Toplevel window

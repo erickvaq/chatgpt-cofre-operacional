@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 VERSION_FILE = Path(__file__).resolve().parents[1] / "VERSION"
-DEFAULT_APP_VERSION = "V0.0-UNKNOWN"
+DEFAULT_APP_VERSION = "V1.4"
 
 
 def load_app_version():
