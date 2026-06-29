@@ -502,65 +502,6 @@ class WideAppInterface:
         self.btn_select_xlsx = ttk.Button(recentes_box, text="Selecionar...", style="Toolbar.TButton", command=self.abrir_janela_selecionar_xlsx)
         self.btn_select_xlsx.pack(side="left", padx=(8, 0), ipady=3)
 
-        # -------------------------------------------------------------
-        # Painel de Andamento da Atualização (área fixa de progresso)
-        # -------------------------------------------------------------
-        progress_panel = self._panel(self.root, padx=10, pady=8)
-        progress_panel.pack(anchor="e", padx=22, pady=(0, 6))
-        prog_inner = progress_panel.inner
-        
-        self._label(prog_inner, "Andamento da atualização", 10, "bold", self.ui_text, self.ui_panel).pack(anchor="w", pady=(0, 4))
-        
-        info_frame = tk.Frame(prog_inner, bg=self.ui_panel)
-        info_frame.pack(fill="x", pady=(0, 4))
-        
-        # Grid of status fields
-        tk.Label(info_frame, text="Status: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
-        self.lbl_status_val = tk.Label(info_frame, textvariable=self.progress_status_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
-        self.lbl_status_val.pack(side="left", padx=(0, 10))
-        
-        tk.Label(info_frame, text="Progresso: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
-        self.lbl_pct_val = tk.Label(info_frame, textvariable=self.progress_pct_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
-        self.lbl_pct_val.pack(side="left", padx=(0, 10))
-
-        tk.Label(info_frame, text="Clientes: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
-        self.lbl_cli_val = tk.Label(info_frame, textvariable=self.progress_cli_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
-        self.lbl_cli_val.pack(side="left", padx=(0, 10))
-
-        tk.Label(info_frame, text="Registros: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
-        self.lbl_reg_val = tk.Label(info_frame, textvariable=self.progress_reg_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
-        self.lbl_reg_val.pack(side="left", padx=(0, 10))
-        
-        tk.Label(info_frame, text="Etapa: ", bg=self.ui_panel, fg=self.ui_muted, font=("Segoe UI", 9, "bold")).pack(side="left")
-        self.lbl_etapa_val = tk.Label(info_frame, textvariable=self.progress_etapa_var, bg=self.ui_panel, fg=self.ui_text, font=("Segoe UI", 9))
-        self.lbl_etapa_val.pack(side="left")
-        self.progress_label = self.lbl_etapa_val
-
-        # Custom high visibility style for progress bar
-        style = ttk.Style(self.root)
-        style.configure("Big.Horizontal.TProgressbar", thickness=10, troughcolor="#0F1A20", background="#22C55E")
-        self.progress = ttk.Progressbar(prog_inner, orient="horizontal", mode="determinate", style="Big.Horizontal.TProgressbar")
-        self.progress.pack(fill="x", pady=(0, 4))
-        
-        log_label_frame = tk.Frame(prog_inner, bg=self.ui_panel)
-        log_label_frame.pack(fill="x", pady=(4, 2))
-        self._label(log_label_frame, "Log de andamento recente:", 9, "bold", self.ui_muted, self.ui_panel).pack(anchor="w")
-        
-        self.progress_mini_log = tk.Text(
-            prog_inner,
-            height=3,
-            bg="#0F1A20",
-            fg="#F3F7F8",
-            font=("Consolas", 8),
-            bd=0,
-            highlightthickness=1,
-            highlightbackground="#2D4650",
-            padx=6,
-            pady=3
-        )
-        self.progress_mini_log.pack(fill="x")
-        self.progress_mini_log.configure(state="disabled")
-        progress_panel.destroy()
         self._montar_painel_progresso(status_box).pack(anchor="e")
 
         main_area = tk.Frame(self.root, bg=self.ui_bg)
@@ -635,7 +576,7 @@ class WideAppInterface:
         self.resumo_tab = resumo_tab
         self.auditoria_tab = auditoria_tab
         workspace_tabs.add(clientes_tab, text="Ativos")
-        workspace_tabs.add(recentes_tab, text="Pagamentos Recentes")
+        workspace_tabs.add(recentes_tab, text="Ativ. Recentes")
         workspace_tabs.add(quitados_tab, text="Quitados")
         workspace_tabs.add(bloqueados_tab, text="Bloqueados / Removidos")
         workspace_tabs.add(banco_tab, text="Banco de dados")
@@ -861,6 +802,7 @@ class WideAppInterface:
         tree.configure(yscrollcommand=scroll_y.set)
         tree.bind("<Button-3>", self.mostrar_menu_contexto)
         tree.bind("<<TreeviewSelect>>", lambda _e, current_tree=tree: self.sincronizar_selecao_tree(current_tree))
+        tree.bind("<MouseWheel>", self._rolar_tree)
         footer = tk.Frame(tabela, bg=self.ui_panel)
         footer.pack(side="bottom", fill="x", pady=(8, 0))
         tk.Label(
@@ -1598,7 +1540,10 @@ class WideAppInterface:
         return registros[0] if registros else None
 
     def _rolar_tree(self, event):
-        self.tree.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        if hasattr(event.widget, "yview_scroll"):
+            event.widget.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        else:
+            self.tree.yview_scroll(int(-1 * (event.delta / 120)), "units")
         return "break"
 
     def _identificar_aba_tree(self, tree):
@@ -2191,7 +2136,7 @@ def smoke_test():
     assert int(app.progress_mini_log.cget("height")) in (2, 3)
     assert hasattr(app, "workspace_tabs")
     assert len(app.workspace_tabs.tabs()) >= 5
-    assert app.workspace_tabs.tab(app.workspace_tabs.tabs()[1], "text") == "Pagamentos Recentes"
+    assert app.workspace_tabs.tab(app.workspace_tabs.tabs()[1], "text") == "Ativ. Recentes"
     assert hasattr(app, "tree_recentes")
     recentes_cols = [col for col in app.tree_recentes["columns"] if col not in [c[0] for c in COLUNAS]]
     assert len(recentes_cols) == 5
