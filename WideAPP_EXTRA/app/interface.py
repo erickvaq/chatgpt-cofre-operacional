@@ -495,9 +495,12 @@ class WideAppInterface:
         recentes_box = tk.Frame(tb_row2, bg=self.ui_panel)
         recentes_box.pack(side="left", fill="x", expand=True)
         self._label(recentes_box, "Planilhas recentes", 9, "normal", self.ui_muted, self.ui_panel).pack(side="left", padx=(0, 8))
-        self.xlsx_combo = ttk.Combobox(recentes_box, state="readonly", width=42, style="Modern.TCombobox")
+        self.xlsx_combo = ttk.Combobox(recentes_box, state="readonly", width=56, style="Modern.TCombobox")
         self.xlsx_combo.pack(side="left", fill="x", expand=True, ipady=3)
         self.xlsx_combo.bind("<<ComboboxSelected>>", self.abrir_xlsx_selecionado)
+        
+        self.btn_select_xlsx = ttk.Button(recentes_box, text="Selecionar...", style="Toolbar.TButton", command=self.abrir_janela_selecionar_xlsx)
+        self.btn_select_xlsx.pack(side="left", padx=(8, 0), ipady=3)
 
         # -------------------------------------------------------------
         # Painel de Andamento da Atualização (área fixa de progresso)
@@ -1882,7 +1885,7 @@ class WideAppInterface:
             for p in xlsx_files[:40]:
                 try:
                     mtime = p.stat().st_mtime
-                    dt_str = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+                    dt_str = datetime.fromtimestamp(mtime).strftime("%d/%m/%Y %H:%M")
                 except Exception:
                     dt_str = "Desconhecido"
                 
@@ -1895,9 +1898,11 @@ class WideAppInterface:
                         nome_cliente = subpartes[0].replace("_", " ").title()
                         lote_e_data = subpartes[1]
                         lote_name = lote_e_data.split("_")[0] if "_" in lote_e_data else lote_e_data
-                        friendly_name = f"{nome_cliente} - Lote {lote_name}"
+                        friendly_name = f"Cliente: {nome_cliente} — Lote {lote_name}"
                 
-                display_name = f"{dt_str} - {friendly_name}"
+                if len(friendly_name) > 42:
+                    friendly_name = friendly_name[:39] + "..."
+                display_name = f"{dt_str} — {friendly_name}"
                 items.append(display_name)
                 self.xlsx_map[display_name] = p
             if hasattr(self, "xlsx_combo"):
@@ -1908,6 +1913,108 @@ class WideAppInterface:
                     self.xlsx_combo.set("Nenhuma planilha encontrada")
         except Exception as e:
             self.log(f"Erro ao atualizar dropdown de planilhas: {e}")
+
+    def abrir_janela_selecionar_xlsx(self):
+        # Create a Toplevel window
+        win = tk.Toplevel(self.root)
+        win.title("Selecionar planilha recente")
+        win.geometry("900x500")
+        win.configure(bg=self.ui_bg)
+        win.transient(self.root)
+        win.grab_set()
+        
+        # Center the window
+        win.update_idletasks()
+        width = win.winfo_width()
+        height = win.winfo_height()
+        x = (win.winfo_screenwidth() // 2) - (width // 2)
+        y = (win.winfo_screenheight() // 2) - (height // 2)
+        win.geometry(f"+{x}+{y}")
+        
+        # Title label
+        title_frame = tk.Frame(win, bg=self.ui_bg)
+        title_frame.pack(fill="x", padx=16, pady=12)
+        tk.Label(
+            title_frame,
+            text="Planilhas e Relatórios Recentes",
+            bg=self.ui_bg,
+            fg=self.ui_text,
+            font=("Segoe UI", 12, "bold")
+        ).pack(anchor="w")
+        
+        # Grid frame
+        grid_frame = tk.Frame(win, bg=self.ui_panel, highlightbackground=self.ui_border, highlightthickness=1)
+        grid_frame.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+        
+        # Treeview
+        columns = ("data", "nome", "caminho")
+        tree = ttk.Treeview(
+            grid_frame,
+            columns=columns,
+            show="headings",
+            style="Modern.Treeview"
+        )
+        tree.heading("data", text="Data de Modificação")
+        tree.heading("nome", text="Nome / Identificação")
+        tree.heading("caminho", text="Caminho Completo")
+        
+        tree.column("data", width=150, minwidth=120, anchor="center")
+        tree.column("nome", width=300, minwidth=200, anchor="w")
+        tree.column("caminho", width=400, minwidth=250, anchor="w")
+        
+        scroll_y = ttk.Scrollbar(grid_frame, orient="vertical", command=tree.yview)
+        scroll_y.pack(side="right", fill="y")
+        tree.pack(side="left", fill="both", expand=True)
+        tree.configure(yscrollcommand=scroll_y.set)
+        
+        # Populate
+        xlsx_files = self.obter_xlsx_recentes()
+        from datetime import datetime
+        
+        path_map = {}
+        for idx, p in enumerate(xlsx_files):
+            try:
+                mtime = p.stat().st_mtime
+                dt_str = datetime.fromtimestamp(mtime).strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                dt_str = "Desconhecido"
+                
+            nome_arq = p.stem
+            friendly_name = nome_arq
+            if nome_arq.startswith("RELATORIO_FINANCEIRO_CLIENTE_"):
+                partes = nome_arq.replace("RELATORIO_FINANCEIRO_CLIENTE_", "")
+                if "_LOTE_" in partes:
+                    subpartes = partes.split("_LOTE_")
+                    nome_cliente = subpartes[0].replace("_", " ").title()
+                    lote_e_data = subpartes[1]
+                    lote_name = lote_e_data.split("_")[0] if "_" in lote_e_data else lote_e_data
+                    friendly_name = f"Cliente: {nome_cliente} — Lote {lote_name}"
+            
+            iid = f"item_{idx}"
+            tree.insert("", "end", iid=iid, values=(dt_str, friendly_name, str(p)))
+            path_map[iid] = p
+            
+        def abrir_selecionado():
+            sel = tree.selection()
+            if sel:
+                path = path_map.get(sel[0])
+                if path and path.exists():
+                    self.log(f"Abrindo planilha selecionada: {path.name}")
+                    abrir(path)
+                    win.destroy()
+                    
+        # Double click to open
+        tree.bind("<Double-1>", lambda _e: abrir_selecionado())
+        
+        # Footer buttons
+        footer = tk.Frame(win, bg=self.ui_bg)
+        footer.pack(fill="x", side="bottom", padx=16, pady=16)
+        
+        btn_cancel = ttk.Button(footer, text="Cancelar", style="Toolbar.TButton", command=win.destroy)
+        btn_cancel.pack(side="right", padx=(8, 0))
+        
+        btn_open = ttk.Button(footer, text="Abrir Planilha", style="Toolbar.TButton", command=abrir_selecionado)
+        btn_open.pack(side="right")
 
     def abrir_xlsx_selecionado(self, event=None):
         if not hasattr(self, "xlsx_combo"):
