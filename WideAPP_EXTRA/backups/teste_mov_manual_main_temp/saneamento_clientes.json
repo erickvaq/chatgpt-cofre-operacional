@@ -1,0 +1,1612 @@
+{
+  "gerado_em": "2026-06-28T17:57:31",
+  "decisoes": {
+    "adailton gomes de jesus|E22": {
+      "chave": "adailton gomes de jesus|E22",
+      "cliente_canonico": "ADAILTON GOMES DE JESUS",
+      "lote_canonico": "E22",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 2,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "adailton gomes de jesus|E22A": {
+      "chave": "adailton gomes de jesus|E22A",
+      "cliente_canonico": "ADAILTON GOMES DE JESUS",
+      "lote_canonico": "E22A",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 3,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "alexandre arruda santana|G14": {
+      "chave": "alexandre arruda santana|G14",
+      "cliente_canonico": "ALEXANDRE ARRUDA SANTANA",
+      "lote_canonico": "G14",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 8,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "altamir do carmo cerqueira|C4": {
+      "chave": "altamir do carmo cerqueira|C4",
+      "cliente_canonico": "ALTAMIR DO CARMO CERQUEIRA",
+      "lote_canonico": "C4",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 9,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "camila carvalho sazhyn|D7": {
+      "chave": "camila carvalho sazhyn|D7",
+      "cliente_canonico": "CAMILA CARVALHO SAZHYN",
+      "lote_canonico": "D7",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 15,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "claudio eduardo leite silva|OCORRER": {
+      "chave": "claudio eduardo leite silva|OCORRER",
+      "cliente_canonico": "CLAUDIO EDUARDO LEITE SILVA",
+      "lote_canonico": "OCORRER",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 18,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "claudio eduardo leite silva|S": {
+      "chave": "claudio eduardo leite silva|S",
+      "cliente_canonico": "- CLAUDIO EDUARDO LEITE SILVA",
+      "lote_canonico": "S",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 19,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "debora cristina rei|E22B": {
+      "chave": "debora cristina rei|E22B",
+      "cliente_canonico": "DEBORA CRISTINA REI",
+      "lote_canonico": "E22B",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 22,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "edelzuito gomes dos santos|A1": {
+      "chave": "edelzuito gomes dos santos|A1",
+      "cliente_canonico": "EDELZUITO GOMES DOS SANTOS",
+      "lote_canonico": "A1",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 23,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "edmilson silva dos santos|F5": {
+      "chave": "edmilson silva dos santos|F5",
+      "cliente_canonico": "EDMILSON SILVA DOS SANTOS",
+      "lote_canonico": "F5",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 24,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "edna francisca dos santos|D6": {
+      "chave": "edna francisca dos santos|D6",
+      "cliente_canonico": "EDNA FRANCISCA DOS SANTOS",
+      "lote_canonico": "D6",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 25,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "emanuel dos anjos santana junior|F1": {
+      "chave": "emanuel dos anjos santana junior|F1",
+      "cliente_canonico": "EMANUEL DOS ANJOS SANTANA JUNIOR",
+      "lote_canonico": "F1",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 28,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "emmanuel felix da costa filho|G2": {
+      "chave": "emmanuel felix da costa filho|G2",
+      "cliente_canonico": "EMMANUEL FELIX DA COSTA FILHO",
+      "lote_canonico": "G2",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 29,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "franklin do nascimento santos|F10": {
+      "chave": "franklin do nascimento santos|F10",
+      "cliente_canonico": "FRANKLIN DO NASCIMENTO SANTOS",
+      "lote_canonico": "F10",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 32,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "franklin do nascimento santos|F7": {
+      "chave": "franklin do nascimento santos|F7",
+      "cliente_canonico": "FRANKLIN DO NASCIMENTO SANTOS",
+      "lote_canonico": "F7",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 33,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "genivaldo pereira dos santos|A8": {
+      "chave": "genivaldo pereira dos santos|A8",
+      "cliente_canonico": "GENIVALDO PEREIRA DOS SANTOS",
+      "lote_canonico": "A8",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 34,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "gilse almeida a vista|H5": {
+      "chave": "gilse almeida a vista|H5",
+      "cliente_canonico": "GILSE ALMEIDA A VISTA",
+      "lote_canonico": "H5",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 36,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "heron souza dias|B4": {
+      "chave": "heron souza dias|B4",
+      "cliente_canonico": "HERON SOUZA DIAS",
+      "lote_canonico": "B4",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 37,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "heron souza dias|H5": {
+      "chave": "heron souza dias|H5",
+      "cliente_canonico": "HERON SOUZA DIAS",
+      "lote_canonico": "H5",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 38,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "isabela silva iglesias rezende|C13": {
+      "chave": "isabela silva iglesias rezende|C13",
+      "cliente_canonico": "ISABELA SILVA IGLESIAS REZENDE",
+      "lote_canonico": "C13",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 39,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "isabela silva iglesias rezende|C20": {
+      "chave": "isabela silva iglesias rezende|C20",
+      "cliente_canonico": "ISABELA SILVA IGLESIAS REZENDE",
+      "lote_canonico": "C20",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 40,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "isaque da rocha passos|F4": {
+      "chave": "isaque da rocha passos|F4",
+      "cliente_canonico": "ISAQUE DA ROCHA PASSOS",
+      "lote_canonico": "F4",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 41,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "itamar|G12": {
+      "chave": "itamar|G12",
+      "cliente_canonico": "ITAMAR",
+      "lote_canonico": "G12",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 42,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "itamar alves do nascimento|G16": {
+      "chave": "itamar alves do nascimento|G16",
+      "cliente_canonico": "ITAMAR ALVES DO NASCIMENTO",
+      "lote_canonico": "G16",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 43,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "jailson silva dos santos|D8": {
+      "chave": "jailson silva dos santos|D8",
+      "cliente_canonico": "JAILSON SILVA DOS SANTOS",
+      "lote_canonico": "D8",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 44,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "joice carla de magalhaes goncalves|G3": {
+      "chave": "joice carla de magalhaes goncalves|G3",
+      "cliente_canonico": "JOICE CARLA DE MAGALHAES GONCALVES",
+      "lote_canonico": "G3",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 47,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "joice carla de magalhaes goncalves|G5": {
+      "chave": "joice carla de magalhaes goncalves|G5",
+      "cliente_canonico": "JOICE CARLA DE MAGALHAES GONCALVES",
+      "lote_canonico": "G5",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 48,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "joseane barbosa silva|G8": {
+      "chave": "joseane barbosa silva|G8",
+      "cliente_canonico": "JOSEANE BARBOSA SILVA",
+      "lote_canonico": "G8",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 51,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "lucineide ramos barreto|A6": {
+      "chave": "lucineide ramos barreto|A6",
+      "cliente_canonico": "LUCINEIDE RAMOS BARRETO",
+      "lote_canonico": "A6",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 54,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "marcio amorim santos|D1": {
+      "chave": "marcio amorim santos|D1",
+      "cliente_canonico": "MARCIO AMORIM SANTOS",
+      "lote_canonico": "D1",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 56,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "nelson santana rezende junior|C18": {
+      "chave": "nelson santana rezende junior|C18",
+      "cliente_canonico": "NELSON SANTANA REZENDE JÚNIOR",
+      "lote_canonico": "C18",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 68,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "noelia oliveira souza|A2": {
+      "chave": "noelia oliveira souza|A2",
+      "cliente_canonico": "NOELIA OLIVEIRA SOUZA",
+      "lote_canonico": "A2",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 69,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "noelia oliveira souza|D5": {
+      "chave": "noelia oliveira souza|D5",
+      "cliente_canonico": "NOELIA OLIVEIRA SOUZA",
+      "lote_canonico": "D5",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 70,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "quadra a|": {
+      "chave": "quadra a|",
+      "cliente_canonico": "QUADRA A",
+      "lote_canonico": "",
+      "acao": "ignorar",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 71,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: ignorar"
+    },
+    "quadra e|": {
+      "chave": "quadra e|",
+      "cliente_canonico": "QUADRA E",
+      "lote_canonico": "",
+      "acao": "ignorar",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 72,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: ignorar"
+    },
+    "rodrigo monteiro|F19": {
+      "chave": "rodrigo monteiro|F19",
+      "cliente_canonico": "RODRIGO MONTEIRO",
+      "lote_canonico": "F19",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 74,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "rodrigo monteiro de melo|G1": {
+      "chave": "rodrigo monteiro de melo|G1",
+      "cliente_canonico": "RODRIGO MONTEIRO DE MELO",
+      "lote_canonico": "G1",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 75,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "silas anjos de carvalho|E8": {
+      "chave": "silas anjos de carvalho|E8",
+      "cliente_canonico": "SILAS ANJOS DE CARVALHO",
+      "lote_canonico": "E8",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 77,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "suzana dos santos souza|F14": {
+      "chave": "suzana dos santos souza|F14",
+      "cliente_canonico": "SUZANA DOS SANTOS SOUZA",
+      "lote_canonico": "F14",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 79,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "vamberto alves da fonseca|H4": {
+      "chave": "vamberto alves da fonseca|H4",
+      "cliente_canonico": "VAMBERTO ALVES DA FONSECA",
+      "lote_canonico": "H4",
+      "acao": "atencao",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 81,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: atencao"
+    },
+    "veronica reis meirelles|E1": {
+      "chave": "veronica reis meirelles|E1",
+      "cliente_canonico": "VERONICA REIS MEIRELLES",
+      "lote_canonico": "E1",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 82,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "wender daniel lima|H8": {
+      "chave": "wender daniel lima|H8",
+      "cliente_canonico": "WENDER DANIEL LIMA",
+      "lote_canonico": "H8",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 83,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    },
+    "wene souza dutra|E20": {
+      "chave": "wene souza dutra|E20",
+      "cliente_canonico": "WENE SOUZA DUTRA",
+      "lote_canonico": "E20",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 84,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "wesley marcos farias de jesus|F14": {
+      "chave": "wesley marcos farias de jesus|F14",
+      "cliente_canonico": "WESLEY MARCOS FARIAS DE JESUS",
+      "lote_canonico": "F14",
+      "acao": "bloqueado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 85,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: bloqueado"
+    },
+    "xxxx yyy|": {
+      "chave": "xxxx yyy|",
+      "cliente_canonico": "XXXX YYY",
+      "lote_canonico": "",
+      "acao": "ignorar",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 86,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: ignorar"
+    },
+    "xxxx yyy|SER": {
+      "chave": "xxxx yyy|SER",
+      "cliente_canonico": "XXXX YYY",
+      "lote_canonico": "SER",
+      "acao": "ignorar",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 87,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: ignorar"
+    },
+    "yrlan cerqueira guedes|G10": {
+      "chave": "yrlan cerqueira guedes|G10",
+      "cliente_canonico": "YRLAN CERQUEIRA GUEDES",
+      "lote_canonico": "G10",
+      "acao": "quitado",
+      "origem": "planilha_marcada",
+      "arquivo_origem": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+      "aba_origem": "Clientes indexados",
+      "linha_origem": 88,
+      "atualizado_em": "2026-06-28T17:57:31",
+      "observacao": "Classificacao manual por cor: quitado"
+    }
+  },
+  "resumo": {
+    "planilha_marcada": "C:\\Users\\Windows User\\Desktop\\chatgpt projetos\\Relatorio_WidePay_Lotes\\WideAPP_EXTRA\\MARCADOS remover BANCO_DADOS_WIDEAPP_EXTRA - Copia.xlsx",
+    "decisoes": 47,
+    "importadas": {
+      "quitado": 22,
+      "bloqueado": 11,
+      "ignorar": 4,
+      "atencao": 10
+    }
+  },
+  "ultimo_resumo_aplicado": {
+    "ativos": 52,
+    "quitados": 22,
+    "bloqueados_removidos": 11,
+    "ignorados": 4,
+    "fora_roster": 1,
+    "atencao": 10
+  },
+  "linhas_planilha": {
+    "adailton gomes de jesus|E22": {
+      "chave": "adailton gomes de jesus|E22",
+      "cliente": "ADAILTON GOMES DE JESUS",
+      "lote": "22",
+      "quadra": "E",
+      "lote_canonico": "E22",
+      "acao": "quitado"
+    },
+    "lote::E22": [
+      "adailton gomes de jesus|E22"
+    ],
+    "adailton gomes de jesus|E22A": {
+      "chave": "adailton gomes de jesus|E22A",
+      "cliente": "ADAILTON GOMES DE JESUS",
+      "lote": "E22A",
+      "quadra": "E",
+      "lote_canonico": "E22A",
+      "acao": "quitado"
+    },
+    "lote::E22A": [
+      "adailton gomes de jesus|E22A"
+    ],
+    "adalberto oliveira filho|A3": {
+      "chave": "adalberto oliveira filho|A3",
+      "cliente": "ADALBERTO OLIVEIRA FILHO",
+      "lote": "03",
+      "quadra": "A",
+      "lote_canonico": "A3",
+      "acao": ""
+    },
+    "lote::A3": [
+      "adalberto oliveira filho|A3"
+    ],
+    "alex santos de azevedo|B1": {
+      "chave": "alex santos de azevedo|B1",
+      "cliente": "ALEX SANTOS DE AZEVEDO",
+      "lote": "01",
+      "quadra": "B",
+      "lote_canonico": "B1",
+      "acao": ""
+    },
+    "lote::B1": [
+      "alex santos de azevedo|B1"
+    ],
+    "alex santos de azevedo|B3": {
+      "chave": "alex santos de azevedo|B3",
+      "cliente": "ALEX SANTOS DE AZEVEDO",
+      "lote": "03",
+      "quadra": "B",
+      "lote_canonico": "B3",
+      "acao": ""
+    },
+    "lote::B3": [
+      "alex santos de azevedo|B3"
+    ],
+    "alex santos de azevedo|B2": {
+      "chave": "alex santos de azevedo|B2",
+      "cliente": "ALEX SANTOS DE AZEVEDO",
+      "lote": "B2",
+      "quadra": "B",
+      "lote_canonico": "B2",
+      "acao": ""
+    },
+    "lote::B2": [
+      "alex santos de azevedo|B2"
+    ],
+    "alexandre arruda santana|G14": {
+      "chave": "alexandre arruda santana|G14",
+      "cliente": "ALEXANDRE ARRUDA SANTANA",
+      "lote": "14",
+      "quadra": "G",
+      "lote_canonico": "G14",
+      "acao": "quitado"
+    },
+    "lote::G14": [
+      "alexandre arruda santana|G14",
+      "maria almeida de jesus|G14"
+    ],
+    "altamir do carmo cerqueira|C4": {
+      "chave": "altamir do carmo cerqueira|C4",
+      "cliente": "ALTAMIR DO CARMO CERQUEIRA",
+      "lote": "4",
+      "quadra": "C",
+      "lote_canonico": "C4",
+      "acao": "quitado"
+    },
+    "lote::C4": [
+      "altamir do carmo cerqueira|C4"
+    ],
+    "ana carolina nery da s borges de barros|E7": {
+      "chave": "ana carolina nery da s borges de barros|E7",
+      "cliente": "ANA CAROLINA NERY DA S BORGES DE BARROS",
+      "lote": "07",
+      "quadra": "E",
+      "lote_canonico": "E7",
+      "acao": ""
+    },
+    "lote::E7": [
+      "ana carolina nery da s borges de barros|E7"
+    ],
+    "ana cleide dos santos dias|E5": {
+      "chave": "ana cleide dos santos dias|E5",
+      "cliente": "ANA CLEIDE DOS SANTOS DIAS",
+      "lote": "5",
+      "quadra": "E",
+      "lote_canonico": "E5",
+      "acao": ""
+    },
+    "lote::E5": [
+      "ana cleide dos santos dias|E5"
+    ],
+    "antonio dias mota|E18": {
+      "chave": "antonio dias mota|E18",
+      "cliente": "ANTONIO DIAS MOTA",
+      "lote": "SER",
+      "quadra": "E",
+      "lote_canonico": "E18",
+      "acao": ""
+    },
+    "lote::E18": [
+      "antonio dias mota|E18"
+    ],
+    "antonio dias mota|E15": {
+      "chave": "antonio dias mota|E15",
+      "cliente": "ANTONIO DIAS MOTA",
+      "lote": "SER",
+      "quadra": "E",
+      "lote_canonico": "E15",
+      "acao": ""
+    },
+    "lote::E15": [
+      "antonio dias mota|E15"
+    ],
+    "belmiro santos pires|F6": {
+      "chave": "belmiro santos pires|F6",
+      "cliente": "BELMIRO SANTOS PIRES",
+      "lote": "06",
+      "quadra": "F",
+      "lote_canonico": "F6",
+      "acao": ""
+    },
+    "lote::F6": [
+      "belmiro santos pires|F6"
+    ],
+    "camila carvalho sazhyn|D7": {
+      "chave": "camila carvalho sazhyn|D7",
+      "cliente": "CAMILA CARVALHO SAZHYN",
+      "lote": "07",
+      "quadra": "D",
+      "lote_canonico": "D7",
+      "acao": "bloqueado"
+    },
+    "lote::D7": [
+      "camila carvalho sazhyn|D7"
+    ],
+    "camila de oliveira ferrolho|G13": {
+      "chave": "camila de oliveira ferrolho|G13",
+      "cliente": "CAMILA DE OLIVEIRA FERROLHO",
+      "lote": "13",
+      "quadra": "G",
+      "lote_canonico": "G13",
+      "acao": ""
+    },
+    "lote::G13": [
+      "camila de oliveira ferrolho|G13"
+    ],
+    "carlos alberto santana da silva|E14": {
+      "chave": "carlos alberto santana da silva|E14",
+      "cliente": "CARLOS ALBERTO SANTANA DA SILVA",
+      "lote": "14",
+      "quadra": "E",
+      "lote_canonico": "E14",
+      "acao": ""
+    },
+    "lote::E14": [
+      "carlos alberto santana da silva|E14"
+    ],
+    "claudio eduardo leite silva|OCORRER": {
+      "chave": "claudio eduardo leite silva|OCORRER",
+      "cliente": "CLAUDIO EDUARDO LEITE SILVA",
+      "lote": "OCORRER",
+      "quadra": "E",
+      "lote_canonico": "OCORRER",
+      "acao": "bloqueado"
+    },
+    "lote::OCORRER": [
+      "claudio eduardo leite silva|OCORRER"
+    ],
+    "claudio eduardo leite silva|S": {
+      "chave": "claudio eduardo leite silva|S",
+      "cliente": "- CLAUDIO EDUARDO LEITE SILVA",
+      "lote": "S",
+      "quadra": "E",
+      "lote_canonico": "S",
+      "acao": "bloqueado"
+    },
+    "lote::S": [
+      "claudio eduardo leite silva|S"
+    ],
+    "daniela ramos|F7": {
+      "chave": "daniela ramos|F7",
+      "cliente": "DANIELA RAMOS",
+      "lote": "F7",
+      "quadra": "F",
+      "lote_canonico": "F7",
+      "acao": ""
+    },
+    "lote::F7": [
+      "daniela ramos|F7",
+      "franklin do nascimento santos|F7"
+    ],
+    "daniela ramos barreto|F8": {
+      "chave": "daniela ramos barreto|F8",
+      "cliente": "DANIELA RAMOS BARRETO",
+      "lote": "08",
+      "quadra": "F",
+      "lote_canonico": "F8",
+      "acao": ""
+    },
+    "lote::F8": [
+      "daniela ramos barreto|F8"
+    ],
+    "debora cristina rei|E22B": {
+      "chave": "debora cristina rei|E22B",
+      "cliente": "DEBORA CRISTINA REI",
+      "lote": "SER",
+      "quadra": "E",
+      "lote_canonico": "E22B",
+      "acao": "atencao"
+    },
+    "lote::E22B": [
+      "debora cristina rei|E22B"
+    ],
+    "edelzuito gomes dos santos|A1": {
+      "chave": "edelzuito gomes dos santos|A1",
+      "cliente": "EDELZUITO GOMES DOS SANTOS",
+      "lote": "01",
+      "quadra": "A",
+      "lote_canonico": "A1",
+      "acao": "bloqueado"
+    },
+    "lote::A1": [
+      "edelzuito gomes dos santos|A1"
+    ],
+    "edmilson silva dos santos|F5": {
+      "chave": "edmilson silva dos santos|F5",
+      "cliente": "EDMILSON SILVA DOS SANTOS",
+      "lote": "05",
+      "quadra": "F",
+      "lote_canonico": "F5",
+      "acao": "atencao"
+    },
+    "lote::F5": [
+      "edmilson silva dos santos|F5"
+    ],
+    "edna francisca dos santos|D6": {
+      "chave": "edna francisca dos santos|D6",
+      "cliente": "EDNA FRANCISCA DOS SANTOS",
+      "lote": "06",
+      "quadra": "D",
+      "lote_canonico": "D6",
+      "acao": "bloqueado"
+    },
+    "lote::D6": [
+      "edna francisca dos santos|D6"
+    ],
+    "edneia souza oliveira|F16": {
+      "chave": "edneia souza oliveira|F16",
+      "cliente": "EDNEIA SOUZA OLIVEIRA",
+      "lote": "16",
+      "quadra": "F",
+      "lote_canonico": "F16",
+      "acao": ""
+    },
+    "lote::F16": [
+      "edneia souza oliveira|F16"
+    ],
+    "eliel hora santana|E12": {
+      "chave": "eliel hora santana|E12",
+      "cliente": "ELIEL HORA SANTANA",
+      "lote": "12",
+      "quadra": "E",
+      "lote_canonico": "E12",
+      "acao": ""
+    },
+    "lote::E12": [
+      "eliel hora santana|E12",
+      "marinalva hora santana|E12"
+    ],
+    "emanuel dos anjos santana junior|F1": {
+      "chave": "emanuel dos anjos santana junior|F1",
+      "cliente": "EMANUEL DOS ANJOS SANTANA JUNIOR",
+      "lote": "OCORRER",
+      "quadra": "F",
+      "lote_canonico": "F1",
+      "acao": "bloqueado"
+    },
+    "lote::F1": [
+      "emanuel dos anjos santana junior|F1"
+    ],
+    "emmanuel felix da costa filho|G2": {
+      "chave": "emmanuel felix da costa filho|G2",
+      "cliente": "EMMANUEL FELIX DA COSTA FILHO",
+      "lote": "SER",
+      "quadra": "G",
+      "lote_canonico": "G2",
+      "acao": "atencao"
+    },
+    "lote::G2": [
+      "emmanuel felix da costa filho|G2"
+    ],
+    "evaniu dias macedo|D10": {
+      "chave": "evaniu dias macedo|D10",
+      "cliente": "EVANIU DIAS MACÊDO",
+      "lote": "10",
+      "quadra": "D",
+      "lote_canonico": "D10",
+      "acao": ""
+    },
+    "lote::D10": [
+      "evaniu dias macedo|D10"
+    ],
+    "filinto queiroz de almeida|H7": {
+      "chave": "filinto queiroz de almeida|H7",
+      "cliente": "FILINTO QUEIROZ DE ALMEIDA",
+      "lote": "7",
+      "quadra": "H",
+      "lote_canonico": "H7",
+      "acao": ""
+    },
+    "lote::H7": [
+      "filinto queiroz de almeida|H7"
+    ],
+    "franklin do nascimento santos|F10": {
+      "chave": "franklin do nascimento santos|F10",
+      "cliente": "FRANKLIN DO NASCIMENTO SANTOS",
+      "lote": "DE",
+      "quadra": "F",
+      "lote_canonico": "F10",
+      "acao": "bloqueado"
+    },
+    "lote::F10": [
+      "franklin do nascimento santos|F10"
+    ],
+    "franklin do nascimento santos|F7": {
+      "chave": "franklin do nascimento santos|F7",
+      "cliente": "FRANKLIN DO NASCIMENTO SANTOS",
+      "lote": "SER",
+      "quadra": "F",
+      "lote_canonico": "F7",
+      "acao": "bloqueado"
+    },
+    "genivaldo pereira dos santos|A8": {
+      "chave": "genivaldo pereira dos santos|A8",
+      "cliente": "GENIVALDO PEREIRA DOS SANTOS",
+      "lote": "OCORRER",
+      "quadra": "A",
+      "lote_canonico": "A8",
+      "acao": "quitado"
+    },
+    "lote::A8": [
+      "genivaldo pereira dos santos|A8"
+    ],
+    "geraldo teles amorim junior|F13": {
+      "chave": "geraldo teles amorim junior|F13",
+      "cliente": "GERALDO TELES AMORIM JUNIOR",
+      "lote": "13",
+      "quadra": "F",
+      "lote_canonico": "F13",
+      "acao": ""
+    },
+    "lote::F13": [
+      "geraldo teles amorim junior|F13"
+    ],
+    "gilse almeida a vista|H5": {
+      "chave": "gilse almeida a vista|H5",
+      "cliente": "GILSE ALMEIDA A VISTA",
+      "lote": "OCORRER",
+      "quadra": "H",
+      "lote_canonico": "H5",
+      "acao": "quitado"
+    },
+    "lote::H5": [
+      "gilse almeida a vista|H5",
+      "heron souza dias|H5"
+    ],
+    "heron souza dias|B4": {
+      "chave": "heron souza dias|B4",
+      "cliente": "HERON SOUZA DIAS",
+      "lote": "SER",
+      "quadra": "B",
+      "lote_canonico": "B4",
+      "acao": "quitado"
+    },
+    "lote::B4": [
+      "heron souza dias|B4"
+    ],
+    "heron souza dias|H5": {
+      "chave": "heron souza dias|H5",
+      "cliente": "HERON SOUZA DIAS",
+      "lote": "SER",
+      "quadra": "H",
+      "lote_canonico": "H5",
+      "acao": "quitado"
+    },
+    "isabela silva iglesias rezende|C13": {
+      "chave": "isabela silva iglesias rezende|C13",
+      "cliente": "ISABELA SILVA IGLESIAS REZENDE",
+      "lote": "13",
+      "quadra": "C",
+      "lote_canonico": "C13",
+      "acao": "quitado"
+    },
+    "lote::C13": [
+      "isabela silva iglesias rezende|C13"
+    ],
+    "isabela silva iglesias rezende|C20": {
+      "chave": "isabela silva iglesias rezende|C20",
+      "cliente": "ISABELA SILVA IGLESIAS REZENDE",
+      "lote": "20",
+      "quadra": "C",
+      "lote_canonico": "C20",
+      "acao": "quitado"
+    },
+    "lote::C20": [
+      "isabela silva iglesias rezende|C20"
+    ],
+    "isaque da rocha passos|F4": {
+      "chave": "isaque da rocha passos|F4",
+      "cliente": "ISAQUE DA ROCHA PASSOS",
+      "lote": "04",
+      "quadra": "F",
+      "lote_canonico": "F4",
+      "acao": "quitado"
+    },
+    "lote::F4": [
+      "isaque da rocha passos|F4"
+    ],
+    "itamar|G12": {
+      "chave": "itamar|G12",
+      "cliente": "ITAMAR",
+      "lote": "G12",
+      "quadra": "G",
+      "lote_canonico": "G12",
+      "acao": "quitado"
+    },
+    "lote::G12": [
+      "itamar|G12",
+      "rafaela de jesus cruz|G12"
+    ],
+    "itamar alves do nascimento|G16": {
+      "chave": "itamar alves do nascimento|G16",
+      "cliente": "ITAMAR ALVES DO NASCIMENTO",
+      "lote": "OCORRER",
+      "quadra": "G",
+      "lote_canonico": "G16",
+      "acao": "quitado"
+    },
+    "lote::G16": [
+      "itamar alves do nascimento|G16"
+    ],
+    "jailson silva dos santos|D8": {
+      "chave": "jailson silva dos santos|D8",
+      "cliente": "JAILSON SILVA DOS SANTOS",
+      "lote": "SER",
+      "quadra": "D",
+      "lote_canonico": "D8",
+      "acao": "quitado"
+    },
+    "lote::D8": [
+      "jailson silva dos santos|D8"
+    ],
+    "joci ferreira rodrigues|C7": {
+      "chave": "joci ferreira rodrigues|C7",
+      "cliente": "JOCI FERREIRA RODRIGUES",
+      "lote": "07",
+      "quadra": "C",
+      "lote_canonico": "C7",
+      "acao": ""
+    },
+    "lote::C7": [
+      "joci ferreira rodrigues|C7"
+    ],
+    "joci ferreira rodrigues|C14": {
+      "chave": "joci ferreira rodrigues|C14",
+      "cliente": "JOCI FERREIRA RODRIGUES",
+      "lote": "14",
+      "quadra": "C",
+      "lote_canonico": "C14",
+      "acao": ""
+    },
+    "lote::C14": [
+      "joci ferreira rodrigues|C14"
+    ],
+    "joice carla de magalhaes goncalves|G3": {
+      "chave": "joice carla de magalhaes goncalves|G3",
+      "cliente": "JOICE CARLA DE MAGALHAES GONCALVES",
+      "lote": "03",
+      "quadra": "G",
+      "lote_canonico": "G3",
+      "acao": "atencao"
+    },
+    "lote::G3": [
+      "joice carla de magalhaes goncalves|G3"
+    ],
+    "joice carla de magalhaes goncalves|G5": {
+      "chave": "joice carla de magalhaes goncalves|G5",
+      "cliente": "JOICE CARLA DE MAGALHAES GONCALVES",
+      "lote": "05",
+      "quadra": "G",
+      "lote_canonico": "G5",
+      "acao": "atencao"
+    },
+    "lote::G5": [
+      "joice carla de magalhaes goncalves|G5"
+    ],
+    "joilson almeida dos reis|H3": {
+      "chave": "joilson almeida dos reis|H3",
+      "cliente": "JOILSON ALMEIDA DOS REIS",
+      "lote": "3",
+      "quadra": "H",
+      "lote_canonico": "H3",
+      "acao": ""
+    },
+    "lote::H3": [
+      "joilson almeida dos reis|H3"
+    ],
+    "joilson almeida dos reis|H1": {
+      "chave": "joilson almeida dos reis|H1",
+      "cliente": "JOILSON ALMEIDA DOS REIS",
+      "lote": "H1",
+      "quadra": "H",
+      "lote_canonico": "H1",
+      "acao": ""
+    },
+    "lote::H1": [
+      "joilson almeida dos reis|H1"
+    ],
+    "joseane barbosa silva|G8": {
+      "chave": "joseane barbosa silva|G8",
+      "cliente": "JOSEANE BARBOSA SILVA",
+      "lote": "08",
+      "quadra": "G",
+      "lote_canonico": "G8",
+      "acao": "quitado"
+    },
+    "lote::G8": [
+      "joseane barbosa silva|G8"
+    ],
+    "jucelia teles de queiroz|D3": {
+      "chave": "jucelia teles de queiroz|D3",
+      "cliente": "JUCÉLIA TELES DE QUEIROZ",
+      "lote": "3",
+      "quadra": "D",
+      "lote_canonico": "D3",
+      "acao": ""
+    },
+    "lote::D3": [
+      "jucelia teles de queiroz|D3"
+    ],
+    "lucas grillo santa rosa|C15": {
+      "chave": "lucas grillo santa rosa|C15",
+      "cliente": "LUCAS GRILLO SANTA ROSA",
+      "lote": "SER",
+      "quadra": "C",
+      "lote_canonico": "C15",
+      "acao": ""
+    },
+    "lote::C15": [
+      "lucas grillo santa rosa|C15"
+    ],
+    "lucineide ramos barreto|A6": {
+      "chave": "lucineide ramos barreto|A6",
+      "cliente": "LUCINEIDE RAMOS BARRETO",
+      "lote": "06",
+      "quadra": "A",
+      "lote_canonico": "A6",
+      "acao": "quitado"
+    },
+    "lote::A6": [
+      "lucineide ramos barreto|A6"
+    ],
+    "magnolia sodre pereira|F14": {
+      "chave": "magnolia sodre pereira|F14",
+      "cliente": "MAGNÓLIA SODRÉ PEREIRA",
+      "lote": "14",
+      "quadra": "F",
+      "lote_canonico": "F14",
+      "acao": ""
+    },
+    "lote::F14": [
+      "magnolia sodre pereira|F14",
+      "suzana dos santos souza|F14",
+      "wesley marcos farias de jesus|F14"
+    ],
+    "marcio amorim santos|D1": {
+      "chave": "marcio amorim santos|D1",
+      "cliente": "MARCIO AMORIM SANTOS",
+      "lote": "01",
+      "quadra": "D",
+      "lote_canonico": "D1",
+      "acao": "atencao"
+    },
+    "lote::D1": [
+      "marcio amorim santos|D1"
+    ],
+    "marcio bras da silva|F2": {
+      "chave": "marcio bras da silva|F2",
+      "cliente": "MARCIO BRAS DA SILVA",
+      "lote": "02",
+      "quadra": "F",
+      "lote_canonico": "F2",
+      "acao": ""
+    },
+    "lote::F2": [
+      "marcio bras da silva|F2"
+    ],
+    "marcio bras da silva|F3": {
+      "chave": "marcio bras da silva|F3",
+      "cliente": "MARCIO BRAS DA SILVA",
+      "lote": "03",
+      "quadra": "F",
+      "lote_canonico": "F3",
+      "acao": ""
+    },
+    "lote::F3": [
+      "marcio bras da silva|F3"
+    ],
+    "marcos antonio soares mota|E19": {
+      "chave": "marcos antonio soares mota|E19",
+      "cliente": "MARCOS ANTONIO SOARES MOTA",
+      "lote": "19",
+      "quadra": "E",
+      "lote_canonico": "E19",
+      "acao": ""
+    },
+    "lote::E19": [
+      "marcos antonio soares mota|E19"
+    ],
+    "maria almeida de jesus|G14": {
+      "chave": "maria almeida de jesus|G14",
+      "cliente": "MARIA ALMEIDA DE JESUS",
+      "lote": "SER",
+      "quadra": "G",
+      "lote_canonico": "G14",
+      "acao": ""
+    },
+    "maria crispiniana santana lima silva|G7": {
+      "chave": "maria crispiniana santana lima silva|G7",
+      "cliente": "MARIA CRISPINIANA SANTANA LIMA SILVA",
+      "lote": "07",
+      "quadra": "G",
+      "lote_canonico": "G7",
+      "acao": ""
+    },
+    "lote::G7": [
+      "maria crispiniana santana lima silva|G7"
+    ],
+    "maria das dores de jesus lima|C8": {
+      "chave": "maria das dores de jesus lima|C8",
+      "cliente": "MARIA DAS DORES DE JESUS LIMA",
+      "lote": "8",
+      "quadra": "C",
+      "lote_canonico": "C8",
+      "acao": ""
+    },
+    "lote::C8": [
+      "maria das dores de jesus lima|C8"
+    ],
+    "marinalva hora santana|E12": {
+      "chave": "marinalva hora santana|E12",
+      "cliente": "MARINALVA HORA SANTANA",
+      "lote": "12",
+      "quadra": "E",
+      "lote_canonico": "E12",
+      "acao": ""
+    },
+    "marinalva hora santana copia|E13": {
+      "chave": "marinalva hora santana copia|E13",
+      "cliente": "MARINALVA HORA SANTANA COPIA",
+      "lote": "E13",
+      "quadra": "E",
+      "lote_canonico": "E13",
+      "acao": ""
+    },
+    "lote::E13": [
+      "marinalva hora santana copia|E13"
+    ],
+    "mario fernando da silva dos santos|E11": {
+      "chave": "mario fernando da silva dos santos|E11",
+      "cliente": "MARIO FERNANDO DA SILVA DOS SANTOS",
+      "lote": "11",
+      "quadra": "E",
+      "lote_canonico": "E11",
+      "acao": ""
+    },
+    "lote::E11": [
+      "mario fernando da silva dos santos|E11"
+    ],
+    "maximiano valadares dos santos neto|E10": {
+      "chave": "maximiano valadares dos santos neto|E10",
+      "cliente": "MAXIMIANO VALADARES DOS SANTOS NETO",
+      "lote": "10",
+      "quadra": "E",
+      "lote_canonico": "E10",
+      "acao": ""
+    },
+    "lote::E10": [
+      "maximiano valadares dos santos neto|E10"
+    ],
+    "naiara de sousa pereira|C10": {
+      "chave": "naiara de sousa pereira|C10",
+      "cliente": "NAIARA DE SOUSA PEREIRA",
+      "lote": "10",
+      "quadra": "C",
+      "lote_canonico": "C10",
+      "acao": ""
+    },
+    "lote::C10": [
+      "naiara de sousa pereira|C10"
+    ],
+    "nelson santana rezende junior|C18": {
+      "chave": "nelson santana rezende junior|C18",
+      "cliente": "NELSON SANTANA REZENDE JÚNIOR",
+      "lote": "SER",
+      "quadra": "C",
+      "lote_canonico": "C18",
+      "acao": "quitado"
+    },
+    "lote::C18": [
+      "nelson santana rezende junior|C18"
+    ],
+    "noelia oliveira souza|A2": {
+      "chave": "noelia oliveira souza|A2",
+      "cliente": "NOELIA OLIVEIRA SOUZA",
+      "lote": "2",
+      "quadra": "A",
+      "lote_canonico": "A2",
+      "acao": "quitado"
+    },
+    "lote::A2": [
+      "noelia oliveira souza|A2"
+    ],
+    "noelia oliveira souza|D5": {
+      "chave": "noelia oliveira souza|D5",
+      "cliente": "NOELIA OLIVEIRA SOUZA",
+      "lote": "5",
+      "quadra": "D",
+      "lote_canonico": "D5",
+      "acao": "quitado"
+    },
+    "lote::D5": [
+      "noelia oliveira souza|D5"
+    ],
+    "quadra a|": {
+      "chave": "quadra a|",
+      "cliente": "QUADRA A",
+      "lote": "-",
+      "quadra": "A",
+      "lote_canonico": "",
+      "acao": "ignorar"
+    },
+    "quadra e|": {
+      "chave": "quadra e|",
+      "cliente": "QUADRA E",
+      "lote": "-",
+      "quadra": "E",
+      "lote_canonico": "",
+      "acao": "ignorar"
+    },
+    "rafaela de jesus cruz|G12": {
+      "chave": "rafaela de jesus cruz|G12",
+      "cliente": "RAFAELA DE JESUS CRUZ",
+      "lote": "12",
+      "quadra": "G",
+      "lote_canonico": "G12",
+      "acao": ""
+    },
+    "rodrigo monteiro|F19": {
+      "chave": "rodrigo monteiro|F19",
+      "cliente": "RODRIGO MONTEIRO",
+      "lote": "F19",
+      "quadra": "F",
+      "lote_canonico": "F19",
+      "acao": "atencao"
+    },
+    "lote::F19": [
+      "rodrigo monteiro|F19"
+    ],
+    "rodrigo monteiro de melo|G1": {
+      "chave": "rodrigo monteiro de melo|G1",
+      "cliente": "RODRIGO MONTEIRO DE MELO",
+      "lote": "01",
+      "quadra": "G",
+      "lote_canonico": "G1",
+      "acao": "atencao"
+    },
+    "lote::G1": [
+      "rodrigo monteiro de melo|G1"
+    ],
+    "sasha ramos barreto|F11": {
+      "chave": "sasha ramos barreto|F11",
+      "cliente": "SASHA RAMOS BARRETO",
+      "lote": "SER",
+      "quadra": "F",
+      "lote_canonico": "F11",
+      "acao": ""
+    },
+    "lote::F11": [
+      "sasha ramos barreto|F11"
+    ],
+    "silas anjos de carvalho|E8": {
+      "chave": "silas anjos de carvalho|E8",
+      "cliente": "SILAS ANJOS DE CARVALHO",
+      "lote": "08",
+      "quadra": "E",
+      "lote_canonico": "E8",
+      "acao": "atencao"
+    },
+    "lote::E8": [
+      "silas anjos de carvalho|E8"
+    ],
+    "simone santos da cruz|F15": {
+      "chave": "simone santos da cruz|F15",
+      "cliente": "SIMONE SANTOS DA CRUZ",
+      "lote": "15",
+      "quadra": "F",
+      "lote_canonico": "F15",
+      "acao": ""
+    },
+    "lote::F15": [
+      "simone santos da cruz|F15"
+    ],
+    "suzana dos santos souza|F14": {
+      "chave": "suzana dos santos souza|F14",
+      "cliente": "SUZANA DOS SANTOS SOUZA",
+      "lote": "14",
+      "quadra": "F",
+      "lote_canonico": "F14",
+      "acao": "bloqueado"
+    },
+    "telma valadares dos anjos carvalho|E9": {
+      "chave": "telma valadares dos anjos carvalho|E9",
+      "cliente": "TELMA VALADARES DOS ANJOS CARVALHO",
+      "lote": "09",
+      "quadra": "E",
+      "lote_canonico": "E9",
+      "acao": ""
+    },
+    "lote::E9": [
+      "telma valadares dos anjos carvalho|E9"
+    ],
+    "vamberto alves da fonseca|H4": {
+      "chave": "vamberto alves da fonseca|H4",
+      "cliente": "VAMBERTO ALVES DA FONSECA",
+      "lote": "04",
+      "quadra": "H",
+      "lote_canonico": "H4",
+      "acao": "atencao"
+    },
+    "lote::H4": [
+      "vamberto alves da fonseca|H4"
+    ],
+    "veronica reis meirelles|E1": {
+      "chave": "veronica reis meirelles|E1",
+      "cliente": "VERONICA REIS MEIRELLES",
+      "lote": "SER",
+      "quadra": "E",
+      "lote_canonico": "E1",
+      "acao": "quitado"
+    },
+    "lote::E1": [
+      "veronica reis meirelles|E1"
+    ],
+    "wender daniel lima|H8": {
+      "chave": "wender daniel lima|H8",
+      "cliente": "WENDER DANIEL LIMA",
+      "lote": "08",
+      "quadra": "H",
+      "lote_canonico": "H8",
+      "acao": "quitado"
+    },
+    "lote::H8": [
+      "wender daniel lima|H8"
+    ],
+    "wene souza dutra|E20": {
+      "chave": "wene souza dutra|E20",
+      "cliente": "WENE SOUZA DUTRA",
+      "lote": "OCORRER",
+      "quadra": "E",
+      "lote_canonico": "E20",
+      "acao": "bloqueado"
+    },
+    "lote::E20": [
+      "wene souza dutra|E20"
+    ],
+    "wesley marcos farias de jesus|F14": {
+      "chave": "wesley marcos farias de jesus|F14",
+      "cliente": "WESLEY MARCOS FARIAS DE JESUS",
+      "lote": "14",
+      "quadra": "F",
+      "lote_canonico": "F14",
+      "acao": "bloqueado"
+    },
+    "xxxx yyy|": {
+      "chave": "xxxx yyy|",
+      "cliente": "XXXX YYY",
+      "lote": "-",
+      "quadra": "-",
+      "lote_canonico": "",
+      "acao": "ignorar"
+    },
+    "xxxx yyy|SER": {
+      "chave": "xxxx yyy|SER",
+      "cliente": "XXXX YYY",
+      "lote": "SER",
+      "quadra": "-",
+      "lote_canonico": "SER",
+      "acao": "ignorar"
+    },
+    "lote::SER": [
+      "xxxx yyy|SER"
+    ],
+    "yrlan cerqueira guedes|G10": {
+      "chave": "yrlan cerqueira guedes|G10",
+      "cliente": "YRLAN CERQUEIRA GUEDES",
+      "lote": "OCORRER",
+      "quadra": "G",
+      "lote_canonico": "G10",
+      "acao": "quitado"
+    },
+    "lote::G10": [
+      "yrlan cerqueira guedes|G10"
+    ]
+  },
+  "ordem_planilha": [
+    "adailton gomes de jesus|E22",
+    "adailton gomes de jesus|E22A",
+    "adalberto oliveira filho|A3",
+    "alex santos de azevedo|B1",
+    "alex santos de azevedo|B3",
+    "alex santos de azevedo|B2",
+    "alexandre arruda santana|G14",
+    "altamir do carmo cerqueira|C4",
+    "ana carolina nery da s borges de barros|E7",
+    "ana cleide dos santos dias|E5",
+    "antonio dias mota|E18",
+    "antonio dias mota|E15",
+    "belmiro santos pires|F6",
+    "camila carvalho sazhyn|D7",
+    "camila de oliveira ferrolho|G13",
+    "carlos alberto santana da silva|E14",
+    "claudio eduardo leite silva|OCORRER",
+    "claudio eduardo leite silva|S",
+    "daniela ramos|F7",
+    "daniela ramos barreto|F8",
+    "debora cristina rei|E22B",
+    "edelzuito gomes dos santos|A1",
+    "edmilson silva dos santos|F5",
+    "edna francisca dos santos|D6",
+    "edneia souza oliveira|F16",
+    "eliel hora santana|E12",
+    "emanuel dos anjos santana junior|F1",
+    "emmanuel felix da costa filho|G2",
+    "evaniu dias macedo|D10",
+    "filinto queiroz de almeida|H7",
+    "franklin do nascimento santos|F10",
+    "franklin do nascimento santos|F7",
+    "genivaldo pereira dos santos|A8",
+    "geraldo teles amorim junior|F13",
+    "gilse almeida a vista|H5",
+    "heron souza dias|B4",
+    "heron souza dias|H5",
+    "isabela silva iglesias rezende|C13",
+    "isabela silva iglesias rezende|C20",
+    "isaque da rocha passos|F4",
+    "itamar|G12",
+    "itamar alves do nascimento|G16",
+    "jailson silva dos santos|D8",
+    "joci ferreira rodrigues|C7",
+    "joci ferreira rodrigues|C14",
+    "joice carla de magalhaes goncalves|G3",
+    "joice carla de magalhaes goncalves|G5",
+    "joilson almeida dos reis|H3",
+    "joilson almeida dos reis|H1",
+    "joseane barbosa silva|G8",
+    "jucelia teles de queiroz|D3",
+    "lucas grillo santa rosa|C15",
+    "lucineide ramos barreto|A6",
+    "magnolia sodre pereira|F14",
+    "marcio amorim santos|D1",
+    "marcio bras da silva|F2",
+    "marcio bras da silva|F3",
+    "marcos antonio soares mota|E19",
+    "maria almeida de jesus|G14",
+    "maria crispiniana santana lima silva|G7",
+    "maria das dores de jesus lima|C8",
+    "marinalva hora santana|E12",
+    "marinalva hora santana copia|E13",
+    "mario fernando da silva dos santos|E11",
+    "maximiano valadares dos santos neto|E10",
+    "naiara de sousa pereira|C10",
+    "nelson santana rezende junior|C18",
+    "noelia oliveira souza|A2",
+    "noelia oliveira souza|D5",
+    "quadra a|",
+    "quadra e|",
+    "rafaela de jesus cruz|G12",
+    "rodrigo monteiro|F19",
+    "rodrigo monteiro de melo|G1",
+    "sasha ramos barreto|F11",
+    "silas anjos de carvalho|E8",
+    "simone santos da cruz|F15",
+    "suzana dos santos souza|F14",
+    "telma valadares dos anjos carvalho|E9",
+    "vamberto alves da fonseca|H4",
+    "veronica reis meirelles|E1",
+    "wender daniel lima|H8",
+    "wene souza dutra|E20",
+    "wesley marcos farias de jesus|F14",
+    "xxxx yyy|",
+    "xxxx yyy|SER",
+    "yrlan cerqueira guedes|G10"
+  ]
+}

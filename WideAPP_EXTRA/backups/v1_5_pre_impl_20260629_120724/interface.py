@@ -3,13 +3,10 @@
 
 import time
 import threading
-import sys
-import traceback
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import messagebox, ttk
 from pathlib import Path
 import json
-from datetime import datetime
 from PIL import Image, ImageDraw, ImageTk, ImageFont
 
 from app import config
@@ -21,28 +18,6 @@ from app import drive_uploader
 from app import pipeline_runner
 from app.app_version import APP_VERSION, APP_VERSION_LABEL, APP_WINDOW_TITLE
 from app.abridor_arquivos import abrir_pasta, abrir
-
-
-class ConsoleRedirector:
-    def __init__(self, app, stream_name):
-        self.app = app
-        self.stream_name = stream_name
-        self._buffer = ""
-
-    def write(self, text):
-        if not text:
-            return
-        self._buffer += str(text)
-        while "\n" in self._buffer:
-            line, self._buffer = self._buffer.split("\n", 1)
-            line = line.rstrip("\r")
-            if line:
-                self.app.log(f"[{self.stream_name}] {line}")
-
-    def flush(self):
-        if self._buffer.strip():
-            self.app.log(f"[{self.stream_name}] {self._buffer.strip()}")
-        self._buffer = ""
 
 
 COLUNAS = [
@@ -168,17 +143,6 @@ class WideAppInterface:
         self.root.geometry("1500x900")
         self.root.minsize(1280, 760)
         self.app_version_var = tk.StringVar(value=APP_VERSION_LABEL)
-        config.LOG_DIR.mkdir(parents=True, exist_ok=True)
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.console_log_path = config.LOG_DIR / f"interface_console_{stamp}.log"
-        self._original_stdout = sys.stdout
-        self._original_stderr = sys.stderr
-        self._original_excepthook = sys.excepthook
-        self._original_threading_excepthook = getattr(threading, "excepthook", None)
-        self._stdout_redirector = ConsoleRedirector(self, "stdout")
-        self._stderr_redirector = ConsoleRedirector(self, "stderr")
-        self._console_redirect_active = False
-        self._instalar_console_interno()
         
         # Configurar Estilos do Tema Dark + Accent Green
         style = ttk.Style(self.root)
@@ -303,13 +267,6 @@ class WideAppInterface:
         self._recentes_render_token = 0
         self._recentes_header_ready = False
         self._recentes_grid_columns = 0
-        self._recentes_rows = []
-        self._recentes_columns = []
-        self._recentes_selected_rows = set()
-        self._recentes_anchor_row = None
-        self._recentes_context_row = None
-        self._recentes_total_width = 0
-        self._recentes_row_height = 44
         self.ativ_recentes_meses_opcoes = (3, 6, 8, 10, 12)
         self.ativ_recentes_meses = self._carregar_preferencia_meses()
         self.ativ_recentes_meses_var = tk.StringVar(value=f"{self.ativ_recentes_meses} meses")
@@ -337,42 +294,6 @@ class WideAppInterface:
         self.root.after(350, self.atualizar_combo_xlsx)
         self.root.after(500, lambda: self._perf("abertura total", self._perf_start))
         self._trazer_para_frente()
-
-    def _instalar_console_interno(self):
-        if self._console_redirect_active:
-            return
-        sys.stdout = self._stdout_redirector
-        sys.stderr = self._stderr_redirector
-        sys.excepthook = self._handle_excepthook
-        if hasattr(threading, "excepthook"):
-            threading.excepthook = self._handle_threading_excepthook
-        self.root.bind("<Destroy>", self._on_root_destroy, add="+")
-        self.root.report_callback_exception = self._handle_tk_exception
-        self._console_redirect_active = True
-
-    def _restaurar_console_externo(self):
-        if not self._console_redirect_active:
-            return
-        sys.stdout = self._original_stdout
-        sys.stderr = self._original_stderr
-        sys.excepthook = self._original_excepthook
-        if self._original_threading_excepthook is not None and hasattr(threading, "excepthook"):
-            threading.excepthook = self._original_threading_excepthook
-        self._console_redirect_active = False
-
-    def _on_root_destroy(self, event=None):
-        if event is not None and event.widget is not self.root:
-            return
-        self._restaurar_console_externo()
-
-    def _handle_excepthook(self, exc_type, exc_value, exc_tb):
-        self.log("[TRACEBACK] " + "".join(traceback.format_exception(exc_type, exc_value, exc_tb)).rstrip())
-
-    def _handle_threading_excepthook(self, args):
-        self._handle_excepthook(args.exc_type, args.exc_value, args.exc_traceback)
-
-    def _handle_tk_exception(self, exc_type, exc_value, exc_tb):
-        self._handle_excepthook(exc_type, exc_value, exc_tb)
 
     def _perf(self, rotulo, inicio, detalhe=""):
         elapsed_ms = (time.perf_counter() - inicio) * 1000
@@ -590,9 +511,6 @@ class WideAppInterface:
         tb_row2 = tk.Frame(tb, bg=self.ui_panel)
         tb_row2.pack(fill="x", pady=(2, 2))
 
-        tb_row3 = tk.Frame(tb, bg=self.ui_panel)
-        tb_row3.pack(fill="x", pady=(6, 2))
-
         self.btn_atualizar_cli = ttk.Button(tb_row1, text="Atualizar clientes", style="Primary.Toolbar.TButton", command=self.atualizar_async)
         self.btn_atualizar_cli.pack(side="left", padx=(0, 8), ipady=3)
 
@@ -626,10 +544,10 @@ class WideAppInterface:
         self.btn_abrir_pdf = ttk.Button(tb_row2, text="Abrir PDF", style="Toolbar.TButton", command=lambda: self.abrir_tipo("pdf"))
         self.btn_abrir_pdf.pack(side="left", padx=(0, 16), ipady=3)
 
-        recentes_box = tk.Frame(tb_row3, bg=self.ui_panel)
+        recentes_box = tk.Frame(tb_row2, bg=self.ui_panel)
         recentes_box.pack(side="left", fill="x", expand=True)
         self._label(recentes_box, "Planilhas recentes", 9, "normal", self.ui_muted, self.ui_panel).pack(side="left", padx=(0, 8))
-        self.xlsx_combo = ttk.Combobox(recentes_box, state="readonly", width=96, style="Modern.TCombobox")
+        self.xlsx_combo = ttk.Combobox(recentes_box, state="readonly", width=56, style="Modern.TCombobox")
         self.xlsx_combo.pack(side="left", fill="x", expand=True, ipady=3)
         self.xlsx_combo.bind("<<ComboboxSelected>>", self.abrir_xlsx_selecionado)
         
@@ -834,18 +752,8 @@ class WideAppInterface:
         logs_tab_panel.pack(fill="both", expand=True, padx=8, pady=8)
         logs_tab_header = tk.Frame(logs_tab_panel.inner, bg=self.ui_panel)
         logs_tab_header.pack(fill="x")
-        self._label(logs_tab_header, "Logs / Console interno", 13, "bold", self.ui_text, self.ui_panel).pack(side="left")
-        ttk.Button(logs_tab_header, text="Abrir arquivo de log", style="Toolbar.TButton", command=self.abrir_log_console).pack(side="right", padx=(8, 0))
+        self._label(logs_tab_header, "Logs", 13, "bold", self.ui_text, self.ui_panel).pack(side="left")
         ttk.Button(logs_tab_header, text="Limpar log", style="Toolbar.TButton", command=self._limpar_logs).pack(side="right")
-        self.console_log_var = tk.StringVar(value=str(self.console_log_path))
-        tk.Label(
-            logs_tab_panel.inner,
-            textvariable=self.console_log_var,
-            bg=self.ui_panel,
-            fg=self.ui_muted,
-            font=("Consolas", 8),
-            anchor="w",
-        ).pack(fill="x", pady=(8, 0))
         logs_tab_scroll = ttk.Scrollbar(logs_tab_panel.inner, orient="vertical")
         logs_tab_scroll.pack(side="right", fill="y", pady=(8, 0))
         self.logs_tab_text = tk.Text(logs_tab_panel.inner, height=12, wrap="word", bg="#101B21", fg=self.ui_text, insertbackground=self.ui_text, selectbackground="#0B7F45", selectforeground="#FFFFFF", font=("Consolas", 9), bd=0, yscrollcommand=logs_tab_scroll.set)
@@ -911,7 +819,6 @@ class WideAppInterface:
         tk.Label(statusbar, textvariable=self.status_ultima_atualizacao_var, bg="#0B151A", fg=self.ui_muted, font=("Segoe UI", 8)).pack(side="right", padx=22, pady=7)
 
         self.log("Interface iniciada.")
-        self.log(f"Console interno ativo: {self.console_log_path}")
         self.log("SKILL CARREGADA: widepay-core-operacional")
         self._registrar_diagnostico_inicial()
         if not self.registros:
@@ -1030,19 +937,10 @@ class WideAppInterface:
         bottom_bar = tk.Frame(panel.inner, bg=self.ui_panel)
         scroll_x = ttk.Scrollbar(bottom_bar, orient="horizontal")
         meses_box = tk.Frame(bottom_bar, bg=self.ui_panel)
-        export_box = tk.Frame(bottom_bar, bg=self.ui_panel)
         
         scroll_y.pack(side="right", fill="y")
         bottom_bar.pack(side="bottom", fill="x")
         meses_box.pack(side="right", padx=(12, 0), pady=(4, 0))
-        export_box.pack(side="right", padx=(12, 0), pady=(4, 0))
-        self.btn_exportar_recentes_xlsx = ttk.Button(
-            export_box,
-            text="Exportar XLSX",
-            style="Toolbar.TButton",
-            command=self.exportar_ativ_recentes_xlsx,
-        )
-        self.btn_exportar_recentes_xlsx.pack(side="left")
         tk.Label(
             meses_box,
             text="Meses exibidos:",
@@ -1125,16 +1023,6 @@ class WideAppInterface:
             
         body_canvas.bind("<Shift-MouseWheel>", on_mousewheel_x)
         body_frame.bind("<Shift-MouseWheel>", on_mousewheel_x)
-        body_canvas.bind("<Button-1>", self._recentes_on_click)
-        body_canvas.bind("<B1-Motion>", self._recentes_on_drag)
-        body_canvas.bind("<ButtonRelease-1>", self._recentes_on_release)
-        body_canvas.bind("<Button-3>", self._recentes_menu_contexto)
-        body_canvas.bind("<Double-1>", self._recentes_abrir_pasta_contexto)
-        body_canvas.bind("<Control-c>", self._copiar_recentes_selecao_event)
-        body_canvas.bind("<Control-C>", self._copiar_recentes_selecao_event)
-        body_canvas.configure(takefocus=True)
-        self.root.bind("<Control-c>", self._copiar_recentes_selecao_event, add="+")
-        self.root.bind("<Control-C>", self._copiar_recentes_selecao_event, add="+")
         
         self.header_canvas_recentes = header_canvas
         self.frame_header_recentes = header_frame
@@ -1191,16 +1079,7 @@ class WideAppInterface:
         for widget_name in ("logs", "logs_tab_text"):
             widget = getattr(self, widget_name, None)
             if widget is not None:
-                widget.configure(state="normal")
                 widget.delete("1.0", "end")
-        self.log("Log visual limpo. Arquivo de log preservado.")
-
-    def abrir_log_console(self):
-        if self.console_log_path.exists():
-            abrir(self.console_log_path)
-            self.log(f"Arquivo de log aberto: {self.console_log_path}")
-        else:
-            messagebox.showinfo("WideAPP_EXTRA", "O arquivo de log ainda nao foi criado.")
 
     def _limpar_links_status(self):
         for widget_name in ("links", "links_tab_text"):
@@ -1219,18 +1098,10 @@ class WideAppInterface:
         if threading.current_thread() is not threading.main_thread():
             self.root.after(0, lambda m=msg: self.log(m))
             return
-        msg = str(msg)
-        line = f"[{datetime.now().isoformat(timespec='seconds')}] {msg}"
-        try:
-            with open(self.console_log_path, "a", encoding="utf-8") as log_file:
-                log_file.write(line + "\n")
-        except Exception:
-            pass
         delivered = False
         for widget_name in ("logs", "logs_tab_text"):
             widget = getattr(self, widget_name, None)
             if widget is not None:
-                widget.configure(state="normal")
                 widget.insert("end", msg + "\n")
                 widget.see("end")
                 delivered = True
@@ -1700,8 +1571,6 @@ class WideAppInterface:
             130,
         ])
         total_width = sum(widths)
-        self._recentes_total_width = total_width
-        self._recentes_row_height = row_height
 
         total_cols = max(self._recentes_grid_columns, len(widths))
         for col in range(total_cols):
@@ -1711,26 +1580,13 @@ class WideAppInterface:
         self._recentes_grid_columns = len(widths)
 
         header_key = tuple(m.get("rotulo") for m in meses)
-        column_defs = [
-            {"key": "status", "label": "STATUS", "copy": False},
-            {"key": "cliente", "label": "Cliente", "copy": True},
-            {"key": "lote_quadra", "label": "Lote / Quadra", "copy": True},
-            *[
-                {"key": f"mes:{mes['chave']}", "label": mes["rotulo"], "copy": True, "mes": mes}
-                for mes in meses
-            ],
-            {"key": "parcelas", "label": "Parcelas", "copy": True},
-            {"key": "atualizado_em", "label": "Atualizado em", "copy": True},
-        ]
-        x_col = 0
-        for idx, col_def in enumerate(column_defs):
-            col_def["x"] = x_col
-            col_def["width"] = widths[idx]
-            x_col += widths[idx]
-        self._recentes_columns = column_defs
         headers = [
-            col["label"] if not col.get("mes") else f"[M] {col['label']}"
-            for col in column_defs
+            "STATUS",
+            "Cliente",
+            "Lote / Quadra",
+            *[f"[M] {mes['rotulo']}" for mes in meses],
+            "Parcelas",
+            "Atualizado em",
         ]
         x = 0
         for titulo, w in zip(headers, widths):
@@ -1899,23 +1755,6 @@ class WideAppInterface:
             draw_cell(x, y, widths[col_offset + 1], row_height, texto_truncado(att, 18), base_fill, fg_color)
 
         registros = list(registros)
-        self._recentes_rows = [
-            {
-                "index": idx,
-                "item": item,
-                "y": idx * row_height,
-                "height": row_height,
-                "key": self._chave(item),
-            }
-            for idx, item in enumerate(registros)
-        ]
-        chaves_selecionadas = set(getattr(self, "selecionados", set()))
-        self._recentes_selected_rows = {
-            idx
-            for idx, row in enumerate(self._recentes_rows)
-            if row["key"] in chaves_selecionadas
-        }
-        self._recentes_anchor_row = min(self._recentes_selected_rows) if self._recentes_selected_rows else None
         lote_tamanho = 40
 
         def render_lote(inicio):
@@ -1929,359 +1768,15 @@ class WideAppInterface:
                 return
             total_height = max(1, len(registros) * row_height)
             canvas.configure(scrollregion=(0, 0, total_width, total_height))
-            self._recentes_desenhar_selecao()
             self._perf(f"Ativ. Recentes com {len(meses)} meses", start, f"{len(registros)} linhas")
             self._recentes_render_after = None
 
         total_height = max(1, len(registros) * row_height)
         canvas.configure(scrollregion=(0, 0, total_width, total_height))
         if registros:
-            self._recentes_desenhar_selecao()
             render_lote(0)
         else:
-            self._recentes_desenhar_selecao()
             self._perf(f"Ativ. Recentes com {len(meses)} meses", start, "0 linhas")
-
-    def _recentes_row_from_event(self, event):
-        if not getattr(self, "_recentes_rows", None):
-            return None
-        canvas = self.canvas_recentes
-        y = canvas.canvasy(event.y)
-        row_height = max(1, getattr(self, "_recentes_row_height", 44))
-        idx = int(y // row_height)
-        if 0 <= idx < len(self._recentes_rows):
-            return idx
-        return None
-
-    def _recentes_on_click(self, event):
-        self.canvas_recentes.focus_set()
-        idx = self._recentes_row_from_event(event)
-        if idx is None:
-            self._recentes_selected_rows.clear()
-            self._recentes_anchor_row = None
-            self._recentes_sync_selection(log=True)
-            self._recentes_desenhar_selecao()
-            return "break"
-
-        shift = bool(event.state & 0x0001)
-        ctrl = bool(event.state & 0x0004)
-        if shift and self._recentes_anchor_row is not None:
-            start = min(self._recentes_anchor_row, idx)
-            end = max(self._recentes_anchor_row, idx)
-            self._recentes_selected_rows = set(range(start, end + 1))
-        elif ctrl:
-            if idx in self._recentes_selected_rows:
-                self._recentes_selected_rows.remove(idx)
-            else:
-                self._recentes_selected_rows.add(idx)
-            self._recentes_anchor_row = idx
-        else:
-            self._recentes_selected_rows = {idx}
-            self._recentes_anchor_row = idx
-        self._recentes_context_row = idx
-        self._recentes_sync_selection(log=True)
-        self._recentes_desenhar_selecao()
-        return "break"
-
-    def _recentes_on_drag(self, event):
-        idx = self._recentes_row_from_event(event)
-        if idx is None:
-            return "break"
-        if self._recentes_anchor_row is None:
-            self._recentes_anchor_row = idx
-        start = min(self._recentes_anchor_row, idx)
-        end = max(self._recentes_anchor_row, idx)
-        self._recentes_selected_rows = set(range(start, end + 1))
-        self._recentes_sync_selection(log=False)
-        self._recentes_desenhar_selecao()
-        return "break"
-
-    def _recentes_on_release(self, _event):
-        self._recentes_sync_selection(log=True)
-        return "break"
-
-    def _recentes_sync_selection(self, log=False):
-        self.selecionados = {
-            self._recentes_rows[idx]["key"]
-            for idx in sorted(self._recentes_selected_rows)
-            if 0 <= idx < len(self._recentes_rows)
-        }
-        if log:
-            self.log(f"Ativ. Recentes: {len(self.selecionados)} linha(s) selecionada(s).")
-
-    def _recentes_desenhar_selecao(self):
-        if not hasattr(self, "canvas_recentes"):
-            return
-        canvas = self.canvas_recentes
-        canvas.delete("recentes_selection")
-        total_width = max(1, getattr(self, "_recentes_total_width", 1))
-        for idx in sorted(self._recentes_selected_rows):
-            if not (0 <= idx < len(self._recentes_rows)):
-                continue
-            row = self._recentes_rows[idx]
-            y = row["y"]
-            h = row["height"]
-            canvas.create_rectangle(
-                0,
-                y,
-                total_width,
-                y + h,
-                fill="#1D4ED8",
-                stipple="gray25",
-                outline="#60A5FA",
-                width=2,
-                tags=("recentes_selection",),
-            )
-            canvas.create_rectangle(
-                0,
-                y + 2,
-                5,
-                y + h - 2,
-                fill="#60A5FA",
-                outline="#60A5FA",
-                tags=("recentes_selection",),
-            )
-        canvas.tag_raise("recentes_selection")
-
-    def _recentes_selected_items(self):
-        return [
-            self._recentes_rows[idx]["item"]
-            for idx in sorted(self._recentes_selected_rows)
-            if 0 <= idx < len(self._recentes_rows)
-        ]
-
-    def _recentes_valor_copia(self, item, col):
-        key = col["key"]
-        if key == "cliente":
-            return indexador_clientes.limpar_nome_cliente(str(item.get("cliente", "")))
-        if key == "lote_quadra":
-            return self._valor_grade(item, "lote")
-        if key == "parcelas":
-            parcelas = item.get("parcelas_resumo")
-            if not parcelas:
-                p_pagas = item.get("parcelas_pagas_identificadas", 0)
-                p_total = item.get("parcelas_total_contrato", "?")
-                parcelas = f"{p_pagas} / {p_total} pagas"
-            return str(parcelas)
-        if key == "atualizado_em":
-            att = item.get("ultima_atualizacao_widepay") or item.get("data_atualizacao") or ""
-            return indexador_clientes.formatar_data_hora(att)
-        if key.startswith("mes:") and col.get("mes"):
-            celula = indexador_clientes.obter_celula_pagamento_recente(item, col["mes"])
-            texto1 = str(celula.get("texto1") or "-").strip()
-            texto2 = str(celula.get("texto2") or "").strip()
-            if texto2 and texto2 != "-":
-                return f"{texto1} {texto2}"
-            return texto1
-        return ""
-
-    def _recentes_texto_tabulado(self):
-        cols = [col for col in self._recentes_columns if col.get("copy", True)]
-        linhas = ["\t".join(col["label"] for col in cols)]
-        for item in self._recentes_selected_items():
-            linhas.append("\t".join(self._recentes_valor_copia(item, col) for col in cols))
-        return "\n".join(linhas)
-
-    def _recentes_status_color(self, num_alertas):
-        try:
-            num_alertas = int(float(num_alertas))
-        except Exception:
-            num_alertas = 0
-        if num_alertas <= 1:
-            return "2ECC71"
-        if num_alertas in (2, 3):
-            return "F1C40F"
-        return "E74C3C"
-
-    def _recentes_mes_color(self, status_str):
-        s = str(status_str or "").lower()
-        if "pago" in s or "recebido" in s:
-            return "1E8449"
-        if "pendente" in s:
-            return "B7950B"
-        if "vencido" in s:
-            return "922B21"
-        return "2C3E50"
-
-    def _recentes_linhas_exportacao(self):
-        if not getattr(self, "_recentes_rows", None):
-            self._popular_tree_pagamentos_recentes(self.filtrados)
-            self.root.update_idletasks()
-        return [row["item"] for row in getattr(self, "_recentes_rows", [])]
-
-    def _recentes_valor_exportacao(self, item, col):
-        key = col["key"]
-        if key == "status":
-            vencidos = item.get("status_atraso_qtd", item.get("boletos_atrasados", 0))
-            return str(indexador_clientes.inteiro(vencidos))
-        if key.startswith("mes:") and col.get("mes"):
-            celula = indexador_clientes.obter_celula_pagamento_recente(item, col["mes"])
-            texto1 = str(celula.get("texto1") or "-").strip()
-            texto2 = str(celula.get("texto2") or "").strip()
-            return f"{texto1}\n{texto2}" if texto2 and texto2 != "-" else texto1
-        return self._recentes_valor_copia(item, col)
-
-    def _salvar_ativ_recentes_xlsx(self, caminho):
-        from openpyxl import Workbook
-        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-        from openpyxl.utils import get_column_letter
-
-        path = Path(caminho)
-        if path.suffix.lower() != ".xlsx":
-            path = path.with_suffix(".xlsx")
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        rows = self._recentes_linhas_exportacao()
-        cols = list(getattr(self, "_recentes_columns", []))
-        if not cols:
-            raise RuntimeError("Colunas da aba Ativ. Recentes ainda nao foram montadas.")
-
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Ativ. Recentes"
-
-        thin = Side(style="thin", color="2D4650")
-        border = Border(left=thin, right=thin, top=thin, bottom=thin)
-        header_fill = PatternFill("solid", fgColor="1E2F38")
-        header_font = Font(color="F3F7F8", bold=True)
-        text_font = Font(color="F3F7F8")
-        dark_font = Font(color="181818")
-
-        for col_idx, col in enumerate(cols, 1):
-            cell = ws.cell(row=1, column=col_idx, value=col["label"])
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.border = border
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            width_px = int(col.get("width") or 100)
-            ws.column_dimensions[get_column_letter(col_idx)].width = max(10, min(34, width_px / 7))
-
-        for row_idx, item in enumerate(rows, 2):
-            base_fill = "0F1A20" if row_idx % 2 else "13212A"
-            for col_idx, col in enumerate(cols, 1):
-                value = self._recentes_valor_exportacao(item, col)
-                cell = ws.cell(row=row_idx, column=col_idx, value=value)
-                fill_color = base_fill
-                font = text_font
-                if col["key"] == "status":
-                    vencidos = item.get("status_atraso_qtd", item.get("boletos_atrasados", 0))
-                    fill_color = self._recentes_status_color(vencidos)
-                    font = dark_font if fill_color == "F1C40F" else text_font
-                elif col["key"].startswith("mes:") and col.get("mes"):
-                    celula = indexador_clientes.obter_celula_pagamento_recente(item, col["mes"])
-                    fill_color = self._recentes_mes_color(celula.get("status", "Sem boleto"))
-                cell.fill = PatternFill("solid", fgColor=fill_color)
-                cell.font = font
-                cell.border = border
-                horizontal = "left" if col["key"] == "cliente" else "center"
-                cell.alignment = Alignment(horizontal=horizontal, vertical="center", wrap_text=True)
-            ws.row_dimensions[row_idx].height = 34
-
-        ws.row_dimensions[1].height = 24
-        ws.freeze_panes = "D2"
-        ws.auto_filter.ref = ws.dimensions
-        wb.save(path)
-        return path
-
-    def exportar_ativ_recentes_xlsx(self):
-        if self._current_tab_text() != "Ativ. Recentes":
-            self.workspace_tabs.select(self.recentes_tab)
-            self._popular_tree_pagamentos_recentes(self.filtrados)
-        if not self._recentes_linhas_exportacao():
-            messagebox.showinfo("WideAPP_EXTRA", "Nao ha linhas visiveis em Ativ. Recentes para exportar.")
-            return
-
-        nome_sugerido = f"ATIV_RECENTES_EXPORTADO_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-        caminho = filedialog.asksaveasfilename(
-            parent=self.root,
-            title="Salvar tabela Ativ. Recentes",
-            initialfile=nome_sugerido,
-            defaultextension=".xlsx",
-            filetypes=[("Planilha Excel", "*.xlsx")],
-        )
-        if not caminho:
-            self.log("Exportacao da Ativ. Recentes cancelada pelo usuario.")
-            return
-        try:
-            path = self._salvar_ativ_recentes_xlsx(caminho)
-        except Exception as exc:
-            self.log(f"Erro ao exportar Ativ. Recentes: {exc}")
-            messagebox.showerror("WideAPP_EXTRA", f"Erro ao exportar a tabela Ativ. Recentes:\n{exc}")
-            return
-        self.log(f"Tabela Ativ. Recentes exportada com sucesso: {path}")
-        abrir_agora = messagebox.askyesno(
-            "WideAPP_EXTRA",
-            f"Tabela Ativ. Recentes exportada com sucesso.\n\n{path}\n\nDeseja abrir o arquivo agora?",
-        )
-        if abrir_agora:
-            self.log("SKILL CARREGADA: widepay-abertura-externa")
-            self.log(f"EXECUCAO EXTERNA: abrir exportacao Ativ. Recentes: {path}")
-            abrir(path)
-
-    def _copiar_recentes_selecao_event(self, event=None):
-        if self._current_tab_text() != "Ativ. Recentes":
-            return None
-        widget = getattr(event, "widget", None)
-        if widget is not None and widget.winfo_class() in ("Text", "Entry", "TEntry"):
-            return None
-        return self._copiar_recentes_selecao()
-
-    def _copiar_recentes_selecao(self):
-        if not self._recentes_selected_rows:
-            messagebox.showinfo("WideAPP_EXTRA", "Nenhuma linha selecionada em Ativ. Recentes.")
-            return "break"
-        texto = self._recentes_texto_tabulado()
-        self.root.clipboard_clear()
-        self.root.clipboard_append(texto)
-        self.root.update()
-        self.log(f"Ativ. Recentes: {len(self._recentes_selected_rows)} linha(s) copiadas em formato tabulado.")
-        return "break"
-
-    def _recentes_menu_contexto(self, event):
-        idx = self._recentes_row_from_event(event)
-        if idx is not None:
-            self.canvas_recentes.focus_set()
-            self._recentes_context_row = idx
-            if idx not in self._recentes_selected_rows:
-                self._recentes_selected_rows = {idx}
-                self._recentes_anchor_row = idx
-                self._recentes_sync_selection(log=True)
-                self._recentes_desenhar_selecao()
-        menu = tk.Menu(self.root, tearoff=0, bg="#242424", fg="#F3F3F3", activebackground="#007A3E", activeforeground="#F3F3F3")
-        menu.add_command(label="Copiar seleção", command=self._copiar_recentes_selecao)
-        menu.add_separator()
-        menu.add_command(label="Gerar relatorio do(s) selecionado(s)", command=self.gerar_selecionados)
-        menu.add_command(label="Abrir pasta do cliente no Explorer", command=self._recentes_abrir_pasta_contexto)
-        menu.add_separator()
-        menu.add_command(label="Limpar seleção", command=self._recentes_limpar_selecao)
-        menu.post(event.x_root, event.y_root)
-        return "break"
-
-    def _recentes_context_item(self):
-        if self._recentes_context_row is not None and 0 <= self._recentes_context_row < len(self._recentes_rows):
-            return self._recentes_rows[self._recentes_context_row]["item"]
-        itens = self._recentes_selected_items()
-        return itens[0] if itens else None
-
-    def _recentes_abrir_pasta_contexto(self, event=None):
-        reg = self._recentes_context_item()
-        if not reg:
-            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado em Ativ. Recentes.")
-            return "break"
-        pasta = reg.get("pasta_local")
-        if pasta and Path(pasta).exists():
-            self.log(f"EXECUCAO EXTERNA: abrir pasta do cliente {reg.get('cliente')}")
-            abrir_pasta(pasta)
-        else:
-            messagebox.showwarning("WideAPP_EXTRA", f"Pasta do cliente nao encontrada: {pasta}")
-        return "break"
-
-    def _recentes_limpar_selecao(self):
-        self._recentes_selected_rows.clear()
-        self._recentes_anchor_row = None
-        self._recentes_context_row = None
-        self._recentes_sync_selection(log=True)
-        self._recentes_desenhar_selecao()
 
     def _atualizar_abas_saneamento(self):
         self._popular_aba_quitados()
@@ -2565,46 +2060,6 @@ class WideAppInterface:
         self.ultimo_grupo = grupo
         threading.Thread(target=self._gerar_thread, args=(registros, grupo), daemon=True).start()
 
-    def _cliente_label_relatorio(self, resultado, registros):
-        nomes = []
-        for res in resultado.get("resultados", []):
-            nome = str(res.get("cliente") or "").strip()
-            if nome and nome not in nomes:
-                nomes.append(nome)
-        if not nomes:
-            for reg in registros:
-                nome = str(reg.get("cliente") or "").strip()
-                if nome and nome not in nomes:
-                    nomes.append(nome)
-        if len(nomes) == 1:
-            return nomes[0].upper()
-        if len(nomes) > 1:
-            return f"{len(nomes)} CLIENTES"
-        return "CLIENTE"
-
-    def _log_relatorio_concluido(self, cliente_label):
-        self.log(f"[100%] Relatorio concluido: {cliente_label}")
-        for tipo in ("xlsx", "pdf", "html"):
-            paths = self.ultimos.get(tipo) or []
-            if paths:
-                for path in paths[:3]:
-                    self.log(f"{tipo.upper()}: {path}")
-
-    def _finalizar_relatorio_sucesso_ui(self, cliente_label):
-        mensagem = f"Relatorio de {cliente_label} gerado com sucesso. Arquivo pronto para abrir."
-        self.progress_status_var.set("Relatorio concluido")
-        self.progress_etapa_var.set(mensagem)
-        self.progress_label.configure(text=mensagem)
-        self.progress_pct_var.set("100%")
-        self.progress["value"] = 100
-        self._append_progress_log(f"[100%] Relatorio concluido: {cliente_label}")
-        self.atualizar_combo_xlsx(self.ultimo_arquivo)
-        self._marcar_execucao_finalizada()
-        messagebox.showinfo(
-            "WideAPP_EXTRA",
-            f"Relatorio gerado com sucesso.\nCliente: {cliente_label}\nArquivo pronto para abrir."
-        )
-
     def parar_captura(self):
         if not self.execucao_em_andamento:
             self.log("Parada ignorada: nenhuma captura em andamento.")
@@ -2631,9 +2086,7 @@ class WideAppInterface:
     def _gerar_thread(self, registros, grupo):
         self.root.after(0, self._marcar_execucao_iniciada)
         self.root.after(0, lambda: self.progress.configure(value=0))
-        self.root.after(0, lambda: self.progress_status_var.set("Gerando relatorio"))
-        self.root.after(0, lambda: self.progress_etapa_var.set("Iniciando geracao do relatorio..."))
-        self.root.after(0, lambda: self.progress_label.configure(text="Iniciando geracao do relatorio..."))
+        self.root.after(0, lambda: self.progress_label.configure(text="Iniciando execução da pipeline..."))
         self.log("Processando cliente...")
         self.log("Pipeline em execucao...")
         try:
@@ -2644,6 +2097,8 @@ class WideAppInterface:
                 progress_callback=self.atualizar_progresso
             )
             self.log("CODIGO SAIDA: 0")
+            self.log("Relatorio gerado com sucesso.")
+            self.root.after(0, self.atualizar_combo_xlsx)
         except Exception as exc:
             self.log(f"ERRO_PIPELINE: {exc}")
             self.root.after(0, lambda: self.progress_label.configure(text=f"Erro na pipeline: {exc}"))
@@ -2720,14 +2175,12 @@ class WideAppInterface:
             self._append_links_status(f"{item.get('cliente')} {item.get('lote')}: {item.get('status')} {item.get('link')}\n")
         if resultado.get("cancelado"):
             self.log("Captura encerrada sem consolidado/upload final por solicitacao do usuario.")
-            self.root.after(0, self._marcar_execucao_finalizada)
         else:
             self.log(f"Pipeline concluido. Manifesto Drive: {config.LINKS_DRIVE_MD}")
-            cliente_label = self._cliente_label_relatorio(resultado, registros)
-            self._log_relatorio_concluido(cliente_label)
-            self.root.after(0, lambda label=cliente_label: self._finalizar_relatorio_sucesso_ui(label))
         if resultado["ignorados"]:
             self.log(f"Ignorados sem contrato confirmado: {len(resultado['ignorados'])}")
+
+        self.root.after(0, self._marcar_execucao_finalizada)
 
     def abrir_ultimo(self):
         if not self.ultimos.get("xlsx"):
@@ -2800,19 +2253,12 @@ class WideAppInterface:
         lista_ordenada.sort(key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
         return lista_ordenada
 
-    def atualizar_combo_xlsx(self, selecionar_path=None):
+    def atualizar_combo_xlsx(self):
         start = time.perf_counter()
         try:
             self.xlsx_map = {}
             items = []
             from datetime import datetime
-            selecionar_resolvido = None
-            if selecionar_path:
-                try:
-                    selecionar_resolvido = Path(selecionar_path).resolve()
-                except Exception:
-                    selecionar_resolvido = Path(selecionar_path)
-            item_selecionado = None
             xlsx_files = self.obter_xlsx_recentes()
             for p in xlsx_files[:40]:
                 try:
@@ -2832,30 +2278,14 @@ class WideAppInterface:
                         lote_name = lote_e_data.split("_")[0] if "_" in lote_e_data else lote_e_data
                         friendly_name = f"Cliente: {nome_cliente} — Lote {lote_name}"
                 
-                if len(friendly_name) > 88:
-                    friendly_name = friendly_name[:85] + "..."
+                if len(friendly_name) > 42:
+                    friendly_name = friendly_name[:39] + "..."
                 display_name = f"{dt_str} — {friendly_name}"
-                if display_name in self.xlsx_map:
-                    base_display = f"{display_name} - {p.parent.name}"
-                    display_name = base_display
-                    contador = 2
-                    while display_name in self.xlsx_map:
-                        display_name = f"{base_display} ({contador})"
-                        contador += 1
                 items.append(display_name)
                 self.xlsx_map[display_name] = p
-                if selecionar_resolvido is not None:
-                    try:
-                        if p.resolve() == selecionar_resolvido:
-                            item_selecionado = display_name
-                    except Exception:
-                        if p == selecionar_path:
-                            item_selecionado = display_name
             if hasattr(self, "xlsx_combo"):
                 self.xlsx_combo.configure(values=items)
-                if item_selecionado:
-                    self.xlsx_combo.set(item_selecionado)
-                elif items:
+                if items:
                     self.xlsx_combo.set("Selecione para abrir...")
                 else:
                     self.xlsx_combo.set("Nenhuma planilha encontrada")
@@ -3144,13 +2574,6 @@ def smoke_test():
     assert app.workspace_tabs.tab(app.workspace_tabs.tabs()[1], "text") == "Ativ. Recentes"
     assert hasattr(app, "tree_recentes")
     assert hasattr(app, "frame_recentes")
-    assert hasattr(app, "console_log_path")
-    assert app.console_log_path.parent.exists()
-    assert hasattr(app, "_copiar_recentes_selecao")
-    assert hasattr(app, "_recentes_texto_tabulado")
-    assert hasattr(app, "_recentes_menu_contexto")
-    assert hasattr(app, "btn_exportar_recentes_xlsx")
-    assert hasattr(app, "_salvar_ativ_recentes_xlsx")
     # A aba Ativ. Recentes agora usa uma grade visual com Canvas + Frame
     assert len(app.frame_recentes.winfo_children()) >= 0
     assert app.status_version_label.cget("textvariable")
