@@ -36,24 +36,33 @@ class WideApp:
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_path = LOG_DIR / f"wideapp_extra_{stamp}.log"
 
+    def _safe_print(self, message="", end="\n"):
+        stream = getattr(sys, "stdout", None)
+        if stream is None:
+            return
+        try:
+            print(message, end=end)
+        except (AttributeError, OSError, RuntimeError, UnicodeEncodeError):
+            try:
+                safe_message = str(message).encode("ascii", errors="replace").decode("ascii")
+                print(safe_message, end=end)
+            except Exception:
+                pass
+
     def log(self, message):
         message = str(message)
         line = f"[{datetime.now().isoformat(timespec='seconds')}] {message}"
-        try:
-            print(message)
-        except UnicodeEncodeError:
-            safe_message = message.encode("ascii", errors="replace").decode("ascii")
-            print(safe_message)
+        self._safe_print(message)
         with open(self.log_path, "a", encoding="utf-8") as f:
             f.write(line + "\n")
 
     def header(self):
-        print("=" * 72)
-        print(f" WideAPP_EXTRA - Auditoria e Relatorios WidePay - {APP_VERSION_LABEL}")
-        print("=" * 72)
-        print(f"Projeto: {ROOT_DIR}")
-        print(f"Log: {self.log_path}")
-        print()
+        self._safe_print("=" * 72)
+        self._safe_print(f" WideAPP_EXTRA - Auditoria e Relatorios WidePay - {APP_VERSION_LABEL}")
+        self._safe_print("=" * 72)
+        self._safe_print(f"Projeto: {ROOT_DIR}")
+        self._safe_print(f"Log: {self.log_path}")
+        self._safe_print()
 
     def validar_ambiente(self, exigir_widepay=False, exigir_executor=True):
         """Valida o ambiente de execução.
@@ -159,7 +168,7 @@ class WideApp:
 
         with open(self.log_path, "a", encoding="utf-8") as log_file:
             for line in proc.stdout or []:
-                print(line, end="")
+                self._safe_print(line, end="")
                 log_file.write(line)
 
         return_code = proc.wait()
@@ -169,14 +178,14 @@ class WideApp:
     def menu(self):
         while True:
             self.header()
-            print("1. Consultar cliente especifico")
-            print("2. Consultar cliente + lote")
-            print("3. Consultar por letra inicial")
-            print("4. Consultar intervalo de letras")
-            print("5. Gerar relatorio consolidado")
-            print("6. Apenas validar ambiente")
-            print("0. Sair")
-            print()
+            self._safe_print("1. Consultar cliente especifico")
+            self._safe_print("2. Consultar cliente + lote")
+            self._safe_print("3. Consultar por letra inicial")
+            self._safe_print("4. Consultar intervalo de letras")
+            self._safe_print("5. Gerar relatorio consolidado")
+            self._safe_print("6. Apenas validar ambiente")
+            self._safe_print("0. Sair")
+            self._safe_print()
             opcao = self._ler_input("Escolha uma opcao: ").strip().strip('"').strip("'")
 
             if opcao == "0":
@@ -212,7 +221,7 @@ class WideApp:
                 if not ok:
                     return 1
             else:
-                print("Opcao invalida.")
+                self._safe_print("Opcao invalida.")
                 if not self._aguardar_enter("\nPressione Enter para tentar novamente..."):
                     return 1
 
@@ -266,7 +275,7 @@ class WideApp:
         resultados = filtrar(carregar_cache(), termo)
         self.log(f"PESQUISA: {len(resultados)} resultado(s) para {termo!r}")
         for item in resultados[:30]:
-            print(f"{item.get('cliente')} | Lote {item.get('lote')} | {item.get('status')} | {item.get('contrato')}")
+            self._safe_print(f"{item.get('cliente')} | Lote {item.get('lote')} | {item.get('status')} | {item.get('contrato')}")
         return 0
 
     def smoke_test_interface(self):
@@ -301,11 +310,11 @@ class WideApp:
         return 0
 
     def _menu_consolidado(self):
-        print()
-        print("Escopo do consolidado:")
-        print("1. Todos os clientes cadastrados")
-        print("2. Letra inicial")
-        print("3. Intervalo de letras")
+        self._safe_print()
+        self._safe_print("Escopo do consolidado:")
+        self._safe_print("1. Todos os clientes cadastrados")
+        self._safe_print("2. Letra inicial")
+        self._safe_print("3. Intervalo de letras")
         escolha = self._ler_input("Escolha o escopo: ").strip().strip('"').strip("'")
         if escolha == "1":
             return ["--todos", "--consolidado"]
@@ -317,13 +326,13 @@ class WideApp:
             letra_fim = self._perguntar_obrigatorio("Letra final")
             if letra_ini and letra_fim:
                 return ["--letra", letra_ini[:1], "--letra-fim", letra_fim[:1], "--consolidado"]
-        print("Escopo invalido.")
+        self._safe_print("Escopo invalido.")
         return None
 
     def _perguntar_obrigatorio(self, rotulo):
         valor = self._ler_input(f"{rotulo}: ").strip().strip('"').strip("'")
         if not valor:
-            print(f"{rotulo} e obrigatorio.")
+            self._safe_print(f"{rotulo} e obrigatorio.")
             return None
         return valor
 
