@@ -29,12 +29,13 @@ backups/pre_*
 *.tmp
 .DS_Store
 Thumbs.db
+desktop.ini
+/.tmp.driveupload/
 node_modules/
 .env
 .env.*
 _temp/
 _backup/
-_*/
 __pycache__/
 *.pyc
 
@@ -46,7 +47,6 @@ WideAPP_EXTRA/LINKS_GOOGLE_DRIVE.md
 
 # Banco XLSX do usuário
 /BANCO_DADOS_WIDEAPP_EXTRA.xlsx
-/backups/
 
 # Pastas de dados temporários e relatórios gerados
 /07_DADOS_TEMPORARIOS/
@@ -59,10 +59,5 @@ WideAPP_EXTRA/LINKS_GOOGLE_DRIVE.md
 /*.spec
 
 # Scripts locais, atalhos e temporários
-/scratch/
-/*.bat
-/*.hta
 /*.lnk
-/*.vbs
 /ferramentas/rclone/
-
