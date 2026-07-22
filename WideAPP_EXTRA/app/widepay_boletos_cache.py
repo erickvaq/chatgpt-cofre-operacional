@@ -2,7 +2,9 @@
 """Cache global de boletos/carnes coletados do WidePay."""
 
 import json
+import os
 import re
+import shutil
 import unicodedata
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -10,6 +12,7 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from app import config
+from app.versionamento_dados import criar_snapshot_versionado
 
 
 QUADRA_LETRAS = "ABCDEFGH"
@@ -23,6 +26,25 @@ def normalizar_texto(texto):
 
 def slug_busca(texto):
     return re.sub(r"[^a-z0-9]+", " ", normalizar_texto(texto).lower()).strip()
+
+
+def slug_identidade_nome(texto):
+    """Normaliza variantes ortograficas aprovadas sem recorrer a fuzzy irrestrito."""
+    aliases = {
+        "sousa": "souza",
+    }
+    identidade = " ".join(aliases.get(token, token) for token in slug_busca(texto).split())
+    # Equivalencias confirmadas no proprio WidePay pelo mesmo lote/referencia.
+    # Mantemos a lista explicita para nao aproximar nomes diferentes por fuzzy.
+    nomes_confirmados = {
+        "telma valadares dos santos": "telma valadares dos anjos carvalho",
+        "telma valadares dos anjos": "telma valadares dos anjos carvalho",
+        "ana carolina nery da s borgens": "ana carolina nery da s borges de barros",
+        "ana carolina nery da silva borges": "ana carolina nery da s borges de barros",
+        "joice carla de magalhaes gomes": "joice carla de magalhaes goncalves",
+        "rodrigo monteiro": "rodrigo monteiro de melo",
+    }
+    return nomes_confirmados.get(identidade, identidade)
 
 
 def normalizar_lote_quadra(lote="", quadra="", referencia="", pasta_local=""):
@@ -65,13 +87,66 @@ def normalizar_lote_quadra(lote="", quadra="", referencia="", pasta_local=""):
     return ""
 
 
+def extrair_lotes_referencia(referencia="", quadra_hint=""):
+    """Extrai todos os lotes explicitamente citados em uma referencia WidePay."""
+    texto = normalizar_texto(referencia).upper()
+    encontrados = []
+
+    def adicionar(quadra, lote):
+        canonico = normalizar_lote_quadra(lote=lote, quadra=quadra)
+        if canonico and canonico not in encontrados:
+            encontrados.append(canonico)
+
+    # Formas como C 8/9 ou C8/9: os dois numeros pertencem a mesma quadra.
+    for match in re.finditer(
+        r"(?:\bLT\.?\s*|\bLOTE\s*)?([A-H])\s*0*(\d{1,3}[A-Z]?)\s*/\s*0*(\d{1,3}[A-Z]?)(?![A-Z0-9])",
+        texto,
+    ):
+        adicionar(match.group(1), match.group(2))
+        adicionar(match.group(1), match.group(3))
+
+    # Formas prefixadas como LTF2 e LT F2.
+    for match in re.finditer(
+        r"\b(?:LT\.?|LOTE)\s*([A-H])\s*0*(\d{1,3}[A-Z]?)(?![A-Z0-9])",
+        texto,
+    ):
+        adicionar(match.group(1), match.group(2))
+
+    # Formas independentes compactas como G6, C8 e E19. Nao aceitamos
+    # letra separada do numero sem prefixo LT/LOTE: em referencias mensais,
+    # a conjuncao "e 04" nao pode virar o lote ficticio E4.
+    for match in re.finditer(r"(?<![A-Z0-9])([A-H])0*(\d{1,3}[A-Z]?)(?![A-Z0-9])", texto):
+        adicionar(match.group(1), match.group(2))
+
+    # Forma abreviada LT 8/9, quando a quadra vem do contrato consultado.
+    quadra_hint = normalizar_texto(quadra_hint).upper()
+    if quadra_hint in QUADRA_LETRAS:
+        for match in re.finditer(
+            r"(?:\bLT\.?\s*|\bLOTE\s+)0*(\d{1,3}[A-Z]?)\s*/\s*0*(\d{1,3}[A-Z]?)(?![A-Z0-9])",
+            texto,
+        ):
+            adicionar(quadra_hint, match.group(1))
+            adicionar(quadra_hint, match.group(2))
+
+    return encontrados
+
+
 def chave_lote_canonica(registro):
-    return registro.get("chave_lote_canonica") or normalizar_lote_quadra(
-        registro.get("lote") or registro.get("lote_original"),
-        registro.get("quadra"),
-        registro.get("referencia") or registro.get("descricao"),
-        registro.get("pasta_local"),
+    # A presenca explicita da chave, inclusive vazia, significa que o registro
+    # ja passou pela normalizacao segura. Nao tentar inferi-la novamente a
+    # partir de listas mensais como "04, 05, 06 de 2026".
+    if "chave_lote_canonica" in registro or "lote_canonico" in registro:
+        return registro.get("chave_lote_canonica") or registro.get("lote_canonico") or ""
+
+    lote = registro.get("lote") or registro.get("lote_original") or ""
+    quadra = registro.get("quadra") or ""
+    if lote or quadra:
+        return normalizar_lote_quadra(lote, quadra, "", registro.get("pasta_local"))
+    lotes_referencia = extrair_lotes_referencia(
+        registro.get("referencia") or registro.get("descricao") or "",
+        quadra_hint=quadra,
     )
+    return lotes_referencia[0] if len(lotes_referencia) == 1 else ""
 
 
 def _decimal(valor):
@@ -90,7 +165,16 @@ def _registro_base(item, origem, cliente_fallback="", coletado_em="", pagina_ori
     referencia = item.get("referencia") or item.get("descricao") or ""
     lote_original = item.get("lote") or item.get("lote_original") or ""
     quadra = item.get("quadra") or ""
-    chave = normalizar_lote_quadra(lote_original, quadra, referencia, item.get("pasta_local"))
+    lotes_referencia = extrair_lotes_referencia(referencia, quadra_hint=quadra)
+    if lote_original or quadra:
+        chave = normalizar_lote_quadra(
+            lote_original, quadra, "", item.get("pasta_local")
+        )
+    else:
+        # A referencia so define lote quando contem uma forma realmente
+        # explicita (F5, LT F5, LOTE F5...). Listas de competencia como
+        # "04, 05, 06 de 2026" nunca devem produzir F405/E4/E202.
+        chave = lotes_referencia[0] if len(lotes_referencia) == 1 else ""
     cliente_original = item.get("cliente") or item.get("cliente_original_widepay") or cliente_fallback
     return {
         "cliente_original_widepay": cliente_original,
@@ -142,12 +226,33 @@ def chave_boleto(registro):
     )
 
 
+def obter_chave_identidade_cobranca(registro):
+    """Identidade estavel do boleto, sem campos mutaveis como status/valor recebido."""
+    item = dict(registro or {})
+    fonte = str(item.get("fonte") or "").strip().lower()
+    identificador = str(item.get("id_boleto") or "").strip().lower()
+    if identificador:
+        return f"{fonte}|id:{identificador}"
+    return "|".join(
+        str(item.get(campo) or "").strip().lower()
+        for campo in (
+            "fonte",
+            "cliente_normalizado",
+            "lote_canonico",
+            "referencia",
+            "vencimento",
+            "data_pagamento",
+            "valor_original",
+        )
+    )
+
+
 def deduplicar_boletos(registros):
     unicos = {}
     ordem = []
     for registro in registros:
         item = dict(registro)
-        item["lote_canonico"] = item.get("lote_canonico") or chave_lote_canonica(item)
+        item["lote_canonico"] = chave_lote_canonica(item)
         item["chave_lote_canonica"] = item["lote_canonico"]
         chave = chave_boleto(item)
         if chave not in unicos:
@@ -156,9 +261,39 @@ def deduplicar_boletos(registros):
     return [unicos[chave] for chave in ordem]
 
 
-def salvar_cache(registros, metadados=None):
+def salvar_cache(registros, metadados=None, permitir_vazio=False):
     config.ensure_dirs()
     registros = deduplicar_boletos(registros)
+    cache_anterior = carregar_cache()
+    registros_anteriores = list(cache_anterior.get("registros") or [])
+    if not registros and registros_anteriores and not permitir_vazio:
+        raise ValueError(
+            "Gravacao de cache vazio recusada: o ultimo cache WidePay valido foi preservado."
+        )
+    if registros_anteriores and len(registros) < len(registros_anteriores) and not permitir_vazio:
+        raise ValueError(
+            "Gravacao recusada: o novo cache perderia registros do historico WidePay."
+        )
+    novos_por_chave = {obter_chave_identidade_cobranca(r): r for r in registros}
+    regressoes_recebidos = []
+    for anterior in registros_anteriores:
+        if normalizar_texto(anterior.get("status")).lower() not in (
+            "recebido",
+            "pago",
+            "quitado",
+            "liquidado",
+        ):
+            continue
+        chave = obter_chave_identidade_cobranca(anterior)
+        novo = novos_por_chave.get(chave)
+        status_novo = normalizar_texto((novo or {}).get("status")).lower()
+        if not novo or status_novo not in ("recebido", "pago", "quitado", "liquidado"):
+            regressoes_recebidos.append((chave, status_novo or "ausente"))
+    if regressoes_recebidos:
+        raise ValueError(
+            "Gravacao recusada: cobrancas recebidas regrediriam no cache WidePay. "
+            f"Ocorrencias: {len(regressoes_recebidos)}."
+        )
     metadados = dict(metadados or {})
     metadados.setdefault("fim_coleta", datetime.now().isoformat(timespec="seconds"))
     metadados.setdefault("ultima_atualizacao", metadados["fim_coleta"])
@@ -167,10 +302,33 @@ def salvar_cache(registros, metadados=None):
     metadados.setdefault("total_cobrancas", sum(1 for r in registros if r.get("fonte") == "cobranca"))
     metadados.setdefault("total_clientes_reconhecidos", len({r.get("cliente_normalizado") for r in registros if r.get("cliente_normalizado")}))
     payload = {"metadados": metadados, "registros": registros}
-    config.WIDEPAY_BOLETOS_CACHE_JSON.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    destino = config.WIDEPAY_BOLETOS_CACHE_JSON
+    temporario = destino.with_name(destino.name + ".tmp")
+    backup = destino.with_name(destino.name + ".bak")
+    backup_temporario = backup.with_name(backup.name + ".tmp")
+    try:
+        with open(temporario, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        with open(temporario, "r", encoding="utf-8") as f:
+            payload_validado = json.load(f)
+        if len(payload_validado.get("registros") or []) != len(registros):
+            raise ValueError("Validacao do cache temporario falhou; cache anterior preservado.")
+        if destino.exists():
+            criar_snapshot_versionado(destino, categoria="widepay_boletos_cache")
+            with open(destino, "rb") as origem, open(backup_temporario, "wb") as copia:
+                shutil.copyfileobj(origem, copia)
+                copia.flush()
+                os.fsync(copia.fileno())
+            os.replace(backup_temporario, backup)
+        os.replace(temporario, destino)
+    finally:
+        for pendente in (temporario, backup_temporario):
+            try:
+                pendente.unlink(missing_ok=True)
+            except OSError:
+                pass
     salvar_xlsx(registros, metadados)
     return payload
 
@@ -231,6 +389,22 @@ def carregar_cache():
     return payload
 
 
+def criar_indice_cache(payload_cache=None):
+    """Agrupa registros por lote canonico para consultas em lote sem varrer todo o cache."""
+    payload = payload_cache if isinstance(payload_cache, dict) else carregar_cache()
+    por_lote = {}
+    por_nome = {}
+    for item in payload.get("registros", []):
+        lote_item = item.get("lote_canonico") or chave_lote_canonica(item)
+        por_lote.setdefault(lote_item, []).append(item)
+        nome_item = item.get("cliente_normalizado") or item.get("cliente", "")
+        nome_identidade = slug_identidade_nome(nome_item)
+        if nome_identidade:
+            por_nome.setdefault(nome_identidade, []).append(item)
+    por_lote["__por_nome__"] = por_nome
+    return por_lote
+
+
 def cache_recente(minutos=30):
     payload = carregar_cache()
     atualizado = payload.get("metadados", {}).get("ultima_atualizacao")
@@ -243,22 +417,116 @@ def cache_recente(minutos=30):
     return datetime.now() - dt <= timedelta(minutes=minutos)
 
 
-def filtrar_por_cliente_lote(cliente="", lote="", quadra="", pasta_local=""):
-    payload = carregar_cache()
+def filtrar_por_cliente_lote(
+    cliente="",
+    lote="",
+    quadra="",
+    pasta_local="",
+    payload_cache=None,
+    indice_cache=None,
+    permitir_nome_sem_lote=False,
+):
+    payload = payload_cache if isinstance(payload_cache, dict) else carregar_cache()
     cliente_slug = slug_busca(cliente)
+    cliente_identidade = slug_identidade_nome(cliente)
     lote_can = normalizar_lote_quadra(lote, quadra, "", pasta_local)
     matches = []
-    for item in payload.get("registros", []):
-        nome_ok = not cliente_slug or cliente_slug in item.get("cliente_normalizado", "") or item.get("cliente_normalizado", "") in cliente_slug
-        lote_item = item.get("lote_canonico") or chave_lote_canonica(item)
-        lote_ok = not lote_can or lote_item == lote_can
-        if nome_ok and lote_ok:
+    ids_matches = set()
+
+    def adicionar_match(item):
+        identidade = id(item)
+        if identidade not in ids_matches:
+            ids_matches.add(identidade)
             matches.append(item)
+    if lote_can and isinstance(indice_cache, dict):
+        # Inclui tambem o balde de registros sem lote ("") para nao perder
+        # cobrancas que o WidePay deixou sem lote/quadra (senao o cliente
+        # aparece como "Sem boleto" mesmo tendo cobrancas).
+        candidatos = list(indice_cache.get(lote_can, [])) + list(indice_cache.get("", []))
+    else:
+        candidatos = payload.get("registros", [])
+    for item in candidatos:
+        nome_item = item.get("cliente_normalizado") or slug_busca(item.get("cliente", ""))
+        identidade_forte = bool(
+            cliente_identidade and slug_identidade_nome(nome_item) == cliente_identidade
+        )
+        nome_ok = (
+            not cliente_slug
+            or cliente_slug in nome_item
+            or nome_item in cliente_slug
+            or identidade_forte
+        )
+        lote_item = item.get("lote_canonico") or chave_lote_canonica(item)
+        if not lote_can:
+            lote_ok = True
+        elif lote_item == lote_can:
+            lote_ok = True
+        elif not lote_item:
+            # Registro que o WidePay deixou SEM lote so pode ser vinculado a um
+            # cliente com lote informado por IDENTIDADE FORTE (igualdade canonica
+            # de nome), nunca por nome parcial/substring. Isso corrige o falso
+            # "Sem boleto" (ex.: Rafaela de Jesus Cruz, 24 cobrancas sem lote) sem
+            # associar um boleto sem lote a homonimos por semelhanca de nome.
+            lote_ok = identidade_forte
+        else:
+            lote_ok = False
+        if nome_ok and lote_ok:
+            adicionar_match(item)
+
+    # O campo lote_canonico historico pode ter guardado apenas o primeiro lote
+    # (G6 em "G6 G7") ou anexado a primeira letra de "carne" (F2C). Conferir
+    # a referencia original resolve esses casos sem usar o nome como palpite.
+    candidatos_nome_exato = []
+    if cliente_slug:
+        indice_nomes = indice_cache.get("__por_nome__", {}) if isinstance(indice_cache, dict) else {}
+        candidatos_por_nome = (
+            indice_nomes.get(cliente_identidade, [])
+            if isinstance(indice_nomes, dict) and cliente_identidade
+            else payload.get("registros", [])
+        )
+        for item in candidatos_por_nome:
+            nome_item = item.get("cliente_normalizado") or slug_busca(item.get("cliente", ""))
+            if nome_item != cliente_slug and slug_identidade_nome(nome_item) != cliente_identidade:
+                continue
+            candidatos_nome_exato.append(item)
+            if lote_can and lote_can in extrair_lotes_referencia(item.get("referencia", ""), quadra_hint=quadra):
+                adicionar_match(item)
+
+    # Alguns registros exportados pelo WidePay possuem o cliente, mas deixam
+    # lote/quadra/referencia vazios. O chamador somente autoriza a incorporacao
+    # desses registros quando o nome possui uma unica identidade local segura.
+    if not permitir_nome_sem_lote or not lote_can or not cliente_slug:
+        return matches
+
+    if not candidatos_nome_exato:
+        return matches
+    for item in candidatos_nome_exato:
+        lote_item = item.get("lote_canonico") or chave_lote_canonica(item)
+        lotes_referencia = extrair_lotes_referencia(item.get("referencia", ""), quadra_hint=quadra)
+        if not lote_item and not lotes_referencia:
+            adicionar_match(item)
     return matches
 
 
-def montar_raw_cliente(cliente="", lote="", quadra="", pasta_local=""):
-    boletos = filtrar_por_cliente_lote(cliente, lote, quadra, pasta_local)
+def montar_raw_cliente(
+    cliente="",
+    lote="",
+    quadra="",
+    pasta_local="",
+    payload_cache=None,
+    indice_cache=None,
+    permitir_nome_sem_lote=False,
+):
+    payload = payload_cache if isinstance(payload_cache, dict) else carregar_cache()
+    boletos = filtrar_por_cliente_lote(
+        cliente,
+        lote,
+        quadra,
+        pasta_local,
+        payload_cache=payload,
+        indice_cache=indice_cache,
+        permitir_nome_sem_lote=permitir_nome_sem_lote,
+    )
     carnes = []
     cobrancas = []
     for item in boletos:
@@ -297,5 +565,5 @@ def montar_raw_cliente(cliente="", lote="", quadra="", pasta_local=""):
         "status_conexao": "CACHE_WIDEPAY_GLOBAL",
         "carnes": carnes,
         "cobrancas": cobrancas,
-        "metadados_cache_global": carregar_cache().get("metadados", {}),
+        "metadados_cache_global": payload.get("metadados", {}),
     }

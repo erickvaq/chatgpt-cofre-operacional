@@ -199,6 +199,22 @@ def exportar_relatorios_finais(dados_contrato, dados_calculados, dados_normaliza
     
     # 1. Caminhos dos arquivos
     caminho_json_extraido = ROOT_DIR / "07_DADOS_TEMPORARIOS" / "WIDEPAY_CONSULTAS" / f"WIDEPAY_{nome_slug_json_extraido}.json"
+
+    # Regrava o JSON per-cliente com os dados JA normalizados/isolados desta
+    # execucao. Assim o XLSX (gerado por subprocesso que le este arquivo) usa
+    # exatamente os mesmos registros do PDF/HTML, sem depender de um arquivo
+    # antigo/obsoleto que possa ter ficado contaminado por coletas anteriores.
+    try:
+        os.makedirs(caminho_json_extraido.parent, exist_ok=True)
+        with open(caminho_json_extraido, "w", encoding="utf-8") as fjx:
+            json.dump({
+                "cliente": cliente,
+                "status_conexao": "ISOLADO_NORMALIZADO",
+                "carnes": dados_normalizados.get("carnes") or [],
+                "cobrancas": dados_normalizados.get("cobrancas") or [],
+            }, fjx, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Aviso: nao foi possivel regravar JSON isolado do cliente: {e}")
     caminho_md = pasta_entrega / f"CONFERENCIA_CALCULOS_{nome_slug}_{data_sufixo}.md"
     caminho_html = pasta_entrega / f"RESUMO_FINANCEIRO_{nome_slug}_{data_sufixo}_PREVIA.html"
     caminho_pdf = pasta_entrega / f"RESUMO_FINANCEIRO_{nome_slug}_{data_sufixo}.pdf"

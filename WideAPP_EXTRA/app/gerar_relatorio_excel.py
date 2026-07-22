@@ -35,12 +35,25 @@ except ImportError:
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(ROOT_DIR / "00_SISTEMA_PRECHECK"))
+# Necessario para importar app.isolamento_cliente quando este script roda como
+# subprocesso isolado (chamado por gerador_relatorios.exportar_relatorios_finais).
+sys.path.append(str(ROOT_DIR / "WideAPP_EXTRA"))
 
 try:
     from precheck_regras import executar_precheck
     executar_precheck("gerar_relatorio_excel.py")
 except ImportError as e:
     print(f"AVISO: Nao foi possivel carregar o precheck: {e}")
+
+try:
+    from app.isolamento_cliente import (
+        isolar_registros,
+        deduplicar_cobrancas,
+        deduplicar_carnes,
+    )
+except ImportError as e:  # fallback defensivo: nunca gerar relatorio sem isolamento
+    print(f"ERRO CRITICO: modulo de isolamento por cliente indisponivel: {e}")
+    raise
 
 # ── Cores e estilos ──────────────────────────────────────────────────────────
 VERDE_ESCURO  = "1B5E20"
@@ -225,29 +238,48 @@ def criar_aba_resumo(ws, dados_cliente, total_pago, parcelas_pagas_equiv,
     c.border = BORDA_FINA
     row += 1
 
-    parcelas_restantes = max(0, total_parcelas_contrato - parcelas_pagas_equiv)
-    pct_parcelas = parcelas_pagas_equiv / total_parcelas_contrato if total_parcelas_contrato > 0 else 0
+    contrato_confirmado = total_parcelas_contrato > 0
     pct_financeiro = total_pago / valor_total_contrato if valor_total_contrato > 0 else 0
 
-    if pct_parcelas >= 1.0:
-        situacao = "QUITADO"
-    elif pct_parcelas >= 0.75:
-        situacao = "AVANÇADO (75%+)"
-    elif pct_parcelas >= 0.5:
-        situacao = "INTERMEDIÁRIO (50%+)"
-    elif pct_parcelas > 0:
-        situacao = "INICIAL"
+    if not contrato_confirmado:
+        # Contrato fisico nao confirmado: e incorreto calcular quitacao,
+        # parcelas restantes ou "EM DIA" a partir de um total zero. Mostramos
+        # o historico financeiro real, mas sem inventar situacao contratual.
+        parcelas_restantes = None
+        pct_parcelas = 0
+        situacao = "CONTRATO NAO CONFIRMADO — total de parcelas nao calculado"
+        resumo_campos = [
+            ("Total Pago Recebido", total_pago, BRL_FORMAT),
+            ("Pagamentos Confirmados (WidePay)", parcelas_pagas_equiv, None),
+            ("Parcelas Restantes", "Nao calculado (contrato nao confirmado)", None),
+            ("% Parcelas Quitadas", "Nao calculado", None),
+            ("% Financeiro Pago", pct_financeiro if valor_total_contrato > 0 else "Nao calculado",
+             PCT_FORMAT if valor_total_contrato > 0 else None),
+            ("Situação Calculada", situacao, None),
+        ]
     else:
-        situacao = "SEM PAGAMENTO REGISTRADO"
+        parcelas_restantes = max(0, total_parcelas_contrato - parcelas_pagas_equiv)
+        pct_parcelas = parcelas_pagas_equiv / total_parcelas_contrato
 
-    resumo_campos = [
-        ("Total Pago Recebido", total_pago, BRL_FORMAT),
-        ("Parcelas Pagas Confirmadas", parcelas_pagas_equiv, None),
-        ("Parcelas Restantes", parcelas_restantes, None),
-        ("% Parcelas Quitadas", pct_parcelas, PCT_FORMAT),
-        ("% Financeiro Pago", pct_financeiro, PCT_FORMAT),
-        ("Situação Calculada", situacao, None),
-    ]
+        if pct_parcelas >= 1.0:
+            situacao = "QUITADO"
+        elif pct_parcelas >= 0.75:
+            situacao = "AVANÇADO (75%+)"
+        elif pct_parcelas >= 0.5:
+            situacao = "INTERMEDIÁRIO (50%+)"
+        elif pct_parcelas > 0:
+            situacao = "INICIAL"
+        else:
+            situacao = "SEM PAGAMENTO REGISTRADO"
+
+        resumo_campos = [
+            ("Total Pago Recebido", total_pago, BRL_FORMAT),
+            ("Parcelas Pagas Confirmadas", parcelas_pagas_equiv, None),
+            ("Parcelas Restantes", parcelas_restantes, None),
+            ("% Parcelas Quitadas", pct_parcelas, PCT_FORMAT),
+            ("% Financeiro Pago", pct_financeiro, PCT_FORMAT),
+            ("Situação Calculada", situacao, None),
+        ]
 
     for label, val, fmt in resumo_campos:
         ws.cell(row=row, column=1, value=label).font = FONT_BOLD
@@ -571,7 +603,39 @@ def gerar_relatorio_excel(dados_wp, dados_cliente, valor_parcela,
     """Gera o arquivo Excel completo."""
     wb = Workbook()
 
-    carnes_lista = dados_wp.get("carnes", [])
+    # ── ISOLAMENTO FORTE POR CLIENTE (barreira anti-contaminacao) ────────────
+    # O JSON bruto do WidePay pode conter registros de terceiros gravados por
+    # engano (ex.: "ANA" e substring de "SANTANA"). Antes de qualquer calculo,
+    # descartamos tudo que nao pertence comprovadamente ao cliente selecionado
+    # e removemos duplicidades pelo ID unico do WidePay.
+    cliente_alvo = dados_cliente.get("cliente", "-")
+    cobrancas_brutas = dados_wp.get("cobrancas", []) or []
+    carnes_brutas = dados_wp.get("carnes", []) or []
+
+    iso_cobr = isolar_registros(cobrancas_brutas, cliente_alvo)
+    iso_carnes = isolar_registros(carnes_brutas, cliente_alvo)
+
+    cobrancas_cliente, dups_cobr = deduplicar_cobrancas(iso_cobr["mantidos"])
+    carnes_lista, dups_carne = deduplicar_carnes(iso_carnes["mantidos"])
+
+    dados_wp = dict(dados_wp)
+    dados_wp["cobrancas"] = cobrancas_cliente
+    dados_wp["carnes"] = carnes_lista
+
+    print("=== AUDITORIA DE ISOLAMENTO (XLSX) =============================")
+    print(f"  Cliente selecionado: {cliente_alvo}")
+    print(f"  Cobrancas: {len(cobrancas_brutas)} brutas -> {len(cobrancas_cliente)} do cliente "
+          f"({len(iso_cobr['descartados'])} de terceiros, {dups_cobr} duplicadas removidas)")
+    print(f"  Carnes: {len(carnes_brutas)} brutas -> {len(carnes_lista)} do cliente "
+          f"({len(iso_carnes['descartados'])} de terceiros, {dups_carne} duplicados removidos)")
+    for d in iso_cobr["descartados"] + iso_carnes["descartados"]:
+        print(f"  [DESCARTADO-TERCEIRO] proprietario={d['proprietario']!r} "
+              f"id={d['registro'].get('id') or d['registro'].get('carne') or '-'}")
+    if iso_cobr["nao_verificados"] or iso_carnes["nao_verificados"]:
+        print(f"  [PENDENCIA-AUDITORIA] {len(iso_cobr['nao_verificados']) + len(iso_carnes['nao_verificados'])} "
+              f"registro(s) sem nome de proprietario mantidos para conferencia manual.")
+    print("================================================================")
+
     pagamentos = extrair_pagamentos_recebidos(dados_wp)
 
     # Ordenar por vencimento
