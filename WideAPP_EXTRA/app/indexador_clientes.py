@@ -1323,7 +1323,9 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None, progress_
             inicio_coleta = datetime.now().isoformat(timespec="seconds")
             log(f"WidePay global: coletando boletos/carnes de {len(payload)} cliente(s) em uma varredura paginada.")
             try:
-                resultado_bloco = await extrair_dados_clientes_bloco(ws_url, payload, progress_callback=progress_callback)
+                # Atualizar clientes / Fast 12 Meses: pula a aba Carnes e coleta apenas Cobrancas.
+                # Historico de carnes ja gravado e preservado pelo merge/upsert do salvar_cache.
+                resultado_bloco = await extrair_dados_clientes_bloco(ws_url, payload, progress_callback=progress_callback, coletar_carnes=False)
             except Exception as e:
                 log(f"Erro na extracao em lote: {e}")
                 resultado_bloco = {}
