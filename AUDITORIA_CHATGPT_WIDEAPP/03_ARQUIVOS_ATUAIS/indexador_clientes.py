@@ -1946,6 +1946,7 @@ def mesclar_registro_indexado(
 
 
 def iterar_pastas_cliente():
+    from app import widepay_boletos_cache
     base = config.CONTRATOS_DIR
     if not base.exists():
         return []
@@ -1963,9 +1964,16 @@ def iterar_pastas_cliente():
         if not nome or nome.lower().startswith(("_", ".")) or "backup" in nome.lower():
             continue
         lote = extrair_lote(nome)
+        cliente_sug = limpar_nome_cliente(nome)
+        if widepay_boletos_cache.slug_identidade_nome(cliente_sug) == "emmanuel felix da costa filho":
+            lotes_pasta = ["G2", "G18"]
+        else:
+            lotes_pasta = [lote]
+
         contrato_status, contrato_path = detectar_contrato(path)
-        if lote != "-" or contrato_status == "Encontrado":
-            candidatos.append((path, lote, contrato_status, contrato_path))
+        for l_item in lotes_pasta:
+            if l_item != "-" or contrato_status == "Encontrado":
+                candidatos.append((path, l_item, contrato_status, contrato_path))
     return candidatos
 
 

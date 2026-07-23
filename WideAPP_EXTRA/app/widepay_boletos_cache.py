@@ -44,6 +44,8 @@ def slug_identidade_nome(texto):
         "ana carolina nery da silva borges": "ana carolina nery da s borges de barros",
         "joice carla de magalhaes gomes": "joice carla de magalhaes goncalves",
         "rodrigo monteiro": "rodrigo monteiro de melo",
+        "emmanuel felix": "emmanuel felix da costa filho",
+        "emanuel felix": "emmanuel felix da costa filho",
         "emanuel felix da costa filho": "emmanuel felix da costa filho",
         "emmanuel felix da costa": "emmanuel felix da costa filho",
         "emanuel felix da costa": "emmanuel felix da costa filho",
@@ -62,13 +64,13 @@ def normalizar_lote_quadra(lote="", quadra="", referencia="", pasta_local="", cl
     partes = " ".join(str(v or "") for v in (lote, quadra, referencia, Path(str(pasta_local or "")).name))
     texto = normalizar_texto(partes).upper()
 
-    # 1. Regra especifica para Emmanuel: LT G3 / G3 -> G18
-    if "emmanuel" in cliente_norm or "emanuel" in cliente_norm:
-        if ("G3" in texto or "LT G3" in texto or "LT.G3" in texto or "LT-G3" in texto) and not ("G2" in texto and "G18" in texto):
+    # 1. Regra especifica para Emmanuel: LT G3 / G3 -> G18 (exclusivo para EMMANUEL FELIX DA COSTA FILHO)
+    if cliente_norm == "emmanuel felix da costa filho":
+        if re.search(r"\b(?:LT\.?\s*|LOTE\s*)?G0*3\b", texto) and not ("G2" in texto and "G18" in texto):
             return "G18"
 
-    # 2. Regra para Rodrigo: grupo G1/G19 vs F19
-    if "rodrigo" in cliente_norm:
+    # 2. Regra para Rodrigo: grupo G1/G19 vs F19 (exclusivo para RODRIGO MONTEIRO DE MELO)
+    if cliente_norm == "rodrigo monteiro de melo":
         if "F19" in texto or lote_upper == "F19":
             return "F19"
         if (
@@ -80,7 +82,7 @@ def normalizar_lote_quadra(lote="", quadra="", referencia="", pasta_local="", cl
             or "G1G-19" in texto
             or ("G1" in texto and "G19" in texto)
             or ("G1" in texto and "G2" in texto and "2025" in texto)
-            or lote_upper in ("G1", "1", "G19", "19", "G1/G19", "01")
+            or lote_upper in ("G1/G19", "G1-G19", "G1G19", "G1/19")
         ):
             return "G1/G19"
 
@@ -555,7 +557,7 @@ def filtrar_por_cliente_lote(
         lotes_ref = extrair_lotes_referencia(item.get("referencia") or item.get("descricao") or "", quadra_hint=item.get("quadra"), cliente=cliente)
 
         # Regras especificas de lote por cliente
-        if "emmanuel" in cliente_slug or "emanuel" in cliente_slug:
+        if cliente_identidade == "emmanuel felix da costa filho":
             ref = normalizar_texto(item.get("referencia") or item.get("descricao") or "").upper()
             if "G2" in ref and "G18" in ref:
                 if lote_can in ("G2", "G18"):
@@ -571,15 +573,19 @@ def filtrar_por_cliente_lote(
                         item_cp["valor_original"] = round(val_orig - half_orig, 2)
                         item_cp["valor_recebido"] = round(val_rec - half_rec, 2)
                     adicionar_match(item_cp)
-                    continue
-            elif ("G3" in ref or "LT G3" in ref) and lote_can == "G18":
-                adicionar_match(item)
                 continue
-            elif "G2" in ref and lote_can == "G2":
-                adicionar_match(item)
+            elif re.search(r"\b(?:LT\.?\s*|LOTE\s*)?G0*3\b", ref) or "G18" in ref:
+                if lote_can == "G18":
+                    adicionar_match(item)
+                continue
+            elif "G2" in ref:
+                if lote_can == "G2":
+                    adicionar_match(item)
+                continue
+            else:
                 continue
 
-        if "rodrigo" in cliente_slug:
+        if cliente_identidade == "rodrigo monteiro de melo":
             ref = normalizar_texto(item.get("referencia") or item.get("descricao") or "").upper()
             e_g1_19 = (
                 lote_item == "G1/G19"
@@ -588,11 +594,15 @@ def filtrar_por_cliente_lote(
                 or ("G1" in ref and not "F19" in ref)
                 or (item.get("fonte") == "carne" and item.get("id_boleto") in ("42", "128", "183", "204", "232"))
             )
-            if lote_can in ("G1/G19", "G1") and e_g1_19:
-                adicionar_match(item)
+            if lote_can in ("G1/G19", "G1"):
+                if e_g1_19:
+                    adicionar_match(item)
                 continue
-            elif lote_can == "F19" and not e_g1_19:
-                adicionar_match(item)
+            elif lote_can == "F19":
+                if not e_g1_19:
+                    adicionar_match(item)
+                continue
+            else:
                 continue
 
         if not lote_can:
