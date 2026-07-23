@@ -1,0 +1,4176 @@
+warning: in the working copy of 'WideAPP_EXTRA/app/interface.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'WideAPP_EXTRA/app/normalizador_pagamentos.py', LF will be replaced by CRLF the next time Git touches it
+diff --git a/WideAPP_EXTRA/app/indexador_clientes.py b/WideAPP_EXTRA/app/indexador_clientes.py
+index 18fe49a..379113d 100644
+--- a/WideAPP_EXTRA/app/indexador_clientes.py
++++ b/WideAPP_EXTRA/app/indexador_clientes.py
+@@ -2,7 +2,10 @@
+ """Indexacao local de clientes/lotes para a interface dinamica."""
+ 
+ import json
++import os
+ import re
++import hashlib
++import shutil
+ import unicodedata
+ from datetime import datetime
+ from pathlib import Path
+@@ -19,12 +22,16 @@ from app.leitor_contratos import (
+ )
+ from app.normalizador_pagamentos import normalizar_e_deduplicar
+ from app.widepay_boletos_cache import (
++    carregar_cache as carregar_cache_boletos_widepay,
+     chave_lote_canonica,
++    criar_indice_cache,
+     montar_raw_cliente,
+     normalizar_lote_quadra,
++    obter_chave_identidade_cobranca,
+     registros_de_resultado_bloco,
+     salvar_cache as salvar_cache_boletos_widepay,
+ )
++from app.versionamento_dados import criar_snapshot_versionado
+ 
+ 
+ LOTE_RE = re.compile(r"\b([A-H]\s*[-.]?\s*\d{1,3}[A-Z]?)\b", re.IGNORECASE)
+@@ -41,6 +48,33 @@ REMOVE_WORDS_RE = re.compile(
+     re.IGNORECASE,
+ )
+ MESES_ABREV = ("Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")
++MESES_REFERENCIA = {
++    "jan": 1,
++    "janeiro": 1,
++    "fev": 2,
++    "fevereiro": 2,
++    "mar": 3,
++    "marco": 3,
++    "marÃ§o": 3,
++    "abr": 4,
++    "abril": 4,
++    "mai": 5,
++    "maio": 5,
++    "jun": 6,
++    "junho": 6,
++    "jul": 7,
++    "julho": 7,
++    "ago": 8,
++    "agosto": 8,
++    "set": 9,
++    "setembro": 9,
++    "out": 10,
++    "outubro": 10,
++    "nov": 11,
++    "novembro": 11,
++    "dez": 12,
++    "dezembro": 12,
++}
+ COLUNAS_XLSX_PAGAMENTOS_RECENTES = [
+     ("cliente", "Cliente"),
+     ("lote", "Lote / Quadra"),
+@@ -142,6 +176,39 @@ CAMPOS_NUNCA_ESVAZIAR = set(PERSISTIR_CAMPOS) | {
+     "contrato_arquivo",
+     "pasta_local",
+ }
++_AVULSOS_REFERENCIA_CACHE = {}
++
++
++def _salvar_json_atomico(caminho, payload):
++    caminho = Path(caminho)
++    temporario = caminho.with_name(caminho.name + ".tmp")
++    backup = caminho.with_name(caminho.name + ".bak")
++    backup_temporario = backup.with_name(backup.name + ".tmp")
++    try:
++        with open(temporario, "w", encoding="utf-8") as f:
++            json.dump(payload, f, ensure_ascii=False, indent=2)
++            f.flush()
++            os.fsync(f.fileno())
++        with open(temporario, "r", encoding="utf-8") as f:
++            payload_validado = json.load(f)
++        esperado = payload.get("registros") if isinstance(payload, dict) else None
++        obtido = payload_validado.get("registros") if isinstance(payload_validado, dict) else None
++        if isinstance(esperado, list) and (not isinstance(obtido, list) or len(obtido) != len(esperado)):
++            raise ValueError("Validacao do banco temporario falhou; versao anterior preservada.")
++        if caminho.exists():
++            criar_snapshot_versionado(caminho, categoria=Path(caminho).stem)
++            with open(caminho, "rb") as origem, open(backup_temporario, "wb") as copia:
++                shutil.copyfileobj(origem, copia)
++                copia.flush()
++                os.fsync(copia.fileno())
++            os.replace(backup_temporario, backup)
++        os.replace(temporario, caminho)
++    finally:
++        for pendente in (temporario, backup_temporario):
++            try:
++                pendente.unlink(missing_ok=True)
++            except OSError:
++                pass
+ 
+ 
+ def normalizar(texto):
+@@ -242,7 +309,7 @@ def _deslocar_mes(ano, mes, deslocamento):
+     return novo_ano, novo_mes
+ 
+ 
+-def janela_pagamentos_recentes(quantidade=10, referencia=None):
++def janela_pagamentos_recentes(quantidade=12, referencia=None):
+     referencia = referencia or datetime.now().date()
+     meses = []
+     inicio = -(max(1, quantidade) - 1)
+@@ -254,25 +321,317 @@ def janela_pagamentos_recentes(quantidade=10, referencia=None):
+     return meses
+ 
+ 
+-def obter_celula_pagamento_recente(item, mes):
++def _celula_correcao_mensal_manual(item, mes, valor_base=None, celula_auto=None, manual_dict=None):
++    mes_chave = mes.get("chave") if isinstance(mes, dict) else str(mes)
++    manual = manual_dict or saneamento_clientes.obter_correcao_mensal_manual(item, mes_chave)
++    if not manual:
++        return None
++
++
++    status_manual_clean = str(manual.get("status_manual") or "pago").strip().lower()
++    valor_m = manual.get("valor_manual")
++
++    if status_manual_clean == "vencido":
++        status_exibicao = "Vencido manual"
++        texto1 = "Vencido manual"
++    else:
++        status_exibicao = "Pago manual"
++        if valor_m not in (None, ""):
++            texto1 = formatar_moeda(valor_m)
++        else:
++            texto1 = "Pago manual"
++
++    auto_status = str((celula_auto or {}).get("status") or "").strip()
++    auto_status_clean = normalizar(auto_status).lower()
++
++    if status_manual_clean == "pago":
++        compativel = auto_status_clean in ("pago", "recebido", "quitado", "liquidado", "pago avulso")
++    else:
++        compativel = auto_status_clean in ("vencido",)
++
++    divergencia_manual = not compativel
++    texto2 = "Divergencia" if divergencia_manual else "Manual"
++
++    return {
++        "status": status_exibicao,
++        "texto1": texto1,
++        "texto2": texto2,
++        "manual": True,
++        "status_manual": status_manual_clean,
++        "origem": "manual_interface",
++        "divergencia_manual": divergencia_manual,
++        "status_automatico": auto_status if auto_status else "Sem boleto",
++    }
++
++
++
++
++def _celula_pago_avulso_manual(item, mes, valor_base=None, payload_saneamento=None):
++    mes_chave = mes.get("chave")
++    if payload_saneamento is None:
++        manual = saneamento_clientes.obter_pagamento_avulso_manual(item, mes_chave)
++    else:
++        chave = saneamento_clientes.chave_saneamento(item)
++        manual = (
++            payload_saneamento.get("pagamentos_avulsos_manuais", {})
++            .get(chave, {})
++            .get(str(mes_chave))
++        )
++        if not isinstance(manual, dict) or manual.get("removido"):
++            manual = None
++    if not manual:
++        return None
++    valor = manual.get("valor_base_parcela") or valor_base or item.get("valor_base_parcela")
++    texto1 = formatar_moeda(valor) if valor not in (None, "") else "Pago avulso"
++    if not texto1:
++        texto1 = "Pago avulso"
++    return {
++        "status": "Pago avulso",
++        "texto1": texto1,
++        "texto2": "Avulso",
++        "manual": True,
++        "origem": "manual_interface",
++    }
++
++
++
++def _celulas_pago_avulso_por_referencia(item, valor_base=None):
++    cliente_nome = str(item.get("cliente", "")).strip()
++    if not cliente_nome:
++        return {}
++    try:
++        cache_mtime = config.WIDEPAY_BOLETOS_CACHE_JSON.stat().st_mtime if config.WIDEPAY_BOLETOS_CACHE_JSON.exists() else None
++    except OSError:
++        cache_mtime = None
++    cache_key = (
++        cliente_nome,
++        str(item.get("lote", "")),
++        str(item.get("quadra", "")),
++        str(item.get("pasta_local", "")),
++        str(valor_base or item.get("valor_base_parcela") or ""),
++        cache_mtime,
++    )
++    if cache_key in _AVULSOS_REFERENCIA_CACHE:
++        return _AVULSOS_REFERENCIA_CACHE[cache_key]
++
++    resultado = {}
++    raw = montar_raw_cliente(
++        cliente=cliente_nome,
++        lote=item.get("lote", ""),
++        quadra=item.get("quadra", ""),
++        pasta_local=item.get("pasta_local", ""),
++    )
++    if not raw:
++        _AVULSOS_REFERENCIA_CACHE[cache_key] = resultado
++        return resultado
++
++    normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base or decimal(item.get("valor_base_parcela")))
++    for cob in normalizado.get("cobrancas") or []:
++        if cob.get("duplicidade"):
++            continue
++        bruto = normalizar(str(cob.get("status") or "")).lower()
++        classificacao = normalizar(str(cob.get("classificacao") or "")).lower()
++        if bruto not in ("recebido", "pago", "quitado", "liquidado"):
++            continue
++        if classificacao not in ("atraso", "avulso"):
++            continue
++        refs = extrair_referencias_meses(texto_referencia_cobranca(cob))
++        if not refs:
++            continue
++        valor_recebido = decimal(cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor"))
++        valor_parcela = valor_base if valor_base else (valor_recebido / len(refs) if refs else valor_recebido)
++        texto1 = formatar_moeda(valor_parcela) if valor_parcela else "Pago avulso"
++        for ref in refs:
++            resultado[ref["chave"]] = {
++                "status": "Pago avulso",
++                "texto1": texto1,
++                "texto2": "Avulso",
++                "origem": "boleto_avulso_recebido",
++            }
++
++    _AVULSOS_REFERENCIA_CACHE[cache_key] = resultado
++    return resultado
++
++
++def _celula_pago_avulso_por_referencia(item, mes, valor_base=None):
++    return _celulas_pago_avulso_por_referencia(item, valor_base=valor_base).get(mes.get("chave"))
++
++
++def _celula_pago_normal_confirmado(item, mes, mes_data=None, valor_base=None, somente_cache=False):
++    chave = mes.get("chave")
++    if not chave:
++        return None
++
++    if isinstance(mes_data, dict):
++        status_str = str(mes_data.get("status") or "")
++        if normalizar(status_str).lower() in ("pago", "recebido", "quitado", "liquidado"):
++            texto1 = mes_data.get("texto1") or "-"
++            texto2 = mes_data.get("texto2") or "-"
++            if texto1 in ("Pago", "Recebido", "-", "Sem boleto") and valor_base:
++                texto1 = formatar_moeda(valor_base)
++            return {"status": "Pago", "texto1": texto1, "texto2": texto2, "origem": "widepay"}
++    elif mes_data is not None:
++        status_str = str(mes_data).strip()
++        if normalizar(status_str).lower() in ("pago", "recebido", "recebida", "quitado", "liquidado"):
++            texto1 = formatar_moeda(valor_base) if valor_base else "Pago"
++            return {"status": "Pago", "texto1": texto1, "texto2": "-", "origem": "widepay"}
++
++    if somente_cache:
++        return None
++
++    cliente_nome = str(item.get("cliente", "")).strip()
++    if not cliente_nome:
++        return None
++    raw = montar_raw_cliente(
++        cliente=cliente_nome,
++        lote=item.get("lote", ""),
++        quadra=item.get("quadra", ""),
++        pasta_local=item.get("pasta_local", ""),
++    )
++    if not raw:
++        return None
++    normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base or decimal(item.get("valor_base_parcela")))
++    for cob in normalizado.get("cobrancas") or []:
++        if cob.get("duplicidade"):
++            continue
++        classificacao = normalizar(str(cob.get("classificacao") or "")).lower()
++        if classificacao in ("atraso", "avulso", "entrada"):
++            continue
++        bruto = normalizar(str(cob.get("status") or "")).lower()
++        if bruto not in ("recebido", "pago", "quitado", "liquidado"):
++            continue
++        dt_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
++        if not dt_ref or f"{dt_ref.year:04d}-{dt_ref.month:02d}" != chave:
++            continue
++        v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
++        return {"status": "Pago", "texto1": formatar_moeda(v_pago), "texto2": f"{dt_ref.day:02d}/{dt_ref.month:02d}", "origem": "widepay"}
++    return None
++
++
++def contar_pagamentos_avulsos_manuais(item):
++    payload = saneamento_clientes.carregar_saneamento()
++    chave = saneamento_clientes.chave_saneamento(item)
++    por_cliente = payload.get("pagamentos_avulsos_manuais", {}).get(chave, {})
++    if not isinstance(por_cliente, dict):
++        return 0
++    return sum(1 for marcado in por_cliente.values() if isinstance(marcado, dict) and not marcado.get("removido"))
++
++
++def contar_pagamentos_avulsos_unicos(item):
++    valor_base = decimal(item.get("valor_base_parcela"))
++    chaves = set()
++
++    payload = saneamento_clientes.carregar_saneamento()
++    chave = saneamento_clientes.chave_saneamento(item)
++    por_cliente = payload.get("pagamentos_avulsos_manuais", {}).get(chave, {})
++    if isinstance(por_cliente, dict):
++        chaves.update(
++            str(mes_chave)
++            for mes_chave, marcado in por_cliente.items()
++            if isinstance(marcado, dict) and not marcado.get("removido")
++        )
++
++    chaves.update(_celulas_pago_avulso_por_referencia(item, valor_base=valor_base).keys())
++
++    total = 0
++    for mes_chave in sorted(chaves):
++        try:
++            ano_txt, mes_txt = mes_chave.split("-", 1)
++            mes = {"chave": mes_chave, "ano": int(ano_txt), "mes": int(mes_txt), "rotulo": mes_chave}
++        except (ValueError, TypeError):
++            continue
++        mapa = item.get("pagamentos_recentes_10m") or item.get("pagamentos_recentes_5m") or {}
++        mes_data = mapa.get(mes_chave) if isinstance(mapa, dict) else None
++        if _celula_pago_normal_confirmado(item, mes, mes_data=mes_data, valor_base=valor_base):
++            continue
++        total += 1
++    return total
++
++
++def parcelas_pagas_com_avulsos_manuais(item):
++    return inteiro(item.get("parcelas_pagas_identificadas")) + contar_pagamentos_avulsos_unicos(item)
++
++
++def status_atraso_com_avulsos_manuais(item):
++    base = inteiro(item.get("status_atraso_qtd", item.get("boletos_atrasados", 0)))
++    return max(0, base - contar_pagamentos_avulsos_unicos(item))
++
++
++def obter_celula_pagamento_recente(
++    item,
++    mes,
++    ignorar_correcao_manual=False,
++    somente_cache=False,
++    payload_saneamento=None,
++):
+     mapa = item.get("pagamentos_recentes_10m") or item.get("pagamentos_recentes_5m") or {}
+     if not isinstance(mapa, dict):
+         mapa = {}
+-        
+-    chave = mes["chave"]
++
++    chave = mes["chave"] if isinstance(mes, dict) else str(mes)
+     mes_data = mapa.get(chave)
+     cliente_nome = str(item.get("cliente", "")).strip()
+     valor_base = decimal(item.get("valor_base_parcela"))
+-    
++
++    if not ignorar_correcao_manual:
++        if payload_saneamento is None:
++            manual_dict = saneamento_clientes.obter_correcao_mensal_manual(item, chave)
++        else:
++            chave_cliente = saneamento_clientes.chave_saneamento(item)
++            manual_dict = (
++                payload_saneamento.get("correcoes_mensais_manuais", {})
++                .get(chave_cliente, {})
++                .get(str(chave))
++            )
++            if not isinstance(manual_dict, dict) or manual_dict.get("removido"):
++                manual_dict = None
++        if manual_dict:
++            celula_auto = obter_celula_pagamento_recente(
++                item,
++                mes,
++                ignorar_correcao_manual=True,
++                somente_cache=somente_cache,
++                payload_saneamento=payload_saneamento,
++            )
++            return _celula_correcao_mensal_manual(
++                item, mes, valor_base=valor_base, celula_auto=celula_auto, manual_dict=manual_dict
++            )
++
++    pago_normal = _celula_pago_normal_confirmado(
++        item,
++        mes,
++        mes_data=mes_data,
++        valor_base=valor_base,
++        somente_cache=somente_cache,
++    )
++
++
++    if pago_normal:
++        return pago_normal
++
++    manual = _celula_pago_avulso_manual(
++        item,
++        mes,
++        valor_base=valor_base,
++        payload_saneamento=payload_saneamento,
++    )
++    if manual:
++        return manual
++    avulso_referenciado = None
++    if not somente_cache:
++        avulso_referenciado = _celula_pago_avulso_por_referencia(item, mes, valor_base=valor_base)
++    if avulso_referenciado:
++        return avulso_referenciado
++
+     # 1. Se for dicionario rico
+     if isinstance(mes_data, dict) and "status" in mes_data:
+         status_str = mes_data.get("status", "Sem boleto")
+         texto1 = mes_data.get("texto1", "-")
+         texto2 = mes_data.get("texto2", "-")
+-        
++
+         # Se for Pago mas sem valor real, OU se for "Sem boleto" (para curar cache corrompido),
+         # tentamos buscar no raw/WidePay
+-        if (status_str in ("Pago", "Recebido") and (texto1 in ("Pago", "Recebido", "-", "Sem boleto"))) or (status_str == "Sem boleto"):
++        if ((status_str in ("Pago", "Recebido") and (texto1 in ("Pago", "Recebido", "-", "Sem boleto"))) or (status_str == "Sem boleto")):
+             if cliente_nome:
+                 raw = montar_raw_cliente(
+                     cliente=cliente_nome,
+@@ -313,17 +672,19 @@ def obter_celula_pagamento_recente(item, mes):
+                         texto2 = "-"
+             if status_str in ("Pago", "Recebido") and (texto1 in ("Pago", "Recebido", "-", "Sem boleto")) and valor_base:
+                 texto1 = formatar_moeda(valor_base)
+-                
++
++        if status_str == "Sem boleto":
++            texto2 = "-"
+         return {"status": status_str, "texto1": texto1, "texto2": texto2}
+-        
++
+     # 2. Se for string (formato legado)
+     if mes_data is not None:
+         v_str = str(mes_data).strip()
+-        
++
+         if v_str in ("Pago", "Recebido", "Recebida"):
+             val_texto = "-"
+             dia_texto = "-"
+-            if cliente_nome:
++            if cliente_nome and not somente_cache:
+                 raw = montar_raw_cliente(
+                     cliente=cliente_nome,
+                     lote=item.get("lote", ""),
+@@ -347,10 +708,10 @@ def obter_celula_pagamento_recente(item, mes):
+             if val_texto == "-":
+                 val_texto = "Pago"
+             return {"status": "Pago", "texto1": val_texto, "texto2": dia_texto}
+-            
++
+         elif v_str == "Vencido":
+             dia_texto = "-"
+-            if cliente_nome:
++            if cliente_nome and not somente_cache:
+                 raw = montar_raw_cliente(
+                     cliente=cliente_nome,
+                     lote=item.get("lote", ""),
+@@ -368,10 +729,10 @@ def obter_celula_pagamento_recente(item, mes):
+                             dia_texto = f"{dt_ref.day:02d}/{dt_ref.month:02d}"
+                             break
+             return {"status": "Vencido", "texto1": "Vencido", "texto2": dia_texto}
+-            
++
+         elif v_str == "Pendente":
+             dia_texto = "-"
+-            if cliente_nome:
++            if cliente_nome and not somente_cache:
+                 raw = montar_raw_cliente(
+                     cliente=cliente_nome,
+                     lote=item.get("lote", ""),
+@@ -389,12 +750,12 @@ def obter_celula_pagamento_recente(item, mes):
+                             dia_texto = f"{dt_ref.day:02d}/{dt_ref.month:02d}"
+                             break
+             return {"status": "Pendente", "texto1": "Pendente", "texto2": dia_texto}
+-            
++
+         elif v_str in ("Sem boleto", "-", ""):
+             return {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
+-            
++
+     # 3. Fallback: procurar no WidePay brutos se o cliente for informado
+-    if cliente_nome:
++    if cliente_nome and not somente_cache:
+         raw = montar_raw_cliente(
+             cliente=cliente_nome,
+             lote=item.get("lote", ""),
+@@ -426,17 +787,80 @@ def obter_celula_pagamento_recente(item, mes):
+     return {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
+ 
+ 
+-def normalizar_pagamentos_recentes_5m(mapa=None, quantidade=10):
++def normalizar_pagamentos_recentes_5m(mapa=None, quantidade=12):
+     atual = mapa if isinstance(mapa, dict) else {}
+     normalizado = {}
+-    dummy_item = {"pagamentos_recentes_5m": atual}
+     for mes in janela_pagamentos_recentes(quantidade=quantidade):
+-        normalizado[mes["chave"]] = obter_celula_pagamento_recente(dummy_item, mes)
++        chave = mes["chave"]
++        valor = atual.get(chave)
++        if isinstance(valor, dict):
++            celula = dict(valor)
++            status = str(celula.get("status") or "Sem boleto").strip()
++            celula["status"] = status
++            if status.lower() in ("", "sem boleto", "-"):
++                celula["status"] = "Sem boleto"
++                celula.setdefault("texto1", "Sem boleto")
++            elif status.lower() == "vencido":
++                celula.setdefault("texto1", "Vencido")
++            elif status.lower() == "pendente":
++                celula.setdefault("texto1", "Pendente")
++            else:
++                celula.setdefault("texto1", status)
++            celula.setdefault("texto2", "-")
++        else:
++            status = str(valor or "Sem boleto").strip()
++            status_lower = normalizar(status).lower()
++            if status_lower in ("pago", "recebido", "recebida", "quitado", "liquidado"):
++                celula = {"status": "Pago", "texto1": "Pago", "texto2": "-"}
++            elif status_lower == "vencido":
++                celula = {"status": "Vencido", "texto1": "Vencido", "texto2": "-"}
++            elif status_lower == "pendente":
++                celula = {"status": "Pendente", "texto1": "Pendente", "texto2": "-"}
++            else:
++                celula = {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"}
++        normalizado[chave] = celula
+     if isinstance(mapa, dict) and mapa.get("_enriquecido"):
+         normalizado["_enriquecido"] = True
+     return normalizado
+ 
+ 
++def mesclar_pagamentos_recentes_preservando(antigo=None, novo=None, quantidade=12):
++    """Atualiza meses confirmados sem permitir regressao para 'Sem boleto'."""
++    antigo = normalizar_pagamentos_recentes_5m(antigo, quantidade=quantidade)
++    novo = normalizar_pagamentos_recentes_5m(novo, quantidade=quantidade)
++    resultado = {}
++    pagos = ("pago", "recebido", "quitado", "liquidado", "pago avulso", "pago manual")
++
++    for mes in janela_pagamentos_recentes(quantidade=quantidade):
++        chave = mes["chave"]
++        celula_antiga = antigo.get(chave)
++        celula_nova = novo.get(chave)
++
++        def status(celula):
++            if isinstance(celula, dict):
++                return normalizar(str(celula.get("status") or "")).lower()
++            return normalizar(str(celula or "")).lower()
++
++        status_antigo = status(celula_antiga)
++        status_novo = status(celula_nova)
++        if status_novo in pagos:
++            escolhida = celula_nova
++        elif status_antigo in pagos:
++            escolhida = celula_antiga
++        elif status_novo in ("", "sem boleto") and status_antigo not in ("", "sem boleto"):
++            escolhida = celula_antiga
++        else:
++            escolhida = celula_nova or celula_antiga
++        resultado[chave] = escolhida or {
++            "status": "Sem boleto",
++            "texto1": "Sem boleto",
++            "texto2": "-",
++        }
++
++    resultado["_enriquecido"] = True
++    return resultado
++
++
+ def meses_desde_data(valor):
+     data = parse_data(valor)
+     if not data:
+@@ -472,66 +896,254 @@ def _status_pagamento_recente(status):
+     return ""
+ 
+ 
++def extrair_referencias_meses(texto):
++    refs = []
++    vistos = set()
+ 
++    def add_ref(ano, mes):
++        try:
++            ano = int(ano)
++            mes = int(mes)
++        except (TypeError, ValueError):
++            return
++        if ano < 100:
++            ano += 2000
++        if not (1 <= mes <= 12):
++            return
++        chave = f"{ano:04d}-{mes:02d}"
++        if chave not in vistos:
++            refs.append({"chave": chave, "ano": ano, "mes": mes})
++            vistos.add(chave)
++
++    bruto = str(texto or "")
++    normalizado = normalizar(bruto).lower()
++
++    for match in re.finditer(r"\b(0?[1-9]|1[0-2])\s*[-/]\s*(\d{2}|\d{4})\b", normalizado):
++        mes_txt, ano_txt = match.groups()
++        # Em "02 - 03 - 04 de 2026", 02-03 e uma lista de meses,
++        # nao fevereiro de 2003. Um segundo numero ate 12 seguido por um ano
++        # global de quatro digitos fica para o parser de lista logo abaixo.
++        cauda = normalizado[match.end():match.end() + 64]
++        if int(ano_txt) <= 12 and re.search(r"\b20\d{2}\b", cauda):
++            continue
++        add_ref(ano_txt, mes_txt)
+ 
+-def calcular_pagamentos_recentes_5m(cobrancas, valor_base=None, quantidade=10):
++    for nome_mes, ano_txt in re.findall(
++        r"\b(jan(?:eiro)?|fev(?:ereiro)?|mar(?:co)?|abr(?:il)?|mai(?:o)?|jun(?:ho)?|jul(?:ho)?|ago(?:sto)?|set(?:embro)?|out(?:ubro)?|nov(?:embro)?|dez(?:embro)?)\s*[-/]\s*(\d{2}|\d{4})\b",
++        normalizado,
++    ):
++        mes = MESES_REFERENCIA.get(nome_mes)
++        if mes:
++            add_ref(ano_txt, mes)
++
++    ano_global = None
++    anos = re.findall(r"\b(20\d{2})\b", normalizado)
++    if anos:
++        ano_global = anos[-1]
++
++    for match in re.finditer(r"\b([0-3]?\d)\s*[-/]\s*(0?[1-9]|1[0-2])(?:\s*[-/]\s*(\d{2}|\d{4}))?\b", normalizado):
++        dia_txt, mes_txt, ano_txt = match.groups()
++        try:
++            dia = int(dia_txt)
++            mes = int(mes_txt)
++        except ValueError:
++            continue
++        if not (13 <= dia <= 31 and 1 <= mes <= 12):
++            continue
++        ano = ano_txt or ano_global
++        if not ano:
++            continue
++        add_ref(ano, mes)
++
++    # Referencias de cobranca em lote frequentemente registram varias
++    # competencias e informam o ano apenas no final, por exemplo:
++    # "ref 04, 05, 06 de 2026" ou "01 03 04 2026 atraso".
++    # Limitamos a leitura ao trecho de referencia/atraso imediatamente anterior
++    # ao ano para nao transformar numeros soltos do restante do texto em meses.
++    for ano_match in re.finditer(r"\b(20\d{2})\b", normalizado):
++        inicio = max(0, ano_match.start() - 96)
++        trecho = normalizado[inicio:ano_match.start()]
++        trecho = re.split(r"[;|\n]", trecho)[-1]
++        if not any(marcador in trecho for marcador in ("ref", "atras", "atraz", "mes")):
++            continue
++        for mes_txt in re.findall(r"(?<![a-z0-9])(0?[1-9]|1[0-2])(?![a-z0-9])", trecho):
++            add_ref(ano_match.group(1), mes_txt)
++
++    return refs
++
++
++def texto_referencia_cobranca(cob):
++    return " ".join(
++        str(cob.get(campo, "") or "")
++        for campo in ("descricao", "referencia", "observacao", "historico")
++    )
++
++
++
++def obter_id_cobranca_deterministico(cob, cliente="", lote="", quadra=""):
++    if not isinstance(cob, dict):
++        return ""
++    real_id = str(cob.get("id_boleto") or cob.get("id") or cob.get("codigo") or cob.get("nosso_numero") or "").strip()
++    if real_id:
++        return real_id
++    raw_hash = (
++        f"{cliente}|{lote}|{quadra}|{cob.get('vencimento')}|"
++        f"{cob.get('pagamento') or cob.get('data_pagamento')}|"
++        f"{cob.get('valor_recebido') or cob.get('valor')}|{cob.get('status')}|"
++        f"{cob.get('referencia') or cob.get('descricao')}"
++    )
++    return f"comp_{hashlib.sha256(raw_hash.encode('utf-8')).hexdigest()[:16]}"
++
++
++def calcular_pagamentos_recentes_5m(cobrancas, valor_base=None, quantidade=12, registro=None):
+     resultado = {mes["chave"]: {"status": "Sem boleto", "texto1": "Sem boleto", "texto2": "-"} for mes in janela_pagamentos_recentes(quantidade=quantidade)}
+-    prioridade = {"Sem boleto": 0, "Pendente": 1, "Vencido": 2, "Pago": 3}
++    prioridade = {"Sem boleto": 0, "Pendente": 1, "Vencido": 2, "Pago avulso": 4, "Pago": 5}
++
++    janela_meses_ord = [m["chave"] for m in janela_pagamentos_recentes(quantidade=quantidade)]
++    cobrancas_sem_competencia = []
++
++    reg_item = dict(registro or {})
++    c_nome = reg_item.get("cliente", "")
++    c_lote = reg_item.get("lote", "")
++    c_quadra = reg_item.get("quadra", "")
+ 
+     for cob in cobrancas or []:
++        if not isinstance(cob, dict):
++            continue
+         if cob.get("duplicidade"):
+             continue
+         classificacao = normalizar(str(cob.get("classificacao") or "")).lower()
++        bruto = normalizar(str(cob.get("status") or "")).lower()
++        real_id = obter_id_cobranca_deterministico(cob, cliente=c_nome, lote=c_lote, quadra=c_quadra)
++
++        if bruto in ("recebido", "pago", "quitado", "liquidado") and classificacao in ("atraso", "avulso"):
++            refs = extrair_referencias_meses(texto_referencia_cobranca(cob))
++            if refs:
++                valor_recebido = decimal(cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor"))
++                valor_parcela = valor_base if valor_base else (valor_recebido / len(refs) if refs else valor_recebido)
++                texto1 = formatar_moeda(valor_parcela) if valor_parcela else "Pago avulso"
++                for ref in refs:
++                    chave_ref = ref["chave"]
++                    if chave_ref not in resultado:
++                        continue
++                    atual_status = resultado[chave_ref]["status"]
++                    if prioridade["Pago avulso"] >= prioridade.get(atual_status, 0):
++                        resultado[chave_ref] = {
++                            "status": "Pago avulso",
++                            "texto1": texto1,
++                            "texto2": "Avulso",
++                            "origem": "boleto_avulso_recebido",
++                            "_evento_id": f"{real_id}:{chave_ref}",
++                            "_origem_evento": "exato",
++                        }
++                continue
+         if classificacao in ("entrada", "atraso", "avulso"):
+             continue
+-        if classificacao not in ("parcela normal", "pendencia") and not cob.get("pertence_a_carne"):
++        if classificacao and classificacao not in ("parcela normal", "pendencia") and not cob.get("pertence_a_carne"):
+             continue
+ 
+-        data_ref = parse_data(cob.get("vencimento")) or parse_data(cob.get("pagamento"))
+-        if not data_ref:
+-            continue
++        data_venc = parse_data(cob.get("vencimento"))
++        data_pag = parse_data(cob.get("pagamento") or cob.get("data_pagamento"))
+ 
+-        bruto = normalizar(str(cob.get("status") or "")).lower()
+         if bruto in ("recebido", "pago", "quitado", "liquidado"):
+             status_str = "Pago"
+         elif bruto in ("vencido",):
+             status_str = "Vencido"
+         elif bruto in ("aguardando", "aberto", "pendente", "pendencia"):
+-            ref_date = data_ref.date() if hasattr(data_ref, "date") else data_ref
+-            if ref_date < datetime.now().date():
++            ref_date = data_venc.date() if (data_venc and hasattr(data_venc, "date")) else (data_pag.date() if (data_pag and hasattr(data_pag, "date")) else None)
++            if ref_date and ref_date < datetime.now().date():
+                 status_str = "Vencido"
+             else:
+                 status_str = "Pendente"
+         else:
+             continue
+ 
+-        chave = f"{data_ref.year:04d}-{data_ref.month:02d}"
+-        if chave not in resultado:
+-            continue
+-        
+-        atual_status = resultado[chave]["status"]
+-        if prioridade[status_str] >= prioridade[atual_status]:
+-            if status_str == "Pago":
++        if data_venc:
++            chave = f"{data_venc.year:04d}-{data_venc.month:02d}"
++            if chave in resultado:
++                atual_status = resultado[chave]["status"]
++                if prioridade[status_str] >= prioridade[atual_status]:
++                    if status_str == "Pago":
++                        v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
++                        texto1 = formatar_moeda(v_pago)
++                        if texto1 == "-":
++                            texto1 = "Pago"
++                    elif status_str == "Pendente":
++                        texto1 = "Pendente"
++                    elif status_str == "Vencido":
++                        texto1 = "Vencido"
++                    else:
++                        texto1 = "Sem boleto"
++
++                    texto2 = f"{data_venc.day:02d}/{data_venc.month:02d}"
++                    resultado[chave] = {
++                        "status": status_str,
++                        "texto1": texto1,
++                        "texto2": texto2,
++                        "_evento_id": f"{real_id}:{chave}",
++                        "_origem_evento": "exato",
++                    }
++        elif status_str == "Pago":
++            cobrancas_sem_competencia.append((cob, real_id, data_pag))
++
++    if cobrancas_sem_competencia:
++        vistos_sem_comp = set()
++        cobrancas_unicas = []
++        for item_tuple in cobrancas_sem_competencia:
++            r_id = item_tuple[1]
++            if r_id not in vistos_sem_comp:
++                vistos_sem_comp.add(r_id)
++                cobrancas_unicas.append(item_tuple)
++
++        ult_paga_idx = -1
++        for idx, k_mes in enumerate(janela_meses_ord):
++            if resultado[k_mes]["status"] in ("Pago", "Recebido", "Pago avulso"):
++                ult_paga_idx = idx
++
++        curr_idx = ult_paga_idx + 1 if ult_paga_idx >= 0 else 0
++
++        for cob, real_id, dt_pag in cobrancas_unicas:
++            while curr_idx < len(janela_meses_ord):
++                k_mes = janela_meses_ord[curr_idx]
++                st_atual = resultado[k_mes]["status"]
++
++                if st_atual not in ("Sem boleto", "Pendente", "Nao pago", "Vencido"):
++                    curr_idx += 1
++                    continue
++
++                if registro and saneamento_clientes.obter_correcao_mensal_manual(registro, k_mes):
++                    curr_idx += 1
++                    continue
++
+                 v_pago = cob.get("valor_recebido") or cob.get("recebido") or cob.get("valor_pago") or cob.get("valor") or valor_base
+                 texto1 = formatar_moeda(v_pago)
+                 if texto1 == "-":
+                     texto1 = "Pago"
+-            elif status_str == "Pendente":
+-                texto1 = "Pendente"
+-            elif status_str == "Vencido":
+-                texto1 = "Vencido"
+-            else:
+-                texto1 = "Sem boleto"
+-                
+-            texto2 = f"{data_ref.day:02d}/{data_ref.month:02d}"
+-            resultado[chave] = {"status": status_str, "texto1": texto1, "texto2": texto2}
++                texto2 = dt_pag.strftime("%d/%m") if dt_pag else "Sequencial"
++
++                ev_id = f"{real_id}:{k_mes}"
++                resultado[k_mes] = {
++                    "status": "Pago",
++                    "texto1": texto1,
++                    "texto2": texto2,
++                    "_evento_id": ev_id,
++                    "origem": "pagamento_sequencial",
++                    "_origem_evento": "sequencial",
++                }
++                curr_idx += 1
++                break
+ 
+     res = normalizar_pagamentos_recentes_5m(resultado, quantidade=quantidade)
+     res["_enriquecido"] = True
+     return res
+ 
+ 
+-def enriquecer_pagamentos_recentes_cache(registro):
++def enriquecer_pagamentos_recentes_cache(
++    registro,
++    payload_cache=None,
++    indice_cache=None,
++    permitir_nome_sem_lote=False,
++):
+     item = normalizar_registro_cache(registro)
+     atual = item.get("pagamentos_recentes_5m") if isinstance(item.get("pagamentos_recentes_5m"), dict) else {}
+     raw = montar_raw_cliente(
+@@ -539,16 +1151,63 @@ def enriquecer_pagamentos_recentes_cache(registro):
+         lote=item.get("lote", ""),
+         quadra=item.get("quadra", ""),
+         pasta_local=item.get("pasta_local", ""),
++        payload_cache=payload_cache,
++        indice_cache=indice_cache,
++        permitir_nome_sem_lote=permitir_nome_sem_lote,
+     )
+     if not raw:
+-        res = normalizar_pagamentos_recentes_5m(atual, quantidade=10)
++        res = normalizar_pagamentos_recentes_5m(atual, quantidade=12)
+         res["_enriquecido"] = True
+         item["pagamentos_recentes_5m"] = res
+         return item
+ 
+     valor_base = decimal(item.get("valor_base_parcela"))
+     normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
+-    item["pagamentos_recentes_5m"] = calcular_pagamentos_recentes_5m(normalizado.get("cobrancas") or [], valor_base=valor_base, quantidade=10)
++
++    # No fallback seguro por nome, o resumo antigo normalmente ficou zerado
++    # porque nenhum boleto chegou a ser associado ao contrato. Recalcular aqui
++    # apenas os totais monotonicamente (nunca reduzir o que ja existia) mantem a
++    # coluna Parcelas coerente com os meses recuperados. A exibicao continua
++    # respeitando qualquer edicao manual registrada no saneamento.
++    if permitir_nome_sem_lote or inteiro(item.get("parcelas_pagas_identificadas")) == 0:
++        dados_contrato = {
++            "cliente": item.get("cliente", ""),
++            "lote": item.get("lote", ""),
++            "quadra": item.get("quadra", ""),
++            "valor_parcela": valor_base,
++            "total_parcelas": inteiro(item.get("parcelas_total_contrato")),
++            "valor_total_contrato": decimal(item.get("valor_total_contratado")),
++            "entrada": decimal(item.get("entrada_valor")),
++        }
++        metricas = montar_metricas_resumo_widepay(raw, dados_contrato)
++        calculos = metricas.get("calculos") or {}
++        total_calculado = inteiro(
++            calculos.get("total_parcelas_contrato") or dados_contrato.get("total_parcelas")
++        )
++        pagas_calculadas = inteiro(calculos.get("parcelas_pagas_equivalentes"))
++        total_atual = inteiro(item.get("parcelas_total_contrato"))
++        pagas_atuais = inteiro(item.get("parcelas_pagas_identificadas"))
++        total_final = total_atual or total_calculado
++        pagas_finais = max(pagas_atuais, pagas_calculadas)
++        if total_final > 0:
++            item["parcelas_total_contrato"] = total_final
++            item["parcelas_restantes"] = max(0, total_final - pagas_finais)
++        item["parcelas_pagas_identificadas"] = pagas_finais
++        total_pago_calculado = round(decimal(calculos.get("total_pago_consolidado")), 2)
++        if total_pago_calculado > decimal(item.get("valor_total_pago")):
++            item["valor_total_pago"] = total_pago_calculado
++    novo = calcular_pagamentos_recentes_5m(
++        normalizado.get("cobrancas") or [],
++        valor_base=valor_base,
++        quantidade=12,
++        registro=item,
++    )
++    item["pagamentos_recentes_5m"] = mesclar_pagamentos_recentes_preservando(
++        atual,
++        novo,
++        quantidade=12,
++    )
++    item["parcelas_resumo"] = deduzir_resumo_parcelas(item)
+     return item
+ 
+ 
+@@ -610,7 +1269,8 @@ def calcular_atraso_recente(metrics, dias_recentes=210):
+             continue
+         if decimal(pgto.get("valor_recebido", pgto.get("recebido", pgto.get("valor")))) <= 0:
+             continue
+-        compensacoes += max(1, inteiro(pgto.get("qtd"), 1))
++        refs = extrair_referencias_meses(texto)
++        compensacoes += len(refs) if refs else max(1, inteiro(pgto.get("qtd"), 1))
+ 
+     return max(0, vencidos_recentes - compensacoes)
+ 
+@@ -653,16 +1313,16 @@ def detectar_contrato(pasta):
+         arquivos.append(path)
+     if not arquivos:
+         return "Nao encontrado", ""
+-    
++
+     # HeurÃ­stica de pontuaÃ§Ã£o baseada em correspondÃªncia com o nome da pasta
+     folder_name = pasta.name.lower()
+     noise = {"agua", "viva", "leandro", "meirelles", "leo", "contrato", "lote", "quadra", "lt", "qd"}
+     lote_da_pasta = extrair_lote(pasta.name)
+     if lote_da_pasta != "-":
+         noise.add(lote_da_pasta.lower())
+-    
++
+     tokens = [t for t in re.split(r"[^a-z0-9]+", folder_name) if t and t not in noise]
+-    
++
+     def score_candidato(path):
+         f_name = path.name.lower()
+         score = sum(1 for t in tokens if t in f_name)
+@@ -672,7 +1332,7 @@ def detectar_contrato(pasta):
+         # Tamanho do arquivo como peso menor (desempate)
+         size_weight = (path.stat().st_size if path.exists() else 0) / 1000000000.0
+         return (score, ext_weight, size_weight)
+-        
++
+     principal = sorted(arquivos, key=score_candidato, reverse=True)[0]
+     return "Encontrado", str(principal)
+ 
+@@ -747,7 +1407,41 @@ def deduzir_resumo_contrato(registro):
+     return "NAO CONFIRMADO"
+ 
+ 
++def obter_valores_parcelas_efetivos(registro):
++    m = saneamento_clientes.obter_correcao_parcelas_manual(registro or {})
++    if not m:
++        p_pagas = inteiro((registro or {}).get("parcelas_pagas_identificadas", 0))
++        p_total = (registro or {}).get("parcelas_total_contrato")
++        p_total_val = inteiro(p_total) if p_total not in (None, "", "?") else "?"
++        return {
++            "pagas": p_pagas,
++            "total": p_total_val,
++            "manual": False,
++            "base": p_pagas,
++            "acrescimos": 0,
++        }
++    base = inteiro(m.get("parcelas_pagas_base", 0))
++    total_manual = inteiro(m.get("parcelas_total_manual", 0))
++    acrescimos = inteiro(m.get("acrescimos_confirmados", 0))
++    pagas = min(total_manual, base + acrescimos)
++    return {
++        "pagas": pagas,
++        "total": total_manual,
++        "manual": True,
++        "base": base,
++        "acrescimos": acrescimos,
++    }
++
++
+ def deduzir_resumo_parcelas(registro):
++    efetivos = obter_valores_parcelas_efetivos(registro)
++    if efetivos["manual"]:
++        pagas = efetivos["pagas"]
++        total = efetivos["total"]
++        if pagas >= total:
++            return f"{pagas} / {total} quitado"
++        return f"{pagas} / {total} pagas"
++
+     contrato_status = registro.get("contrato")
+     if contrato_status != "Encontrado":
+         return "NAO CONFIRMADO"
+@@ -772,6 +1466,187 @@ def deduzir_resumo_parcelas(registro):
+     return f"{pagas} / {total} pagas"
+ 
+ 
++def coletar_eventos_parcelas_confirmados(registro, cobrancas=None, incluir_mapa_cache=False):
++    item = dict(registro or {})
++    cliente_nome = item.get("cliente", "")
++    lote = item.get("lote", "")
++    quadra = item.get("quadra", "")
++
++    eventos = []
++    vistos_ids = set()
++
++    if cobrancas is None and cliente_nome:
++        raw = montar_raw_cliente(
++            cliente=cliente_nome,
++            lote=lote,
++            quadra=quadra,
++            pasta_local=item.get("pasta_local", ""),
++        )
++        if raw:
++            valor_base = decimal(item.get("valor_base_parcela"))
++            normalizado = normalizar_e_deduplicar(raw, valor_base=valor_base)
++            cobrancas = normalizado.get("cobrancas") or []
++        else:
++            cobrancas = []
++
++    recentes_mapa = item.get("pagamentos_recentes_5m") or {}
++
++    for cob in (cobrancas or []):
++        if not isinstance(cob, dict):
++            continue
++        if cob.get("duplicidade"):
++            continue
++        classificacao = normalizar(str(cob.get("classificacao") or "")).lower()
++        if classificacao == "entrada":
++            continue
++        bruto = normalizar(str(cob.get("status") or "")).lower()
++        if bruto not in ("recebido", "pago", "quitado", "liquidado"):
++            continue
++
++        real_id = obter_id_cobranca_deterministico(cob, cliente=cliente_nome, lote=lote, quadra=quadra)
++        dt_pag = parse_data(cob.get("pagamento") or cob.get("data_pagamento"))
++        dt_venc = parse_data(cob.get("vencimento"))
++        dt_evento_str = dt_pag.isoformat() if dt_pag else ""
++
++        refs = extrair_referencias_meses(texto_referencia_cobranca(cob))
++        if refs:
++            for ref in refs:
++                comp_str = ref["chave"]
++                identificador = f"{real_id}:{comp_str}"
++                if identificador in vistos_ids:
++                    continue
++                vistos_ids.add(identificador)
++                eventos.append({
++                    "identificador": identificador,
++                    "competencia": comp_str,
++                    "data_evento": dt_evento_str,
++                    "origem": "widepay",
++                    "quantidade": 1,
++                })
++        elif dt_venc:
++            comp_str = f"{dt_venc.year:04d}-{dt_venc.month:02d}"
++            identificador = f"{real_id}:{comp_str}"
++            if identificador not in vistos_ids:
++                vistos_ids.add(identificador)
++                eventos.append({
++                    "identificador": identificador,
++                    "competencia": comp_str,
++                    "data_evento": dt_evento_str,
++                    "origem": "widepay",
++                    "quantidade": 1,
++                })
++        else:
++            atribuido = False
++            if isinstance(recentes_mapa, dict):
++                for k_mes, cel in recentes_mapa.items():
++                    if isinstance(cel, dict) and cel.get("_evento_id", "").startswith(real_id):
++                        comp_str = k_mes
++                        identificador = cel["_evento_id"]
++                        if identificador not in vistos_ids:
++                            vistos_ids.add(identificador)
++                            eventos.append({
++                                "identificador": identificador,
++                                "competencia": comp_str,
++                                "data_evento": dt_evento_str,
++                                "origem": "widepay",
++                                "quantidade": 1,
++                            })
++                        atribuido = True
++                        break
++            if not atribuido:
++                identificador = real_id
++                if identificador not in vistos_ids:
++                    vistos_ids.add(identificador)
++                    eventos.append({
++                        "identificador": identificador,
++                        "competencia": "",
++                        "data_evento": dt_evento_str,
++                        "origem": "widepay",
++                        "quantidade": 1,
++                    })
++
++    if incluir_mapa_cache and isinstance(recentes_mapa, dict):
++        chave_registro = saneamento_clientes.chave_saneamento(item)
++        for comp_str, celula in recentes_mapa.items():
++            if not re.fullmatch(r"\d{4}-\d{2}", str(comp_str or "")):
++                continue
++            if isinstance(celula, dict):
++                status_cache = normalizar(str(celula.get("status") or "")).lower()
++                identificador = str(celula.get("_evento_id") or "").strip()
++            else:
++                status_cache = normalizar(str(celula or "")).lower()
++                identificador = ""
++            if status_cache not in ("pago", "recebido", "quitado", "liquidado", "pago avulso"):
++                continue
++            if not identificador:
++                identificador = f"cache:{chave_registro}:{comp_str}"
++            if identificador in vistos_ids:
++                continue
++            vistos_ids.add(identificador)
++            eventos.append({
++                "identificador": identificador,
++                "competencia": str(comp_str),
++                "data_evento": "",
++                "origem": "widepay",
++                "quantidade": 1,
++            })
++
++    payload = saneamento_clientes.carregar_saneamento()
++    chave = saneamento_clientes.chave_saneamento(item)
++    if chave:
++        mensais = payload.get("correcoes_mensais_manuais", {}).get(chave, {})
++        if isinstance(mensais, dict):
++            for mes_k, mov in mensais.items():
++                if isinstance(mov, dict) and str(mov.get("status", "")).lower() == "pago manual":
++                    ev_id = f"manual_mensal:{chave}:{mes_k}"
++                    if ev_id not in vistos_ids:
++                        vistos_ids.add(ev_id)
++                        eventos.append({
++                            "identificador": ev_id,
++                            "competencia": mes_k,
++                            "data_evento": str(mov.get("atualizado_em") or mov.get("registrado_em") or ""),
++                            "origem": "correcao_mensal_manual",
++                            "quantidade": 1,
++                        })
++
++    if chave:
++        avulsos = payload.get("pagamentos_avulsos_manuais", {}).get(chave, {})
++        if isinstance(avulsos, dict):
++            for av_id, av_mov in avulsos.items():
++                if isinstance(av_mov, dict) and not av_mov.get("removido"):
++                    dt_reg = str(av_mov.get("atualizado_em") or av_mov.get("registrado_em") or "")
++                    comp_av = str(av_mov.get("mes") or av_id).strip()
++                    if comp_av:
++                        ev_id = f"manual_avulso:{chave}:{av_id}:{comp_av}"
++                        if ev_id not in vistos_ids:
++                            vistos_ids.add(ev_id)
++                            eventos.append({
++                                "identificador": ev_id,
++                                "competencia": comp_av,
++                                "data_evento": dt_reg,
++                                "origem": "pagamento_avulso_manual",
++                                "quantidade": 1,
++                            })
++                    else:
++                        ev_id = f"manual_avulso:{chave}:{av_id}"
++                        if ev_id not in vistos_ids:
++                            vistos_ids.add(ev_id)
++                            eventos.append({
++                                "identificador": ev_id,
++                                "competencia": "",
++                                "data_evento": dt_reg,
++                                "origem": "pagamento_avulso_manual",
++                                "quantidade": 1,
++                            })
++
++    return eventos
++
++def sincronizar_acrescimos_parcelas_manuais(registro, cobrancas=None, origem_fluxo=""):
++    eventos = coletar_eventos_parcelas_confirmados(registro, cobrancas=cobrancas)
++    acrescimos = saneamento_clientes.reconciliar_acrescimos_parcelas_manual(registro, eventos, origem_fluxo=origem_fluxo)
++    registro["parcelas_resumo"] = deduzir_resumo_parcelas(registro)
++    return acrescimos
++
+ def normalizar_registro_cache(registro):
+     item = dict(registro or {})
+     item.setdefault("selecionado", False)
+@@ -846,6 +1721,7 @@ def normalizar_registro_cache(registro):
+         item.get("quadra"),
+         item.get("referencia"),
+         item.get("pasta_local"),
++        cliente=item.get("cliente") or item.get("cliente_original_widepay"),
+     ) or item.get("chave_lote_canonica") or ""
+     situacao_calculada = deduzir_situacao_final(item)
+     if situacao_calculada == "Bloqueado" or not item.get("situacao_final"):
+@@ -877,7 +1753,7 @@ def normalizar_registro_cache(registro):
+     return item
+ 
+ 
+-def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
++def aplicar_metricas_registro(registro, metrics, atualizado_em=None, modo="completo"):
+     if not metrics:
+         return normalizar_registro_cache(registro)
+ 
+@@ -886,6 +1762,7 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
+     calculos = metrics.get("calculos") or {}
+     normalizado = metrics.get("normalizado") or {}
+     cobrancas = normalizado.get("cobrancas") or []
++    valor_base = decimal(contrato.get("valor_parcela") or item.get("valor_base_parcela"))
+     atualizado_iso = atualizado_em or datetime.now().isoformat(timespec="seconds")
+ 
+     try:
+@@ -931,7 +1808,6 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
+     )
+     item["situacao_final"] = deduzir_situacao_final(item)
+     item["contrato_resumo"] = deduzir_resumo_contrato(item)
+-    item["parcelas_resumo"] = deduzir_resumo_parcelas(item)
+ 
+     observacoes = []
+     if bloqueado:
+@@ -969,7 +1845,7 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
+ 
+     # Contagem de boletos vencidos no WidePay com abatimento/compensaÃ§Ã£o por avulsos de atraso recebidos
+     vencidos_list = [cob for cob in cobrancas if str(cob.get("status", "")).lower() == "vencido"]
+-    
++
+     compensacoes = 0
+     for cob in cobrancas:
+         status_lower = str(cob.get("status", "")).lower()
+@@ -978,7 +1854,7 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
+             desc_lower = str(cob.get("descricao", "")).lower()
+             if any(term in desc_lower for term in ["atraso", "atrazos", "ref", "referente"]):
+                 compensacoes += 1
+-                
++
+     boletos_atrasados = max(0, len(vencidos_list) - compensacoes)
+     item["boletos_atrasados"] = boletos_atrasados
+     atraso_recente = calcular_atraso_recente(metrics)
+@@ -987,8 +1863,21 @@ def aplicar_metricas_registro(registro, metrics, atualizado_em=None):
+     item["status_atraso_rotulo"] = rotulo_status_atraso(atraso_recente)
+     item["status_atraso_origem"] = "WidePay"
+     item["boletos_atrasados"] = atraso_recente
+-    item["pagamentos_recentes_5m"] = calcular_pagamentos_recentes_5m(cobrancas)
++    novo_recentes = calcular_pagamentos_recentes_5m(
++        cobrancas,
++        valor_base=valor_base,
++        registro=item,
++    )
++    item["pagamentos_recentes_5m"] = mesclar_pagamentos_recentes_preservando(
++        registro.get("pagamentos_recentes_5m"),
++        novo_recentes,
++        quantidade=12,
++    )
++    if modo == "fast_12m":
++        print("[FAST OVERLAY] Historico anterior protegido e novos pagamentos aplicados.")
+ 
++    sincronizar_acrescimos_parcelas_manuais(item, cobrancas=cobrancas, origem_fluxo=modo)
++    item["parcelas_resumo"] = deduzir_resumo_parcelas(item)
+     return item
+ 
+ 
+@@ -1092,7 +1981,7 @@ def obter_nome_real_contrato(contrato_path, nome_sugerido):
+                 texto = extrair_texto_docx(p)
+             elif ext == '.pdf':
+                 texto = extrair_texto_pdf(p)
+-        
++
+         # Fallback: se o arquivo nÃ£o existe ou Ã© um scan ilegÃ­vel, busca na pasta 01_DOCUMENTOS_CONVERTIDOS
+         if not texto:
+             convertidos_dir = config.ROOT_DIR / "01_DOCUMENTOS_CONVERTIDOS"
+@@ -1107,7 +1996,7 @@ def obter_nome_real_contrato(contrato_path, nome_sugerido):
+                                 break
+                         except Exception:
+                             pass
+-        
++
+         if texto:
+             return extrair_nome_cliente(texto, nome_sugerido)
+     except Exception:
+@@ -1155,12 +2044,12 @@ def carregar_metricas_historicas_locais(cliente, lote):
+         from app.rastreabilidade import re_slug
+         cli_slug = re_slug(cliente)
+         lot_slug = re_slug(lote)
+-        
++
+         primeira_palavra = cli_slug.split("_")[0]
+-        
++
+         # Limpar o lote (ex: "05", "5")
+         num_lote = re.sub(r"[^0-9]", "", lot_slug)
+-        
++
+         pasta_candidata = None
+         if config.OUTPUT_DIR.exists():
+             for p in config.OUTPUT_DIR.iterdir():
+@@ -1175,24 +2064,24 @@ def carregar_metricas_historicas_locais(cliente, lote):
+                         if list(p.glob("METRICAS_*.json")):
+                             pasta_candidata = p
+                             break
+-                        
++
+         if not pasta_candidata:
+             pasta_candidata = config.OUTPUT_DIR / f"{cli_slug}_LOTE_{lot_slug}_FINAL"
+-            
++
+         if not pasta_candidata.exists():
+             return None, None
+-            
++
+         arquivos = list(pasta_candidata.glob("METRICAS_*.json"))
+         if not arquivos:
+             return None, None
+-            
++
+         # Pegar o arquivo mais recentemente modificado
+         arquivos.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+         mais_recente = arquivos[0]
+-        
++
+         with open(mais_recente, "r", encoding="utf-8") as f:
+             metrics_data = json.load(f)
+-            
++
+         mtime_iso = datetime.fromtimestamp(mais_recente.stat().st_mtime).isoformat(timespec="seconds")
+         return metrics_data, mtime_iso
+     except Exception:
+@@ -1208,6 +2097,69 @@ def chave_registro_cache(registro):
+     return ("cliente_lote", cliente, lote)
+ 
+ 
++def nomes_com_identidade_unica_confirmada(registros):
++    """Nomes cujo cadastro confirmado aponta para uma unica identidade de lote."""
++    lotes_por_nome = {}
++    for registro in registros or []:
++        if registro.get("contrato") != "Encontrado":
++            continue
++        nome = slug_busca(registro.get("cliente") or "")
++        lote = chave_lote_canonica(registro)
++        if nome and lote:
++            lotes_por_nome.setdefault(nome, set()).add(lote)
++    return {nome for nome, lotes in lotes_por_nome.items() if len(lotes) == 1}
++
++
++def validar_preservacao_pagamentos(payload_anterior, registros_novos):
++    """Recusa gravacao que transforme pagamento automatico confirmado em ausencia."""
++    if not isinstance(payload_anterior, dict):
++        return True
++
++    def melhor_por_chave(registros):
++        melhores = {}
++        for registro in registros or []:
++            chave = chave_registro_cache(registro)
++            mapa = registro.get("pagamentos_recentes_5m") or {}
++            pagos = sum(
++                1
++                for dado in mapa.values()
++                if isinstance(dado, dict)
++                and normalizar(dado.get("status", "")).lower() in ("pago", "recebido")
++            )
++            if chave not in melhores or pagos > melhores[chave][0]:
++                melhores[chave] = (pagos, registro)
++        return {chave: item for chave, (_, item) in melhores.items()}
++
++    anteriores = melhor_por_chave(payload_anterior.get("registros") or [])
++    novos = melhor_por_chave(registros_novos)
++    regressoes = []
++    for chave, anterior in anteriores.items():
++        novo = novos.get(chave)
++        if not novo:
++            continue
++        mapa_antigo = anterior.get("pagamentos_recentes_5m") or {}
++        mapa_novo = novo.get("pagamentos_recentes_5m") or {}
++        for mes, dado_antigo in mapa_antigo.items():
++            if not isinstance(dado_antigo, dict):
++                continue
++            status_antigo = normalizar(dado_antigo.get("status", "")).lower()
++            if status_antigo not in ("pago", "recebido"):
++                continue
++            status_novo = normalizar((mapa_novo.get(mes) or {}).get("status", "")).lower()
++            if status_novo not in ("pago", "recebido", "pago avulso", "pago manual"):
++                regressoes.append((chave, mes, status_antigo, status_novo or "ausente"))
++    if regressoes:
++        amostra = "; ".join(
++            f"{chave}:{mes} {antes}->{depois}"
++            for chave, mes, antes, depois in regressoes[:5]
++        )
++        raise ValueError(
++            "Gravacao recusada por regressao de pagamentos confirmados. "
++            f"A versao anterior foi preservada. Exemplos: {amostra}"
++        )
++    return True
++
++
+ def pontuar_completude(registro):
+     pontos = 0
+     if registro.get("contrato") == "Encontrado":
+@@ -1281,7 +2233,7 @@ def montar_metricas_resumo_widepay(dados_raw_wp, dados_contrato):
+     }
+ 
+ 
+-def atualizar_resumo_widepay_incremental(registros, log_callback=None, progress_callback=None):
++def atualizar_resumo_widepay_incremental(registros, log_callback=None, progress_callback=None, modo="completo"):
+     confirmados = [r for r in registros if r.get("contrato") == "Encontrado"]
+     if not confirmados:
+         return registros
+@@ -1300,7 +2252,7 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None, progress_
+         async def _coletar():
+             atualizados_por_chave = {}
+             payload = []
+-            contrato_por_nome = {}
++            nomes_fallback_seguro = nomes_com_identidade_unica_confirmada(confirmados)
+             for reg in confirmados:
+                 dados_contrato = {
+                     "cliente": reg.get("cliente"),
+@@ -1312,24 +2264,39 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None, progress_
+                     "entrada": decimal(reg.get("entrada_valor")),
+                 }
+                 nome = dados_contrato["cliente"] or reg.get("cliente") or ""
+-                contrato_por_nome[nome] = (reg, dados_contrato)
+-                contrato_por_nome[normalizar(nome).lower()] = (reg, dados_contrato)
+                 payload.append({
+                     "nome": nome,
+                     "lote": dados_contrato.get("lote") or "-",
+                     "quadra": dados_contrato.get("quadra") or "-",
+                 })
+-            
++
+             inicio_coleta = datetime.now().isoformat(timespec="seconds")
+-            log(f"WidePay global: coletando boletos/carnes de {len(payload)} cliente(s) em uma varredura paginada.")
++            log(f"WidePay global: coletando SOMENTE Recebimentos > Cobrancas (Status=Recebido) de {len(payload)} cliente(s) em varredura paginada (modo={modo}).")
++
++            dt_limite_str = None
++            if modo == "fast_12m":
++                dt_limite = datetime(datetime.now().year - 1, datetime.now().month, 1)
++                dt_limite_str = dt_limite.strftime("%d/%m/%Y")
++
+             try:
+-                # Atualizar clientes / Fast 12 Meses: pula a aba Carnes e coleta apenas Cobrancas.
+-                # Historico de carnes ja gravado e preservado pelo merge/upsert do salvar_cache.
+-                resultado_bloco = await extrair_dados_clientes_bloco(ws_url, payload, progress_callback=progress_callback, coletar_carnes=False)
++                # Atualizar clientes / Fast 12 Meses: pula a aba Carnes e coleta
++                # apenas Cobrancas. O historico de carnes ja gravado e preservado
++                # pelo merge/upsert do salvar_cache.
++                resultado_bloco = await extrair_dados_clientes_bloco(
++                    ws_url, payload, progress_callback=progress_callback, modo=modo,
++                    data_limite=dt_limite_str, coletar_carnes=False
++                )
+             except Exception as e:
+                 log(f"Erro na extracao em lote: {e}")
+-                resultado_bloco = {}
++                raise ValueError(
++                    "Coleta WidePay interrompida; cache e dados anteriores foram preservados."
++                ) from e
+             boletos_cache = registros_de_resultado_bloco(resultado_bloco)
++            if not boletos_cache:
++                raise ValueError(
++                    "A coleta WidePay retornou zero boletos; cache e dados anteriores foram preservados."
++                )
++            log(f"[FLUXO] Coleta concluida: {len(boletos_cache)} cobranca(s) recebida(s) coletada(s).")
+             metadados_cache = {
+                 "inicio_coleta": inicio_coleta,
+                 "fim_coleta": datetime.now().isoformat(timespec="seconds"),
+@@ -1338,28 +2305,89 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None, progress_
+                 "total_carnes": sum(1 for b in boletos_cache if b.get("fonte") == "carne"),
+                 "total_cobrancas": sum(1 for b in boletos_cache if b.get("fonte") == "cobranca"),
+                 "total_clientes_reconhecidos": len({b.get("cliente_normalizado") for b in boletos_cache if b.get("cliente_normalizado")}),
+-                "origem": "Atualizar clientes / coleta global WidePay",
++                "origem": f"Atualizar clientes / coleta global WidePay (modo={modo})",
+             }
+             if progress_callback:
+                 progress_callback("Salvando Cache", 70, "Salvando banco interno WidePay...")
+-            salvar_cache_boletos_widepay(boletos_cache, metadados_cache)
+-            log(f"Banco interno WidePay salvo: {len(boletos_cache)} boleto(s)/carne(s) em {config.WIDEPAY_BOLETOS_CACHE_JSON}.")
+-                
+-            for nome_achado, dados_raw in (resultado_bloco or {}).items():
+-                reg, dados_contrato = contrato_por_nome.get(nome_achado, (None, None))
+-                if not reg:
+-                    reg, dados_contrato = contrato_por_nome.get(normalizar(nome_achado).lower(), (None, None))
+-                if not reg:
++
++            cache_antigo = carregar_cache_boletos_widepay()
++            registros_antigos = list(cache_antigo.get("registros") or [])
++            mesclados = {
++                obter_chave_identidade_cobranca(r): r
++                for r in registros_antigos
++            }
++            novos_adicionados = 0
++            for r in boletos_cache:
++                chave = obter_chave_identidade_cobranca(r)
++                if chave not in mesclados:
++                    novos_adicionados += 1
++                mesclados[chave] = r
++            boletos_final = list(mesclados.values())
++            metadados_cache["total_registros_anteriores"] = len(registros_antigos)
++            metadados_cache["total_registros_novos"] = len(boletos_cache)
++            metadados_cache["total_registros_mesclados"] = len(boletos_final)
++            metadados_cache["novos_adicionados"] = novos_adicionados
++            log(f"[FLUXO] Merge do cache: {len(registros_antigos)} historico + {len(boletos_cache)} coletado(s) "
++                f"-> {len(boletos_final)} registro(s) ({novos_adicionados} novo(s)).")
++            salvar_cache_boletos_widepay(boletos_final, metadados_cache)
++            log("[FLUXO] Gravacao do cache concluida (historico preservado, sem apagar registros ausentes na coleta).")
++            payload_cache_mesclado = {"metadados": metadados_cache, "registros": boletos_final}
++            indice_cache_mesclado = criar_indice_cache(payload_cache_mesclado)
++            log(
++                "Banco interno WidePay atualizado sem apagar historico: "
++                f"{len(registros_antigos)} anterior(es), {len(boletos_cache)} coletado(s), "
++                f"{len(boletos_final)} preservado(s)/atualizado(s)."
++            )
++
++            # A coleta e global, mas a aplicacao precisa ocorrer por contrato local.
++            # Nomes repetidos (por exemplo, o mesmo cliente em F2 e F3) nao podem
++            # compartilhar uma unica entrada indexada pelo nome.
++            for reg in confirmados:
++                dados_contrato = {
++                    "cliente": reg.get("cliente"),
++                    "lote": reg.get("lote"),
++                    "quadra": reg.get("quadra"),
++                    "valor_parcela": decimal(reg.get("valor_base_parcela")),
++                    "total_parcelas": inteiro(reg.get("parcelas_total_contrato")),
++                    "valor_total_contrato": decimal(reg.get("valor_total_contratado")),
++                    "entrada": decimal(reg.get("entrada_valor")),
++                }
++                identidade = (
++                    f"{reg.get('cliente') or '-'} "
++                    f"({reg.get('quadra') or '-'}{reg.get('lote') or '-'})"
++                )
++                dados_raw_completo = montar_raw_cliente(
++                    cliente=reg.get("cliente"),
++                    lote=reg.get("lote"),
++                    quadra=reg.get("quadra"),
++                    pasta_local=str(reg.get("pasta_local")),
++                    payload_cache=payload_cache_mesclado,
++                    indice_cache=indice_cache_mesclado,
++                    permitir_nome_sem_lote=(
++                        slug_busca(reg.get("cliente", "")) in nomes_fallback_seguro
++                    ),
++                )
++                if not (
++                    dados_raw_completo
++                    and (
++                        dados_raw_completo.get("carnes")
++                        or dados_raw_completo.get("cobrancas")
++                    )
++                ):
++                    log(f"Cache mesclado sem correspondencia para {identidade}; registro anterior preservado.")
+                     continue
+-                metrics = montar_metricas_resumo_widepay(dados_raw, dados_contrato)
+-                atualizado = aplicar_metricas_registro(reg, metrics)
++
++                metrics = montar_metricas_resumo_widepay(dados_raw_completo, dados_contrato)
++                atualizado = aplicar_metricas_registro(reg, metrics, modo=modo)
+                 atualizado["origem_dados"] = "Contrato local + WidePay global"
+                 atualizados_por_chave[chave_registro_cache(reg)] = atualizado
+             return atualizados_por_chave
+ 
+         try:
+             atualizados = asyncio.run(_coletar())
+-        except RuntimeError:
++        except RuntimeError as exc:
++            if "asyncio.run() cannot be called" not in str(exc):
++                raise
+             loop = asyncio.new_event_loop()
+             try:
+                 atualizados = loop.run_until_complete(_coletar())
+@@ -1369,21 +2397,12 @@ def atualizar_resumo_widepay_incremental(registros, log_callback=None, progress_
+         return [atualizados.get(chave_registro_cache(r), r) for r in registros]
+     except Exception as exc:
+         log(f"Atualizacao WidePay falhou: {exc}. Mantendo dados anteriores.")
+-        mantidos = []
+-        agora = datetime.now().isoformat(timespec="seconds")
+-        for reg in registros:
+-            item = normalizar_registro_cache(reg)
+-            if item.get("contrato") == "Encontrado":
+-                obs = item.get("observacoes") or ""
+-                aviso = "Atualizacao falhou - mantidos dados anteriores"
+-                item["observacoes"] = aviso if not obs else f"{obs} | {aviso}"
+-                if not item.get("ultima_atualizacao_widepay"):
+-                    item["data_atualizacao"] = item.get("data_atualizacao") or agora
+-            mantidos.append(item)
+-        return mantidos
+-
+-
+-def indexar_clientes(validar_widepay=False, log_callback=None, progress_callback=None):
++        raise RuntimeError(
++            f"Atualizacao WidePay falhou; os dados anteriores foram preservados: {exc}"
++        ) from exc
++
++
++def indexar_clientes(validar_widepay=False, log_callback=None, progress_callback=None, modo="completo"):
+     config.ensure_dirs()
+     agora = datetime.now()
+     log_path = config.LOG_DIR / f"atualizacao_clientes_{agora.strftime('%Y%m%d_%H%M%S')}.log"
+@@ -1397,7 +2416,17 @@ def indexar_clientes(validar_widepay=False, log_callback=None, progress_callback
+     if progress_callback:
+         progress_callback("PreparaÃ§Ã£o", 0, "Preparando atualizaÃ§Ã£o...")
+ 
+-    log("Indexacao iniciada")
++    if modo == "fast_12m":
++        dt_limite = datetime(agora.year - 1, agora.month, 1)
++        dt_limite_str = dt_limite.strftime("%d/%m/%Y")
++        log("[FAST 12M] AtualizaÃ§Ã£o rÃ¡pida iniciada")
++        log("[FAST 12M] Filtro aplicado: Status=Recebido")
++        log("[FAST 12M] Data=Recebimento")
++        log(f"[FAST 12M] A partir de: {dt_limite_str}")
++    else:
++        log("[WIDEPAY] AtualizaÃ§Ã£o completa iniciada")
++        log("[WIDEPAY] Filtro aplicado: Status=Recebido")
++        log("[WIDEPAY] 500 registros por pÃ¡gina")
+     widepay_status = "Nao validado nesta atualizacao"
+     if progress_callback:
+         progress_callback("ValidaÃ§Ã£o", 10, "Validando ambiente e conexÃ£o com WidePay...")
+@@ -1418,25 +2447,40 @@ def indexar_clientes(validar_widepay=False, log_callback=None, progress_callback
+ 
+     registros = []
+     vistos = set()
+-    
++
+     # Carregar cache existente para preservar nomes de clientes jÃ¡ validados pela WidePay ou contratos
+     cache_anterior = {}
++    cache_anterior_por_cliente_lote = {}
+     try:
+         for r in carregar_cache():
+-            chave_cache = (str(r.get("pasta_local")).lower(), chave_lote_canonica(r) or r.get("lote"))
++            lote_can_antigo = chave_lote_canonica(r) or r.get("lote")
++            chave_cache = (str(r.get("pasta_local")).lower(), lote_can_antigo)
+             cache_anterior[chave_cache] = r
++
++            cli_slug = slug_busca(r.get("cliente") or "")
++            if cli_slug and lote_can_antigo:
++                cache_anterior_por_cliente_lote[(cli_slug, lote_can_antigo)] = r
+     except Exception:
+         pass
+ 
+     for pasta, lote, contrato_status, contrato_path in iterar_pastas_cliente():
+         cliente_sugerido = limpar_nome_cliente(pasta.name)
+         cliente = cliente_sugerido
+-        
++        quadra = extrair_quadra(pasta.name, lote)
++
+         # O nome exibido deve priorizar o contrato local confirmado. Os dados financeiros
+         # do cache anterior seguem preservados por mesclar_registro_indexado().
+-        lote_canonico = normalizar_lote_quadra(lote, "", pasta.name, str(pasta)) or lote
++        lote_canonico = normalizar_lote_quadra(lote, quadra, pasta.name, str(pasta)) or lote
+         chave_res = (str(pasta).lower(), lote_canonico)
+         r_antigo = cache_anterior.get(chave_res)
++        if not r_antigo:
++            cli_slug_sug = slug_busca(cliente_sugerido)
++            if cli_slug_sug and lote_canonico:
++                for (cli_slug, lote_antigo), r in cache_anterior_por_cliente_lote.items():
++                    if lote_antigo == lote_canonico:
++                        if (cli_slug in cli_slug_sug) or (cli_slug_sug in cli_slug):
++                            r_antigo = r
++                            break
+         dados_contrato = {}
+         if contrato_status == "Encontrado" and contrato_path:
+             dados_contrato = ler_dados_contrato_arquivo(contrato_path, cliente_sugerido)
+@@ -1462,7 +2506,7 @@ def indexar_clientes(validar_widepay=False, log_callback=None, progress_callback
+             cliente_padrao=cliente,
+             dados_contrato=dados_contrato,
+         )
+-        
++
+         # RestauraÃ§Ã£o automÃ¡tica de histÃ³rico fÃ­sico
+         if registro.get("contrato") == "Encontrado" and (registro.get("boletos_atrasados") == "" or registro.get("status") == "Pendente validacao WidePay"):
+             metrics_data, mtime_iso = carregar_metricas_historicas_locais(cliente, lote)
+@@ -1487,13 +2531,13 @@ def indexar_clientes(validar_widepay=False, log_callback=None, progress_callback
+     if validar_widepay:
+         if progress_callback:
+             progress_callback("ConexÃ£o WidePay", 30, "Conectando ao WidePay...")
+-        registros = atualizar_resumo_widepay_incremental(registros, log_callback=log, progress_callback=progress_callback)
++        registros = atualizar_resumo_widepay_incremental(registros, log_callback=log, progress_callback=progress_callback, modo=modo)
+ 
+     if progress_callback:
+         progress_callback("AtualizaÃ§Ã£o de Lista", 80, "Atualizando lista de clientes...")
+     registros, resumo_saneamento = saneamento_clientes.aplicar_saneamento(registros)
+     registros.sort(key=lambda r: (r.get("saneamento_categoria", "ativos"), slug_busca(r["cliente"]), r["lote"]))
+-    
++
+     if progress_callback:
+         progress_callback("GeraÃ§Ã£o XLSX", 90, "Gerando banco de dados XLSX...")
+     salvar_cache(registros)
+@@ -1520,8 +2564,12 @@ def salvar_cache(registros):
+         "resumo_saneamento": resumo_saneamento,
+         "registros": registros_normalizados,
+     }
+-    with open(config.CLIENTES_JSON, "w", encoding="utf-8") as f:
+-        json.dump(payload, f, ensure_ascii=False, indent=2)
++    payload_anterior = None
++    if config.CLIENTES_JSON.exists():
++        with open(config.CLIENTES_JSON, "r", encoding="utf-8") as f:
++            payload_anterior = json.load(f)
++    validar_preservacao_pagamentos(payload_anterior, registros_normalizados)
++    _salvar_json_atomico(config.CLIENTES_JSON, payload)
+     salvar_xlsx(registros_normalizados)
+ 
+ 
+@@ -1684,7 +2732,7 @@ def salvar_xlsx(registros):
+             )
+     auditoria.column_dimensions["A"].width = 32
+     auditoria.column_dimensions["B"].width = 90
+-        
++
+     # Salvar backup se o arquivo jÃ¡ existir
+     if config.VISUAL_XLSX.exists():
+         import shutil
+@@ -1697,11 +2745,11 @@ def salvar_xlsx(registros):
+             print(f"Backup do banco visual criado em: {backup_path}")
+         except Exception as exc:
+             print(f"Erro ao criar backup do banco visual: {exc}")
+-            
++
+     # Salvar banco visual (raiz do app)
+     wb.save(config.VISUAL_XLSX)
+     print(f"Banco visual XLSX salvo em: {config.VISUAL_XLSX}")
+-    
++
+     # Manter cÃ³pia na pasta data interna para compatibilidade
+     wb.save(config.CLIENTES_XLSX)
+ 
+@@ -1713,41 +2761,53 @@ def carregar_cache():
+         payload = json.load(f)
+     registros = []
+     modificado = False
+-    for item in payload.get("registros", []):
++    payload_widepay = carregar_cache_boletos_widepay()
++    cache_widepay_disponivel = bool(payload_widepay.get("registros"))
++    indice_widepay = criar_indice_cache(payload_widepay) if cache_widepay_disponivel else {}
++    itens_payload = list(payload.get("registros", []))
++    nomes_fallback_seguro = nomes_com_identidade_unica_confirmada(itens_payload)
++
++    for item in itens_payload:
+         registro = normalizar_registro_cache(item)
+-        mapa = registro.get("pagamentos_recentes_5m", {})
+-        is_rico = isinstance(mapa, dict) and mapa.get("_enriquecido") is True and len(mapa) >= 10
+-        if is_rico:
+-            # Se for rico mas todos os meses forem "Sem boleto" mesmo o contrato sendo "Encontrado",
+-            # significa que o cache foi envenenado na geracao antiga. Forcamos re-enriquecimento.
+-            valores_meses = []
+-            for k, v in mapa.items():
+-                if k == "_enriquecido":
+-                    continue
+-                if isinstance(v, dict):
+-                    valores_meses.append(v.get("status"))
+-                else:
+-                    valores_meses.append(str(v).strip())
+-            if len(valores_meses) > 0 and all(v == "Sem boleto" for v in valores_meses):
+-                if registro.get("contrato") == "Encontrado":
+-                    is_rico = False
+-                    
+-        if not is_rico:
+-            registro = enriquecer_pagamentos_recentes_cache(registro)
+-            modificado = True
++        if cache_widepay_disponivel:
++            estado_antes = {
++                "pagamentos_recentes_5m": registro.get("pagamentos_recentes_5m"),
++                "parcelas_pagas_identificadas": registro.get("parcelas_pagas_identificadas"),
++                "parcelas_total_contrato": registro.get("parcelas_total_contrato"),
++                "parcelas_restantes": registro.get("parcelas_restantes"),
++                "parcelas_resumo": registro.get("parcelas_resumo"),
++                "valor_total_pago": registro.get("valor_total_pago"),
++            }
++            registro = enriquecer_pagamentos_recentes_cache(
++                registro,
++                payload_cache=payload_widepay,
++                indice_cache=indice_widepay,
++                permitir_nome_sem_lote=(
++                    registro.get("contrato") == "Encontrado"
++                    and slug_busca(registro.get("cliente", "")) in nomes_fallback_seguro
++                ),
++            )
++            estado_depois = {campo: registro.get(campo) for campo in estado_antes}
++            if estado_depois != estado_antes:
++                modificado = True
+         registros.append(registro)
+-        
++
+     registros, resumo_saneamento = saneamento_clientes.aplicar_saneamento(registros)
+-    
++
+     if modificado:
+         payload["registros"] = registros
+         payload["resumo_saneamento"] = resumo_saneamento
+         payload["gerado_em"] = datetime.now().isoformat(timespec="seconds")
+         try:
+-            with open(config.CLIENTES_JSON, "w", encoding="utf-8") as f:
+-                json.dump(payload, f, ensure_ascii=False, indent=2)
+-            print("Cache de clientes enriquecido para 10 meses e salvo com sucesso.")
++            validar_preservacao_pagamentos(
++                {"registros": itens_payload},
++                registros,
++            )
++            _salvar_json_atomico(config.CLIENTES_JSON, payload)
++            print("Cache de clientes enriquecido em lote para 12 meses e salvo com sucesso.")
+         except Exception as e:
+             print(f"Erro ao salvar cache enriquecido: {e}")
+-            
++            registros = [normalizar_registro_cache(item) for item in itens_payload]
++            registros, _ = saneamento_clientes.aplicar_saneamento(registros)
++
+     return registros
+diff --git a/WideAPP_EXTRA/app/interface.py b/WideAPP_EXTRA/app/interface.py
+index f439aef..265f945 100644
+--- a/WideAPP_EXTRA/app/interface.py
++++ b/WideAPP_EXTRA/app/interface.py
+@@ -167,6 +167,14 @@ class WideAppInterface:
+         self.root.title(APP_WINDOW_TITLE)
+         self.root.geometry("1500x900")
+         self.root.minsize(1280, 760)
++        ico_path = Path(__file__).resolve().parent.parent / "widepay_icon_transparente_centralizado_ok.ico"
++        if not ico_path.exists():
++            ico_path = Path(__file__).resolve().parent.parent / "assets" / "wideapp_extra_icon.ico"
++        if ico_path.exists():
++            try:
++                self.root.iconbitmap(str(ico_path))
++            except Exception:
++                pass
+         self.app_version_var = tk.StringVar(value=APP_VERSION_LABEL)
+         config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+@@ -265,6 +273,11 @@ class WideAppInterface:
+             background=[("active", "#22C55E"), ("disabled", "#1A2226")],
+             foreground=[("active", "#06150B"), ("disabled", "#66737A")]
+         )
++        style.configure("Warning.Toolbar.TButton", background="#D97706", foreground="#FFFFFF", bordercolor="#F59E0B", font=("Segoe UI", 9, "bold"), padding=(10, 4))
++        style.map("Warning.Toolbar.TButton",
++            background=[("active", "#B45309"), ("disabled", "#1A2226")],
++            foreground=[("active", "#FFFFFF"), ("disabled", "#66737A")]
++        )
+         style.configure("Danger.Toolbar.TButton", background="#3A2630", foreground="#FFB4C0", bordercolor="#7F2D3B", font=("Segoe UI", 9, "bold"), padding=(10, 4))
+         style.map("Danger.Toolbar.TButton",
+             background=[("active", "#7F1D1D"), ("disabled", "#1A2226")],
+@@ -306,6 +319,7 @@ class WideAppInterface:
+         self._recentes_rows = []
+         self._recentes_columns = []
+         self._recentes_selected_rows = set()
++        self._recentes_selected_cell = None
+         self._recentes_anchor_row = None
+         self._recentes_context_row = None
+         self._recentes_total_width = 0
+@@ -328,8 +342,12 @@ class WideAppInterface:
+         self.progress_pct_var = tk.StringVar(value="0%")
+         self.progress_reg_var = tk.StringVar(value="0")
+         self.progress_cli_var = tk.StringVar(value="0")
++        self.salvamento_interno_var = tk.StringVar(value="Dados internos: prontos")
++        self._salvamento_interno_em_andamento = False
++        self._fechamento_apos_salvar = False
+         montar_start = time.perf_counter()
+         self._montar()
++        self.root.protocol("WM_DELETE_WINDOW", self._solicitar_fechamento_seguro)
+         self._perf("montar layout", montar_start)
+         self.aplicar_filtro()
+         if hasattr(self, "xlsx_combo"):
+@@ -492,6 +510,26 @@ class WideAppInterface:
+         self.progress = ttk.Progressbar(prog_inner, orient="horizontal", mode="determinate", style="Big.Horizontal.TProgressbar")
+         self.progress.pack(fill="x", pady=(0, 4))
+ 
++        salvamento_frame = tk.Frame(prog_inner, bg=self.ui_panel)
++        salvamento_frame.pack(fill="x", pady=(0, 4))
++        self._label(
++            salvamento_frame,
++            "Persistencia:",
++            8,
++            "bold",
++            self.ui_muted,
++            self.ui_panel,
++        ).pack(side="left")
++        self.lbl_salvamento_interno = tk.Label(
++            salvamento_frame,
++            textvariable=self.salvamento_interno_var,
++            bg=self.ui_panel,
++            fg="#7DD3FC",
++            font=("Segoe UI", 8),
++            anchor="w",
++        )
++        self.lbl_salvamento_interno.pack(side="left", padx=(6, 0), fill="x", expand=True)
++
+         log_label_frame = tk.Frame(prog_inner, bg=self.ui_panel)
+         log_label_frame.pack(fill="x", pady=(4, 2))
+         self._label(log_label_frame, "Log de andamento recente:", 9, "bold", self.ui_muted, self.ui_panel).pack(anchor="w")
+@@ -596,6 +634,9 @@ class WideAppInterface:
+         self.btn_atualizar_cli = ttk.Button(tb_row1, text="Atualizar clientes", style="Primary.Toolbar.TButton", command=self.atualizar_async)
+         self.btn_atualizar_cli.pack(side="left", padx=(0, 8), ipady=3)
+ 
++        self.btn_atualizar_fast = ttk.Button(tb_row1, text="Atualizar Fast\n12Meses", style="Warning.Toolbar.TButton", command=self.atualizar_fast_async)
++        self.btn_atualizar_fast.pack(side="left", padx=(0, 8), ipady=3)
++
+         self.btn_visualizar_db = ttk.Button(tb_row1, text="Visualizar banco de dados", style="Info.Toolbar.TButton", command=self.visualizar_banco_dados)
+         self.btn_visualizar_db.pack(side="left", padx=(0, 8), ipady=3)
+         
+@@ -1256,6 +1297,41 @@ class WideAppInterface:
+         self.progress_mini_log.insert("end", "\n".join(linhas) + ("\n" if linhas else ""))
+         self.progress_mini_log.configure(state="disabled")
+ 
++    def _iniciar_salvamento_interno(self, detalhe="alteracao manual"):
++        self._salvamento_interno_em_andamento = True
++        self.salvamento_interno_var.set(f"Salvando {detalhe} e backup...")
++        if hasattr(self, "lbl_salvamento_interno"):
++            self.lbl_salvamento_interno.configure(fg="#FBBF24")
++        self.root.update_idletasks()
++
++    def _concluir_salvamento_interno(self):
++        self._salvamento_interno_em_andamento = False
++        horario = datetime.now().strftime("%H:%M:%S")
++        self.salvamento_interno_var.set(f"Dados e backup concluidos as {horario}")
++        if hasattr(self, "lbl_salvamento_interno"):
++            self.lbl_salvamento_interno.configure(fg="#4ADE80")
++        self._append_progress_log(f"[dados] Salvamento interno e backup concluidos as {horario}.")
++        if self._fechamento_apos_salvar:
++            self._fechamento_apos_salvar = False
++            self.root.after_idle(self.root.destroy)
++
++    def _falhar_salvamento_interno(self, exc):
++        self._salvamento_interno_em_andamento = False
++        self._fechamento_apos_salvar = False
++        self.salvamento_interno_var.set("Falha ao salvar; ultimo arquivo valido preservado")
++        if hasattr(self, "lbl_salvamento_interno"):
++            self.lbl_salvamento_interno.configure(fg="#F87171")
++        self._append_progress_log(f"[erro dados] Falha no salvamento interno: {exc}")
++
++    def _solicitar_fechamento_seguro(self):
++        if self._salvamento_interno_em_andamento:
++            self._fechamento_apos_salvar = True
++            self.salvamento_interno_var.set("Fechamento aguardando o salvamento concluir...")
++            if hasattr(self, "lbl_salvamento_interno"):
++                self.lbl_salvamento_interno.configure(fg="#FBBF24")
++            return
++        self.root.destroy()
++
+     def _recarregar_dados_apos_atualizacao(self):
+         self.registros = indexador_clientes.carregar_cache()
+         self._pagamentos_recentes_cache.clear()
+@@ -1269,31 +1345,51 @@ class WideAppInterface:
+         self.root.after(250, self.atualizar_combo_xlsx)
+ 
+     def atualizar_async(self):
++        self._iniciar_atualizacao_clientes(
++            "completo",
++            "Atualizando clientes",
++            "Preparando atualizaÃ§Ã£o...",
++            "[0%] Iniciando atualizaÃ§Ã£o...",
++            "Atualizacao incremental de clientes iniciada...",
++        )
++
++    def atualizar_fast_async(self):
++        self._iniciar_atualizacao_clientes(
++            "fast_12m",
++            "Atualizando Fast",
++            "Preparando atualizaÃ§Ã£o rÃ¡pida...",
++            "[0%] Iniciando atualizaÃ§Ã£o rÃ¡pida dos Ãºltimos 12 meses...",
++            "Atualizacao rapida (Fast 12Meses) iniciada...",
++        )
++
++    def _iniciar_atualizacao_clientes(self, modo, status, etapa, log_inicial, log_sistema):
+         self.btn_atualizar_cli.configure(state="disabled")
++        if hasattr(self, "btn_atualizar_fast"):
++            self.btn_atualizar_fast.configure(state="disabled")
+         self.btn_atualizar_wp.configure(state="disabled")
+         self.btn_gerar_sel.configure(state="disabled")
+         self.btn_gerar_todos.configure(state="disabled")
+         self.btn_abrir_xlsx.configure(state="disabled")
+         self.btn_visualizar_db.configure(state="disabled")
+-        
+-        self.progress_status_var.set("Atualizando clientes")
+-        self.progress_etapa_var.set("Preparando atualizaÃ§Ã£o...")
++
++        self.progress_status_var.set(status)
++        self.progress_etapa_var.set(etapa)
+         self.progress_pct_var.set("0%")
+         self.progress_reg_var.set("0")
+         self.progress_cli_var.set("0")
+         self.progress["value"] = 0
+-        self.progress_label.configure(text="Preparando atualizaÃ§Ã£o...")
+-        
++        self.progress_label.configure(text=etapa)
++
+         # Habilitar e limpar mini log
+         self.progress_mini_log.configure(state="normal")
+         self.progress_mini_log.delete("1.0", "end")
+         self.progress_mini_log.configure(state="disabled")
+-        self._append_progress_log("[0%] Iniciando atualizaÃ§Ã£o...")
+-        
+-        self.log("Atualizacao incremental de clientes iniciada...")
+-        threading.Thread(target=self._atualizar, daemon=True).start()
++        self._append_progress_log(log_inicial)
+ 
+-    def _atualizar(self):
++        self.log(log_sistema)
++        threading.Thread(target=self._atualizar, args=(modo,), daemon=True).start()
++
++    def _atualizar(self, modo="completo"):
+         def progress_ui_callback(etapa, percentual, mensagem, detalhes=None):
+             def _update():
+                 self.progress["value"] = percentual
+@@ -1323,7 +1419,8 @@ class WideAppInterface:
+             result = indexador_clientes.indexar_clientes(
+                 validar_widepay=True,
+                 log_callback=self.log,
+-                progress_callback=progress_ui_callback
++                progress_callback=progress_ui_callback,
++                modo=modo
+             )
+             def _success_msg():
+                 self._recarregar_dados_apos_atualizacao()
+@@ -1334,28 +1431,35 @@ class WideAppInterface:
+                 self.progress["value"] = 100
+                 self.progress_cli_var.set(str(len(self.registros)))
+                 self._append_progress_log(f"[100%] Banco e tabela atualizados com {len(self.registros)} registros.")
+-                self.log(f"Clientes/lotes atualizados incrementalmente: {len(self.registros)}")
++                self.log(f"Clientes/lotes atualizados incrementalmente: {len(self.registros)} (modo={modo})")
+                 messagebox.showinfo(
+                     "WideAPP_EXTRA",
+                     f"AtualizaÃ§Ã£o concluÃ­da com sucesso!\n{len(self.registros)} clientes/lotes indexados."
+                 )
+             self.root.after(0, _success_msg)
+         except Exception as e:
+-            self.log(f"Erro durante atualizaÃ§Ã£o: {e}")
+-            
+-            def _error_msg():
++            self.log(f"Erro durante atualizaÃ§Ã£o ({modo}): {e}")
++            erro_atualizacao = str(e)
++
++            def _error_msg(erro_atualizacao=erro_atualizacao):
++                try:
++                    self._recarregar_dados_apos_atualizacao()
++                except Exception as erro_recarga:
++                    self.log(f"Falha ao recarregar dados preservados: {erro_recarga}")
+                 self.progress_status_var.set("Pronto")
+                 self.progress_etapa_var.set("AtualizaÃ§Ã£o falhou â€” veja o log")
+                 self.progress_label.configure(text="AtualizaÃ§Ã£o falhou â€” veja o log")
+                 self._append_progress_log("[erro] AtualizaÃ§Ã£o falhou; dados anteriores preservados.")
+                 messagebox.showerror(
+                     "WideAPP_EXTRA",
+-                    f"Erro durante atualizaÃ§Ã£o de clientes:\n{e}\n\nOs dados anteriores foram preservados."
++                    f"Erro durante atualizaÃ§Ã£o de clientes:\n{erro_atualizacao}\n\nOs dados anteriores foram preservados."
+                 )
+             self.root.after(0, _error_msg)
+         finally:
+             def _restore_buttons():
+                 self.btn_atualizar_cli.configure(state="normal")
++                if hasattr(self, "btn_atualizar_fast"):
++                    self.btn_atualizar_fast.configure(state="normal")
+                 self.btn_atualizar_wp.configure(state="normal")
+                 self.btn_gerar_sel.configure(state="normal")
+                 self.btn_gerar_todos.configure(state="normal")
+@@ -1660,6 +1764,7 @@ class WideAppInterface:
+ 
+         start = time.perf_counter()
+         canvas = self.canvas_recentes
++        saneamento_render = {"payload": saneamento_clientes.carregar_saneamento()}
+ 
+         if self._recentes_render_after:
+             try:
+@@ -1765,12 +1870,14 @@ class WideAppInterface:
+             return "#E74C3C"
+ 
+         def mes_color(status_str):
+-            s = status_str.lower()
++            s = str(status_str or "").lower()
++            if "pago manual" in s or "vencido manual" in s: return "#1E3A8A"
+             if "pago" in s or "recebido" in s: return "#1E8449"
+             if "pendente" in s: return "#B7950B"
+             if "vencido" in s: return "#922B21"
+             return "#2C3E50"
+ 
++
+         def item_key(item):
+             return self._chave(item)
+ 
+@@ -1779,7 +1886,15 @@ class WideAppInterface:
+             cached = self._pagamentos_recentes_cache.get(chave)
+             if cached is not None:
+                 return cached
+-            valores = [indexador_clientes.obter_celula_pagamento_recente(item, mes) for mes in meses]
++            valores = [
++                indexador_clientes.obter_celula_pagamento_recente(
++                    item,
++                    mes,
++                    somente_cache=True,
++                    payload_saneamento=saneamento_render["payload"],
++                )
++                for mes in meses
++            ]
+             self._pagamentos_recentes_cache[chave] = valores
+             return valores
+ 
+@@ -1789,7 +1904,19 @@ class WideAppInterface:
+                 return texto
+             return texto[: max(1, limite - 3)] + "..."
+ 
+-        def draw_cell(x, y, w, h, text, fill, fg=fg_color, anchor="center", font=("Segoe UI", 9), padx=6):
++        def draw_cell(
++            x,
++            y,
++            w,
++            h,
++            text,
++            fill,
++            fg=fg_color,
++            anchor="center",
++            font=("Segoe UI", 9),
++            padx=6,
++            tags=("recentes_body",),
++        ):
+             self.canvas_recentes.create_rectangle(
+                 x,
+                 y,
+@@ -1797,7 +1924,7 @@ class WideAppInterface:
+                 y + h,
+                 fill=fill,
+                 outline=grid_color,
+-                tags=("recentes_body",),
++                tags=tags,
+             )
+             text_x = x + padx if anchor == "w" else x + (w / 2)
+             self.canvas_recentes.create_text(
+@@ -1808,16 +1935,29 @@ class WideAppInterface:
+                 font=font,
+                 anchor=anchor,
+                 width=max(10, w - (padx * 2)),
+-                tags=("recentes_body",),
++                tags=tags,
+             )
+ 
+         def desenhar_linha(row, item):
+             y = (row - 1) * row_height
+             x = 0
+             base_fill = row_bg if row % 2 else row_alt_bg
++            row_tag = f"recentes_row_{row - 1}"
++            row_tags = ("recentes_body", row_tag)
++            self.canvas_recentes.delete(row_tag)
+ 
+             vencidos = item.get("status_atraso_qtd", item.get("boletos_atrasados", 0))
+-            draw_cell(x, y, widths[0], row_height, str(vencidos), base_fill, "white", font=("Segoe UI", 9, "bold"))
++            draw_cell(
++                x,
++                y,
++                widths[0],
++                row_height,
++                str(vencidos),
++                base_fill,
++                "white",
++                font=("Segoe UI", 9, "bold"),
++                tags=row_tags,
++            )
+             badge_w = 34
+             badge_h = 20
+             badge_x = x + (widths[0] - badge_w) / 2
+@@ -1829,7 +1969,7 @@ class WideAppInterface:
+                 badge_y + badge_h,
+                 fill=status_color(vencidos),
+                 outline=status_color(vencidos),
+-                tags=("recentes_body",),
++                tags=row_tags,
+             )
+             self.canvas_recentes.create_text(
+                 x + (widths[0] / 2),
+@@ -1837,16 +1977,26 @@ class WideAppInterface:
+                 text=str(vencidos),
+                 fill="white",
+                 font=("Segoe UI", 9, "bold"),
+-                tags=("recentes_body",),
++                tags=row_tags,
+             )
+             x += widths[0]
+ 
+             cliente = str(item.get("cliente", "")).strip()
+-            draw_cell(x, y, widths[1], row_height, texto_truncado(cliente, 30), base_fill, fg_color, anchor="w")
++            draw_cell(
++                x,
++                y,
++                widths[1],
++                row_height,
++                texto_truncado(cliente, 30),
++                base_fill,
++                fg_color,
++                anchor="w",
++                tags=row_tags,
++            )
+             x += widths[1]
+ 
+             lote = f"{item.get('lote', '')} / {item.get('quadra', '')}"
+-            draw_cell(x, y, widths[2], row_height, texto_truncado(lote, 16), base_fill, fg_color)
++            draw_cell(x, y, widths[2], row_height, texto_truncado(lote, 16), base_fill, fg_color, tags=row_tags)
+             x += widths[2]
+ 
+             col_offset = 3
+@@ -1862,7 +2012,7 @@ class WideAppInterface:
+                     y + row_height,
+                     fill=fundo,
+                     outline=grid_color,
+-                    tags=("recentes_body",),
++                    tags=row_tags,
+                 )
+                 self.canvas_recentes.create_text(
+                     x + (w / 2),
+@@ -1871,7 +2021,7 @@ class WideAppInterface:
+                     fill="white",
+                     font=("Segoe UI", 9, "bold"),
+                     width=w - 8,
+-                    tags=("recentes_body",),
++                    tags=row_tags,
+                 )
+                 self.canvas_recentes.create_text(
+                     x + (w / 2),
+@@ -1880,23 +2030,37 @@ class WideAppInterface:
+                     fill="white",
+                     font=("Segoe UI", 8),
+                     width=w - 8,
+-                    tags=("recentes_body",),
++                    tags=row_tags,
+                 )
+                 x += w
+ 
+             col_offset += len(meses)
+ 
+-            parcelas = item.get("parcelas_resumo")
+-            if not parcelas:
+-                p_pagas = item.get("parcelas_pagas_identificadas", 0)
+-                p_total = item.get("parcelas_total_contrato", "?")
+-                parcelas = f"{p_pagas} / {p_total} pagas"
+-            draw_cell(x, y, widths[col_offset], row_height, texto_truncado(parcelas, 18), base_fill, fg_color)
++            parcelas = indexador_clientes.deduzir_resumo_parcelas(item)
++            draw_cell(
++                x,
++                y,
++                widths[col_offset],
++                row_height,
++                texto_truncado(parcelas, 18),
++                base_fill,
++                fg_color,
++                tags=row_tags,
++            )
+             x += widths[col_offset]
+ 
+             att = item.get("ultima_atualizacao_widepay") or item.get("data_atualizacao") or ""
+             att = indexador_clientes.formatar_data_hora(att)
+-            draw_cell(x, y, widths[col_offset + 1], row_height, texto_truncado(att, 18), base_fill, fg_color)
++            draw_cell(
++                x,
++                y,
++                widths[col_offset + 1],
++                row_height,
++                texto_truncado(att, 18),
++                base_fill,
++                fg_color,
++                tags=row_tags,
++            )
+ 
+         registros = list(registros)
+         self._recentes_rows = [
+@@ -1916,6 +2080,27 @@ class WideAppInterface:
+             if row["key"] in chaves_selecionadas
+         }
+         self._recentes_anchor_row = min(self._recentes_selected_rows) if self._recentes_selected_rows else None
++        if getattr(self, "_recentes_selected_cell", None):
++            r_idx, c_idx, col_key, mes = self._recentes_selected_cell
++            valid = False
++            if 0 <= r_idx < len(self._recentes_rows):
++                cols = getattr(self, "_recentes_columns", [])
++                if 0 <= c_idx < len(cols) and cols[c_idx].get("key") == col_key:
++                    valid = True
++            if not valid:
++                self._recentes_selected_cell = None
++
++        def redesenhar_linha(row_idx):
++            if not (0 <= row_idx < len(self._recentes_rows)):
++                return
++            item = self._recentes_rows[row_idx]["item"]
++            saneamento_render["payload"] = saneamento_clientes.carregar_saneamento()
++            self._pagamentos_recentes_cache.pop((item_key(item), header_key), None)
++            desenhar_linha(row_idx + 1, item)
++            self._recentes_desenhar_selecao()
++
++        self._recentes_redraw_row = redesenhar_linha
++
+         lote_tamanho = 40
+ 
+         def render_lote(inicio):
+@@ -1942,6 +2127,35 @@ class WideAppInterface:
+             self._recentes_desenhar_selecao()
+             self._perf(f"Ativ. Recentes com {len(meses)} meses", start, "0 linhas")
+ 
++    def _recentes_atualizar_linha(self, item=None):
++        row_idx = getattr(self, "_recentes_context_row", None)
++        if item is not None:
++            chave_item = self._chave(item)
++            if row_idx is None or not (0 <= row_idx < len(getattr(self, "_recentes_rows", []))):
++                row_idx = next(
++                    (
++                        idx
++                        for idx, row in enumerate(getattr(self, "_recentes_rows", []))
++                        if row.get("key") == chave_item
++                    ),
++                    None,
++                )
++            elif self._recentes_rows[row_idx].get("key") != chave_item:
++                row_idx = next(
++                    (
++                        idx
++                        for idx, row in enumerate(getattr(self, "_recentes_rows", []))
++                        if row.get("key") == chave_item
++                    ),
++                    None,
++                )
++
++        redraw = getattr(self, "_recentes_redraw_row", None)
++        if row_idx is not None and callable(redraw):
++            self.root.after_idle(lambda idx=row_idx: redraw(idx))
++            return
++        self.root.after_idle(lambda: self._popular_tree_pagamentos_recentes(self.filtrados))
++
+     def _recentes_row_from_event(self, event):
+         if not getattr(self, "_recentes_rows", None):
+             return None
+@@ -1953,32 +2167,66 @@ class WideAppInterface:
+             return idx
+         return None
+ 
++    def _recentes_cell_from_event(self, event):
++        row_idx = self._recentes_row_from_event(event)
++        if row_idx is None:
++            return None, None, None
++        canvas = self.canvas_recentes
++        x = canvas.canvasx(event.x)
++        cols = getattr(self, "_recentes_columns", [])
++        for col_idx, col in enumerate(cols):
++            x_start = col.get("x", 0)
++            x_end = x_start + col.get("width", 0)
++            if x_start <= x <= x_end:
++                return row_idx, col_idx, col
++        return row_idx, None, None
++
+     def _recentes_on_click(self, event):
+         self.canvas_recentes.focus_set()
+-        idx = self._recentes_row_from_event(event)
+-        if idx is None:
++        row_idx, col_idx, col = self._recentes_cell_from_event(event)
++        if row_idx is None:
+             self._recentes_selected_rows.clear()
++            self._recentes_selected_cell = None
+             self._recentes_anchor_row = None
+             self._recentes_sync_selection(log=True)
+             self._recentes_desenhar_selecao()
+             return "break"
+ 
++        if col and col.get("key", "").startswith("mes:") and col.get("mes"):
++            self._recentes_selected_cell = (row_idx, col_idx, col["key"], col["mes"])
++            self._recentes_selected_rows = {row_idx}
++            self._recentes_anchor_row = row_idx
++            self._recentes_context_row = row_idx
++            self._recentes_sync_selection(log=True)
++            self._recentes_desenhar_selecao()
++            return "break"
++
++        if col and col.get("key") == "parcelas":
++            self._recentes_selected_cell = (row_idx, col_idx, "parcelas", None)
++            self._recentes_selected_rows = {row_idx}
++            self._recentes_anchor_row = row_idx
++            self._recentes_context_row = row_idx
++            self._recentes_sync_selection(log=True)
++            self._recentes_desenhar_selecao()
++            return "break"
++
++        self._recentes_selected_cell = None
+         shift = bool(event.state & 0x0001)
+         ctrl = bool(event.state & 0x0004)
+         if shift and self._recentes_anchor_row is not None:
+-            start = min(self._recentes_anchor_row, idx)
+-            end = max(self._recentes_anchor_row, idx)
++            start = min(self._recentes_anchor_row, row_idx)
++            end = max(self._recentes_anchor_row, row_idx)
+             self._recentes_selected_rows = set(range(start, end + 1))
+         elif ctrl:
+-            if idx in self._recentes_selected_rows:
+-                self._recentes_selected_rows.remove(idx)
++            if row_idx in self._recentes_selected_rows:
++                self._recentes_selected_rows.remove(row_idx)
+             else:
+-                self._recentes_selected_rows.add(idx)
+-            self._recentes_anchor_row = idx
++                self._recentes_selected_rows.add(row_idx)
++            self._recentes_anchor_row = row_idx
+         else:
+-            self._recentes_selected_rows = {idx}
+-            self._recentes_anchor_row = idx
+-        self._recentes_context_row = idx
++            self._recentes_selected_rows = {row_idx}
++            self._recentes_anchor_row = row_idx
++        self._recentes_context_row = row_idx
+         self._recentes_sync_selection(log=True)
+         self._recentes_desenhar_selecao()
+         return "break"
+@@ -2015,6 +2263,33 @@ class WideAppInterface:
+         canvas = self.canvas_recentes
+         canvas.delete("recentes_selection")
+         total_width = max(1, getattr(self, "_recentes_total_width", 1))
++
++        cell = getattr(self, "_recentes_selected_cell", None)
++        if cell:
++            row_idx, col_idx, col_key, mes = cell
++            if 0 <= row_idx < len(self._recentes_rows):
++                row = self._recentes_rows[row_idx]
++                cols = getattr(self, "_recentes_columns", [])
++                if 0 <= col_idx < len(cols):
++                    col_def = cols[col_idx]
++                    x = col_def.get("x", 0)
++                    w = col_def.get("width", 0)
++                    y = row["y"]
++                    h = row["height"]
++                    canvas.create_rectangle(
++                        x + 1,
++                        y + 1,
++                        x + w - 1,
++                        y + h - 1,
++                        fill="",
++                        outline="#60A5FA",
++                        width=2,
++                        tags=("recentes_selection",),
++                    )
++                    canvas.tag_raise("recentes_selection")
++                    return
++
++
+         for idx in sorted(self._recentes_selected_rows):
+             if not (0 <= idx < len(self._recentes_rows)):
+                 continue
+@@ -2057,12 +2332,7 @@ class WideAppInterface:
+         if key == "lote_quadra":
+             return self._valor_grade(item, "lote")
+         if key == "parcelas":
+-            parcelas = item.get("parcelas_resumo")
+-            if not parcelas:
+-                p_pagas = item.get("parcelas_pagas_identificadas", 0)
+-                p_total = item.get("parcelas_total_contrato", "?")
+-                parcelas = f"{p_pagas} / {p_total} pagas"
+-            return str(parcelas)
++            return indexador_clientes.deduzir_resumo_parcelas(item)
+         if key == "atualizado_em":
+             att = item.get("ultima_atualizacao_widepay") or item.get("data_atualizacao") or ""
+             return indexador_clientes.formatar_data_hora(att)
+@@ -2095,6 +2365,8 @@ class WideAppInterface:
+ 
+     def _recentes_mes_color(self, status_str):
+         s = str(status_str or "").lower()
++        if "pago manual" in s or "vencido manual" in s:
++            return "1E3A8A"
+         if "pago" in s or "recebido" in s:
+             return "1E8449"
+         if "pendente" in s:
+@@ -2103,6 +2375,7 @@ class WideAppInterface:
+             return "922B21"
+         return "2C3E50"
+ 
++
+     def _recentes_linhas_exportacao(self):
+         if not getattr(self, "_recentes_rows", None):
+             self._popular_tree_pagamentos_recentes(self.filtrados)
+@@ -2238,17 +2511,62 @@ class WideAppInterface:
+         return "break"
+ 
+     def _recentes_menu_contexto(self, event):
+-        idx = self._recentes_row_from_event(event)
+-        if idx is not None:
++        row_idx, col_idx, col = self._recentes_cell_from_event(event)
++        if row_idx is not None:
+             self.canvas_recentes.focus_set()
+-            self._recentes_context_row = idx
+-            if idx not in self._recentes_selected_rows:
+-                self._recentes_selected_rows = {idx}
+-                self._recentes_anchor_row = idx
+-                self._recentes_sync_selection(log=True)
+-                self._recentes_desenhar_selecao()
++            self._recentes_context_row = row_idx
++            if col and col.get("key", "").startswith("mes:") and col.get("mes"):
++                self._recentes_selected_cell = (row_idx, col_idx, col["key"], col["mes"])
++                self._recentes_selected_rows = {row_idx}
++                self._recentes_anchor_row = row_idx
++            elif col and col.get("key") == "parcelas":
++                self._recentes_selected_cell = (row_idx, col_idx, "parcelas", None)
++                self._recentes_selected_rows = {row_idx}
++                self._recentes_anchor_row = row_idx
++            else:
++                self._recentes_selected_cell = None
++                if row_idx not in self._recentes_selected_rows:
++                    self._recentes_selected_rows = {row_idx}
++                    self._recentes_anchor_row = row_idx
++            self._recentes_sync_selection(log=True)
++            self._recentes_desenhar_selecao()
++
+         menu = tk.Menu(self.root, tearoff=0, bg="#242424", fg="#F3F3F3", activebackground="#007A3E", activeforeground="#F3F3F3")
++
++        cell = getattr(self, "_recentes_selected_cell", None)
++        if cell and cell[0] == self._recentes_context_row:
++            col_key = cell[2]
++            if col_key == "parcelas":
++                item = self._recentes_context_item()
++                parcelas_existente = saneamento_clientes.obter_correcao_parcelas_manual(item) if item else None
++                menu.add_command(label="Editar valores", command=self._recentes_editar_parcelas_dialogo)
++                if parcelas_existente:
++                    menu.add_command(label="Remover ajuste manual de parcelas", command=self._recentes_remover_correcao_parcelas)
++                else:
++                    menu.add_command(label="Remover ajuste manual de parcelas", state="disabled")
++                menu.add_separator()
++            elif col_key.startswith("mes:"):
++                mes = cell[3]
++                item = self._recentes_context_item()
++                correcao_existente = saneamento_clientes.obter_correcao_mensal_manual(item, mes.get("chave")) if item and mes else None
++
++                rotulo_mes = mes.get("rotulo", mes.get("chave")) if mes else ""
++                menu.add_command(label=f"Marcar como pago ({rotulo_mes})", command=self._recentes_marcar_pago_manual_dialogo)
++                menu.add_command(label=f"Marcar como vencido ({rotulo_mes})", command=self._recentes_marcar_vencido_manual_dialogo)
++                if correcao_existente:
++                    menu.add_command(label="Remover correÃ§Ã£o manual", command=self._recentes_remover_correcao_manual)
++                else:
++                    menu.add_command(label="Remover correÃ§Ã£o manual", state="disabled")
++                menu.add_separator()
++
+         menu.add_command(label="Copiar seleÃ§Ã£o", command=self._copiar_recentes_selecao)
++        if col and col.get("key") == "cliente" and row_idx is not None:
++            item_contexto = self._recentes_context_item()
++            menu.add_separator()
++            menu.add_command(
++                label="Excluir cliente da lista",
++                command=lambda item=item_contexto: self._excluir_cliente_da_lista(item, "ativos"),
++            )
+         menu.add_separator()
+         menu.add_command(label="Gerar relatorio do(s) selecionado(s)", command=self.gerar_selecionados)
+         menu.add_command(label="Abrir pasta do cliente no Explorer", command=self._recentes_abrir_pasta_contexto)
+@@ -2257,6 +2575,376 @@ class WideAppInterface:
+         menu.post(event.x_root, event.y_root)
+         return "break"
+ 
++    def _recentes_marcar_pago_manual_dialogo(self):
++        from tkinter import simpledialog
++        cell = getattr(self, "_recentes_selected_cell", None)
++        if not cell:
++            messagebox.showinfo("WideAPP_EXTRA", "Nenhuma celula mensal selecionada.")
++            return "break"
++        row_idx, col_idx, col_key, mes = cell
++        item = self._recentes_context_item()
++        if not item:
++            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado.")
++            return "break"
++
++        rotulo_mes = mes.get("rotulo", mes.get("chave"))
++        cliente_nome = item.get("cliente", "")
++        msg_prompt = (
++            f"Marcar como Pago manual para o mes {rotulo_mes}\n"
++            f"Cliente: {cliente_nome}\n\n"
++            "Informar valor do pagamento (OPCIONAL):\n"
++            "- Deixe em branco para 'Pago manual' sem valor especifico\n"
++            "- Ou digite o valor (ex: 150,00 ou 150.50):"
++        )
++        resposta = simpledialog.askstring(
++            "Marcar Pago manual",
++            msg_prompt,
++            parent=self.root,
++        )
++        if resposta is None:
++            return "break"
++
++        resposta_str = resposta.strip()
++        valor_manual = None
++        if resposta_str:
++            try:
++                v_clean = resposta_str.replace(".", "").replace(",", ".").strip() if "," in resposta_str else resposta_str.strip()
++                valor_float = float(v_clean)
++                if valor_float < 0:
++                    raise ValueError("Valor nao pode ser negativo.")
++                valor_manual = valor_float
++            except Exception:
++                messagebox.showwarning(
++                    "WideAPP_EXTRA",
++                    f"Valor invalido: '{resposta_str}'.\nInforme um numero nao negativo (ex: 0, 150,00 ou 150.50).",
++                    parent=self.root,
++                )
++                return "break"
++
++        lote_quadra = f"{item.get('lote', '')} / {item.get('quadra', '')}"
++        valor_str = indexador_clientes.formatar_moeda(valor_manual) if valor_manual is not None else "nao informado"
++        msg_confirm = (
++            f"Confirmar marcacao manual como PAGO?\n\n"
++            f"Cliente: {cliente_nome}\n"
++            f"Lote/Quadra: {lote_quadra}\n"
++            f"Mes: {rotulo_mes}\n"
++            f"Status: Pago manual\n"
++            f"Valor: {valor_str}"
++        )
++        if not messagebox.askyesno("Confirmar alteracao manual", msg_confirm, parent=self.root):
++            return "break"
++
++        self._iniciar_salvamento_interno("correcao mensal")
++        try:
++            saneamento_clientes.registrar_correcao_mensal_manual(
++                item,
++                mes,
++                status_manual="pago",
++                valor_manual=valor_manual,
++                motivo=f"Marcado como Pago manual na interface ({rotulo_mes})",
++            )
++            indexador_clientes.sincronizar_acrescimos_parcelas_manuais(
++                item,
++                cobrancas=[],
++                origem_fluxo="pago_manual_ui",
++            )
++            self.log(f"Ativ. Recentes: Correcao mensal 'Pago manual' registrada para {cliente_nome} ({rotulo_mes}).")
++            self._recentes_atualizar_linha(item)
++            self._concluir_salvamento_interno()
++        except Exception as exc:
++            self._falhar_salvamento_interno(exc)
++            self.log(f"Erro ao registrar correcao mensal manual: {exc}")
++            messagebox.showerror("WideAPP_EXTRA", f"Erro ao registrar correcao mensal manual:\n{exc}", parent=self.root)
++
++        return "break"
++
++    def _recentes_editar_parcelas_dialogo(self):
++        item = self._recentes_context_item()
++        if not item:
++            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado.")
++            return "break"
++
++        efetivos = indexador_clientes.obter_valores_parcelas_efetivos(item)
++        val_pagas_default = str(efetivos.get("pagas", 0))
++        val_total_default = str(efetivos.get("total", ""))
++
++        top = tk.Toplevel(self.root)
++        top.title("Editar parcelas do contrato")
++        top.geometry("380x220")
++        top.resizable(False, False)
++        top.configure(bg="#242424")
++        top.transient(self.root)
++        top.grab_set()
++
++        top.update_idletasks()
++        rx = self.root.winfo_x() + (self.root.winfo_width() // 2) - 190
++        ry = self.root.winfo_y() + (self.root.winfo_height() // 2) - 110
++        top.geometry(f"+{rx}+{ry}")
++
++        cliente_nome = item.get("cliente", "")
++        lote_quadra = f"{item.get('lote', '')} / {item.get('quadra', '')}"
++
++        lbl_info = tk.Label(
++            top,
++            text=f"Cliente: {cliente_nome}\nLote/Quadra: {lote_quadra}",
++            bg="#242424",
++            fg="#F3F3F3",
++            font=("Segoe UI", 9, "bold"),
++            justify="left",
++            anchor="w",
++        )
++        lbl_info.pack(fill="x", padx=15, pady=(12, 8))
++
++        frame_form = tk.Frame(top, bg="#242424")
++        frame_form.pack(fill="x", padx=15, pady=5)
++
++        lbl_pagas = tk.Label(frame_form, text="Parcelas pagas:", bg="#242424", fg="#F3F3F3", font=("Segoe UI", 9))
++        lbl_pagas.grid(row=0, column=0, sticky="w", pady=4)
++        entry_pagas = tk.Entry(frame_form, bg="#1E1E1E", fg="#F3F3F3", insertbackground="#F3F3F3", width=12)
++        entry_pagas.grid(row=0, column=1, sticky="w", padx=(10, 0), pady=4)
++        entry_pagas.insert(0, val_pagas_default)
++
++        lbl_total = tk.Label(frame_form, text="Total de parcelas do contrato:", bg="#242424", fg="#F3F3F3", font=("Segoe UI", 9))
++        lbl_total.grid(row=1, column=0, sticky="w", pady=4)
++        entry_total = tk.Entry(frame_form, bg="#1E1E1E", fg="#F3F3F3", insertbackground="#F3F3F3", width=12)
++        entry_total.grid(row=1, column=1, sticky="w", padx=(10, 0), pady=4)
++        entry_total.insert(0, val_total_default if val_total_default != "?" else "")
++
++        def ao_salvar():
++            raw_pagas = entry_pagas.get().strip()
++            raw_total = entry_total.get().strip()
++
++            self._iniciar_salvamento_interno("parcelas do contrato")
++            try:
++                if "." in raw_pagas or "," in raw_pagas or "." in raw_total or "," in raw_total:
++                    raise ValueError("Valores fracionarios nao sao permitidos.")
++                pagas_int = int(raw_pagas)
++                total_int = int(raw_total)
++            except Exception:
++                messagebox.showwarning(
++                    "WideAPP_EXTRA",
++                    f"Valores invalidos ('{raw_pagas}', '{raw_total}').\nInforme numeros inteiros validos (ex: 25 e 85).",
++                    parent=top,
++                )
++                return
++
++            if pagas_int < 0:
++                messagebox.showwarning("WideAPP_EXTRA", "Parcelas pagas nao pode ser negativa.", parent=top)
++                return
++            if total_int <= 0:
++                messagebox.showwarning("WideAPP_EXTRA", "Total de parcelas deve ser maior que zero.", parent=top)
++                return
++            if pagas_int > total_int:
++                messagebox.showwarning(
++                    "WideAPP_EXTRA",
++                    f"Parcelas pagas ({pagas_int}) nao pode ser maior que o total ({total_int}).",
++                    parent=top,
++                )
++                return
++
++            msg_confirm = (
++                f"Confirmar alteraÃ§Ã£o manual de parcelas?\n\n"
++                f"Cliente: {cliente_nome}\n"
++                f"Lote/Quadra: {lote_quadra}\n"
++                f"Parcelas pagas: {pagas_int}\n"
++                f"Total de parcelas: {total_int}"
++            )
++            if not messagebox.askyesno("Confirmar alteracao manual", msg_confirm, parent=top):
++                return
++
++            try:
++                ancora = item.get("parcelas_pagas_identificadas", 0)
++                eventos_atuais = indexador_clientes.coletar_eventos_parcelas_confirmados(
++                    item,
++                    cobrancas=[],
++                    incluir_mapa_cache=True,
++                )
++                ids_ancora = [ev["identificador"] for ev in (eventos_atuais or [])]
++                comps_ancora = [ev["competencia"] for ev in (eventos_atuais or []) if ev.get("competencia")]
++
++                saneamento_clientes.registrar_correcao_parcelas_manual(
++                    item,
++                    parcelas_pagas_base=pagas_int,
++                    parcelas_total_manual=total_int,
++                    parcelas_pagas_automaticas_ancora=ancora,
++                    motivo=f"Editado manualmente na interface ({pagas_int} / {total_int})",
++                    identificadores_ancora=ids_ancora,
++                    competencias_ancora=comps_ancora,
++                )
++                self.log(f"Ativ. Recentes: Correcao manual de parcelas registrada para {cliente_nome} ({pagas_int} / {total_int}).")
++                top.destroy()
++                self._recentes_atualizar_linha(item)
++                self._concluir_salvamento_interno()
++            except Exception as exc:
++                self._falhar_salvamento_interno(exc)
++                self.log(f"Erro ao registrar correcao de parcelas: {exc}")
++                messagebox.showerror("WideAPP_EXTRA", f"Erro ao registrar correcao de parcelas:\n{exc}", parent=top)
++
++        def ao_cancelar():
++            top.destroy()
++
++        frame_btn = tk.Frame(top, bg="#242424")
++        frame_btn.pack(fill="x", padx=15, pady=(12, 10))
++
++        btn_salvar = tk.Button(
++            frame_btn,
++            text="Salvar",
++            command=ao_salvar,
++            bg="#007A3E",
++            fg="#F3F3F3",
++            activebackground="#00994D",
++            activeforeground="#F3F3F3",
++            relief="flat",
++            width=10,
++        )
++        btn_salvar.pack(side="right", padx=(5, 0))
++
++        btn_cancelar = tk.Button(
++            frame_btn,
++            text="Cancelar",
++            command=ao_cancelar,
++            bg="#333333",
++            fg="#F3F3F3",
++            activebackground="#444444",
++            activeforeground="#F3F3F3",
++            relief="flat",
++            width=10,
++        )
++        btn_cancelar.pack(side="right")
++
++        top.focus_set()
++        entry_pagas.focus_set()
++        return "break"
++
++    def _recentes_remover_correcao_parcelas(self):
++        item = self._recentes_context_item()
++        if not item:
++            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado.")
++            return "break"
++        cliente_nome = item.get("cliente", "")
++        lote_quadra = f"{item.get('lote', '')} / {item.get('quadra', '')}"
++
++        msg_confirm = (
++            f"Confirmar remoÃ§Ã£o do ajuste manual de parcelas?\n\n"
++            f"Cliente: {cliente_nome}\n"
++            f"Lote/Quadra: {lote_quadra}\n\n"
++            "Os valores automÃ¡ticos de parcelas do contrato voltarÃ£o a ser exibidos."
++        )
++        if not messagebox.askyesno("Confirmar remoÃ§Ã£o manual", msg_confirm, parent=self.root):
++            return "break"
++
++        self._iniciar_salvamento_interno("remocao do ajuste de parcelas")
++        try:
++            removido = saneamento_clientes.remover_correcao_parcelas_manual(item)
++            if removido:
++                self.log(f"Ativ. Recentes: Ajuste manual de parcelas removido para {cliente_nome}.")
++                self._recentes_atualizar_linha(item)
++            else:
++                self.log(f"Ativ. Recentes: Nenhum ajuste manual de parcelas encontrado para {cliente_nome}.")
++            self._concluir_salvamento_interno()
++        except Exception as exc:
++            self._falhar_salvamento_interno(exc)
++            self.log(f"Erro ao remover ajuste manual de parcelas: {exc}")
++            messagebox.showerror("WideAPP_EXTRA", f"Erro ao remover ajuste manual de parcelas:\n{exc}", parent=self.root)
++        return "break"
++
++    def _recentes_marcar_vencido_manual_dialogo(self):
++        cell = getattr(self, "_recentes_selected_cell", None)
++        if not cell:
++            messagebox.showinfo("WideAPP_EXTRA", "Nenhuma celula mensal selecionada.")
++            return "break"
++        row_idx, col_idx, col_key, mes = cell
++        item = self._recentes_context_item()
++        if not item:
++            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado.")
++            return "break"
++
++        rotulo_mes = mes.get("rotulo", mes.get("chave"))
++        cliente_nome = item.get("cliente", "")
++        lote_quadra = f"{item.get('lote', '')} / {item.get('quadra', '')}"
++
++        msg_confirm = (
++            f"Confirmar marcacao manual como VENCIDO?\n\n"
++            f"Cliente: {cliente_nome}\n"
++            f"Lote/Quadra: {lote_quadra}\n"
++            f"Mes: {rotulo_mes}\n"
++            f"Status: Vencido manual"
++        )
++        if not messagebox.askyesno("Confirmar alteracao manual", msg_confirm, parent=self.root):
++            return "break"
++
++        self._iniciar_salvamento_interno("correcao mensal")
++        try:
++            saneamento_clientes.registrar_correcao_mensal_manual(
++                item,
++                mes,
++                status_manual="vencido",
++                valor_manual=None,
++                motivo=f"Marcado como Vencido manual na interface ({rotulo_mes})",
++            )
++            indexador_clientes.sincronizar_acrescimos_parcelas_manuais(
++                item,
++                cobrancas=[],
++                origem_fluxo="vencido_manual_ui",
++            )
++            self.log(f"Ativ. Recentes: Correcao mensal 'Vencido manual' registrada para {cliente_nome} ({rotulo_mes}).")
++            self._recentes_atualizar_linha(item)
++            self._concluir_salvamento_interno()
++        except Exception as exc:
++            self._falhar_salvamento_interno(exc)
++            self.log(f"Erro ao registrar correcao mensal manual: {exc}")
++            messagebox.showerror("WideAPP_EXTRA", f"Erro ao registrar correcao mensal manual:\n{exc}", parent=self.root)
++
++        return "break"
++
++
++    def _recentes_remover_correcao_manual(self):
++        cell = getattr(self, "_recentes_selected_cell", None)
++        if not cell:
++            messagebox.showinfo("WideAPP_EXTRA", "Nenhuma celula mensal selecionada.")
++            return "break"
++        row_idx, col_idx, col_key, mes = cell
++        item = self._recentes_context_item()
++        if not item:
++            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado.")
++            return "break"
++
++        rotulo_mes = mes.get("rotulo", mes.get("chave"))
++        cliente_nome = item.get("cliente", "")
++        lote_quadra = f"{item.get('lote', '')} / {item.get('quadra', '')}"
++
++        msg_confirm = (
++            f"Confirmar remoÃ§Ã£o da correÃ§Ã£o manual de mÃªs?\n\n"
++            f"Cliente: {cliente_nome}\n"
++            f"Lote/Quadra: {lote_quadra}\n"
++            f"MÃªs: {rotulo_mes}\n\n"
++            "O valor e status automÃ¡tico do WidePay voltarÃ£o a ser exibidos."
++        )
++        if not messagebox.askyesno("Confirmar remoÃ§Ã£o manual", msg_confirm, parent=self.root):
++            return "break"
++
++        self._iniciar_salvamento_interno("remocao da correcao mensal")
++        try:
++            removido = saneamento_clientes.remover_correcao_mensal_manual(item, mes)
++            if removido:
++                indexador_clientes.sincronizar_acrescimos_parcelas_manuais(
++                    item,
++                    cobrancas=[],
++                    origem_fluxo="remover_mensal_ui",
++                )
++                self.log(f"Ativ. Recentes: Correcao mensal manual removida para {cliente_nome} ({rotulo_mes}).")
++                self._recentes_atualizar_linha(item)
++            else:
++                self.log(f"Ativ. Recentes: Nenhuma correcao manual encontrada para remover em {cliente_nome} ({rotulo_mes}).")
++            self._concluir_salvamento_interno()
++        except Exception as exc:
++            self._falhar_salvamento_interno(exc)
++            self.log(f"Erro ao remover correcao mensal manual: {exc}")
++            messagebox.showerror("WideAPP_EXTRA", f"Erro ao remover correcao mensal manual:\n{exc}", parent=self.root)
++
++        return "break"
++
++
+     def _recentes_context_item(self):
+         if self._recentes_context_row is not None and 0 <= self._recentes_context_row < len(self._recentes_rows):
+             return self._recentes_rows[self._recentes_context_row]["item"]
+@@ -2278,11 +2966,13 @@ class WideAppInterface:
+ 
+     def _recentes_limpar_selecao(self):
+         self._recentes_selected_rows.clear()
++        self._recentes_selected_cell = None
+         self._recentes_anchor_row = None
+         self._recentes_context_row = None
+         self._recentes_sync_selection(log=True)
+         self._recentes_desenhar_selecao()
+ 
++
+     def _atualizar_abas_saneamento(self):
+         self._popular_aba_quitados()
+         self._popular_aba_bloqueados()
+@@ -2500,6 +3190,131 @@ class WideAppInterface:
+             "bloqueados_removidos": "Bloqueados / Removidos",
+         }.get(destino, destino)
+ 
++    def _confirmar_exclusao_cliente(self, item):
++        cliente = indexador_clientes.limpar_nome_cliente(str(item.get("cliente") or "Cliente"))
++        lote = str(item.get("lote") or "-")
++        quadra = str(item.get("quadra") or "-")
++        resultado = {"confirmado": False}
++
++        dialogo = tk.Toplevel(self.root)
++        dialogo.title("Confirmar exclusÃ£o da lista")
++        dialogo.configure(bg=self.ui_panel)
++        dialogo.resizable(False, False)
++        dialogo.transient(self.root)
++
++        corpo = tk.Frame(dialogo, bg=self.ui_panel, padx=24, pady=20)
++        corpo.pack(fill="both", expand=True)
++        tk.Label(
++            corpo,
++            text="Tem certeza de que deseja excluir este cliente da lista?",
++            bg=self.ui_panel,
++            fg="#F8FAFC",
++            font=("Segoe UI", 12, "bold"),
++            wraplength=500,
++            justify="left",
++        ).pack(anchor="w")
++        tk.Label(
++            corpo,
++            text=f"\nCliente: {cliente}\nLote/Quadra: {lote} / {quadra}",
++            bg=self.ui_panel,
++            fg="#E2E8F0",
++            font=("Segoe UI", 10),
++            justify="left",
++        ).pack(anchor="w")
++        tk.Label(
++            corpo,
++            text=(
++                "A linha sairÃ¡ de Ativos e Ativ. Recentes. O histÃ³rico serÃ¡ "
++                "preservado em Bloqueados / Removidos e poderÃ¡ ser restaurado."
++            ),
++            bg=self.ui_panel,
++            fg="#FBBF24",
++            font=("Segoe UI", 9),
++            wraplength=500,
++            justify="left",
++        ).pack(anchor="w", pady=(14, 18))
++
++        botoes = tk.Frame(corpo, bg=self.ui_panel)
++        botoes.pack(fill="x")
++
++        def cancelar():
++            resultado["confirmado"] = False
++            dialogo.destroy()
++
++        def confirmar():
++            resultado["confirmado"] = True
++            dialogo.destroy()
++
++        btn_nao = ttk.Button(botoes, text="NÃ£o", command=cancelar)
++        btn_nao.pack(side="right")
++        btn_sim = ttk.Button(botoes, text="Sim (6)", command=confirmar, state="disabled")
++        btn_sim.pack(side="right", padx=(0, 10))
++
++        segundos = [6]
++
++        def atualizar_contagem():
++            if not dialogo.winfo_exists():
++                return
++            segundos[0] -= 1
++            if segundos[0] <= 0:
++                btn_sim.configure(text="Sim", state="normal")
++                return
++            btn_sim.configure(text=f"Sim ({segundos[0]})")
++            dialogo.after(1000, atualizar_contagem)
++
++        dialogo.protocol("WM_DELETE_WINDOW", cancelar)
++        dialogo.bind("<Escape>", lambda _event: cancelar())
++        dialogo.update_idletasks()
++        largura = max(560, dialogo.winfo_reqwidth())
++        altura = max(260, dialogo.winfo_reqheight())
++        x = self.root.winfo_rootx() + max(0, (self.root.winfo_width() - largura) // 2)
++        y = self.root.winfo_rooty() + max(0, (self.root.winfo_height() - altura) // 2)
++        dialogo.geometry(f"{largura}x{altura}+{x}+{y}")
++        dialogo.grab_set()
++        dialogo.after(1000, atualizar_contagem)
++        btn_nao.focus_set()
++        self.root.wait_window(dialogo)
++        return resultado["confirmado"]
++
++    def _excluir_cliente_da_lista(self, item=None, origem="ativos"):
++        item = item or self._registro_contexto_ou_primeiro()
++        if not item:
++            messagebox.showinfo("WideAPP_EXTRA", "Nenhum cliente selecionado.")
++            return
++        if not self._confirmar_exclusao_cliente(item):
++            self.log(f"ExclusÃ£o da lista cancelada: {item.get('cliente') or '-'}")
++            return
++
++        chave = item.get("chave_saneamento") or indexador_clientes.normalizar_registro_cache(item).get("chave_saneamento")
++        self._iniciar_salvamento_interno("exclusÃ£o da lista")
++        try:
++            alterados = saneamento_clientes.registrar_movimentacao_manual(
++                self.registros,
++                [chave],
++                "bloqueados_removidos",
++                origem,
++            )
++            if not alterados:
++                raise ValueError("O cliente nÃ£o pÃ´de ser localizado na camada persistente.")
++            indexador_clientes.salvar_cache(self.registros)
++            self._concluir_salvamento_interno()
++            self._recarregar_dados_apos_atualizacao()
++            self.atualizar_aba_auditoria()
++            self.log(
++                "Cliente excluÃ­do da lista ativa e preservado em Bloqueados / Removidos: "
++                f"{item.get('cliente') or '-'}"
++            )
++        except Exception as exc:
++            self._falhar_salvamento_interno(exc)
++            try:
++                self._recarregar_dados_apos_atualizacao()
++            except Exception as erro_recarga:
++                self.log(f"Falha ao recarregar estado anterior apÃ³s exclusÃ£o: {erro_recarga}")
++            messagebox.showerror(
++                "WideAPP_EXTRA",
++                f"NÃ£o foi possÃ­vel excluir o cliente da lista:\n{exc}\n\nO Ãºltimo estado vÃ¡lido foi preservado.",
++            )
++
+     def _mover_registros_manual(self, tree, destino):
+         origem = self._identificar_aba_tree(tree)
+         registros = self._selecionados_registros_tree(tree)
+@@ -2987,6 +3802,13 @@ class WideAppInterface:
+             
+             menu = tk.Menu(self.root, tearoff=0, bg="#242424", fg="#F3F3F3", activebackground="#007A3E", activeforeground="#F3F3F3")
+             self._popular_menu_movimentacao(menu, tree)
++            if tree == self.tree and tree.identify_column(event.x) == "#1":
++                item_contexto = self._registro_contexto_ou_primeiro(tree)
++                menu.add_separator()
++                menu.add_command(
++                    label="Excluir cliente da lista",
++                    command=lambda item=item_contexto: self._excluir_cliente_da_lista(item, "ativos"),
++                )
+             if tree in (self.tree, getattr(self, "tree_recentes", None)):
+                 menu.add_separator()
+                 menu.add_command(label="Gerar relatorio do(s) selecionado(s)", command=self.gerar_selecionados)
+@@ -3110,6 +3932,8 @@ def smoke_test():
+     assert root.title() == APP_WINDOW_TITLE
+     assert app.btn_visualizar_db.cget("text") == "Visualizar banco de dados"
+     assert app.btn_visualizar_db.cget("style") == "Info.Toolbar.TButton"
++    assert app.btn_atualizar_fast.cget("text") == "Atualizar Fast\n12Meses"
++    assert app.btn_atualizar_fast.cget("style") == "Warning.Toolbar.TButton"
+     assert app.app_version_var.get() == APP_VERSION_LABEL
+     assert hasattr(app, "version_badge")
+     assert APP_VERSION in app.app_version_var.get()
+diff --git a/WideAPP_EXTRA/app/normalizador_pagamentos.py b/WideAPP_EXTRA/app/normalizador_pagamentos.py
+index 7c8e2b9..f320a09 100644
+--- a/WideAPP_EXTRA/app/normalizador_pagamentos.py
++++ b/WideAPP_EXTRA/app/normalizador_pagamentos.py
+@@ -1,5 +1,14 @@
+ # -*- coding: utf-8 -*-
+ 
++import re
++import unicodedata
++
++
++def normalizar_referencia(texto):
++    texto = unicodedata.normalize("NFD", str(texto or ""))
++    texto = "".join(ch for ch in texto if unicodedata.category(ch) != "Mn")
++    return re.sub(r"\s+", " ", texto).strip().lower()
++
+ def classificar_registro(cob, valor_base):
+     desc_lower = (cob.get("descricao") or "").lower()
+     status_lower = (cob.get("status") or "").lower()
+@@ -49,14 +58,19 @@ def normalizar_e_deduplicar(dados_raw_wp, valor_base=0.0):
+                 break
+                 
+         # HeurÃ­stica para confirmar se pertence a carne
+-        desc_lower = (cob.get("descricao") or "").lower()
+-        pertence_a_carne = "carne" in desc_lower or "carnÃª" in desc_lower
++        desc_lower = normalizar_referencia(cob.get("descricao"))
++        pertence_a_carne = "carne" in desc_lower
+         
+         if not pertence_a_carne:
+             for c in carnes_lista:
+                 if abs(cob.get("valor_original", 0) - float(c.get("valor_parcela", 0))) < 0.01:
+-                    ref_lower = c.get("referencia", "").lower()
+-                    if not (cob.get("descricao") or "").strip() or (ref_lower and ref_lower in desc_lower):
++                    ref_lower = normalizar_referencia(c.get("referencia"))
++                    referencias_compativeis = bool(
++                        ref_lower
++                        and desc_lower
++                        and (ref_lower in desc_lower or desc_lower in ref_lower)
++                    )
++                    if not desc_lower or referencias_compativeis:
+                         if not any(word in desc_lower for word in ["atraso", "atrazos", "ref atraso", "atr", "mÃªs", "mes"]):
+                             pertence_a_carne = True
+                             break
+diff --git a/WideAPP_EXTRA/app/saneamento_clientes.py b/WideAPP_EXTRA/app/saneamento_clientes.py
+index 69640d0..ddfbaff 100644
+--- a/WideAPP_EXTRA/app/saneamento_clientes.py
++++ b/WideAPP_EXTRA/app/saneamento_clientes.py
+@@ -2,7 +2,10 @@
+ """Camada persistente de saneamento manual dos clientes da WideAPP_EXTRA."""
+ 
+ import json
++import os
+ import re
++import shutil
++import tempfile
+ import unicodedata
+ from datetime import datetime
+ from pathlib import Path
+@@ -10,13 +13,21 @@ from pathlib import Path
+ from openpyxl import load_workbook
+ 
+ from app import config, paths
++from app.versionamento_dados import criar_snapshot_versionado
+ 
+ 
+ ARQUIVO_SANEAMENTO = paths.get_internal_data_dir() / "saneamento_clientes.json"
+ ACOES_MANUAIS = {"quitado", "bloqueado", "ignorar", "atencao"}
++_SANEAMENTO_CACHE = {"mtime": None, "payload": None}
+ ALIAS_NOMES = {
+     "emanuel felix da costa filho": "EMMANUEL FELIX DA COSTA FILHO",
+     "emmanuel felix da costa filho": "EMMANUEL FELIX DA COSTA FILHO",
++    "joice carla de magalhaes gomes": "JOICE CARLA DE MAGALHAES GONCALVES",
++    "joice carla de magalhaes goncalves": "JOICE CARLA DE MAGALHAES GONCALVES",
++    "ana carolina nery da silva borges": "ANA CAROLINA NERY DA S BORGES DE BARROS",
++    "ana carolina nery da s borges de barros": "ANA CAROLINA NERY DA S BORGES DE BARROS",
++    "rodrigo monteiro": "RODRIGO MONTEIRO DE MELO",
++    "rodrigo monteiro de melo": "RODRIGO MONTEIRO DE MELO",
+ }
+ PLACEHOLDER_RE = re.compile(
+     r"(^[\-_.\s]*$|x{3,}\s*y{2,}|^quadra\s+[a-h]$|^total\b|^cliente$|^nome$)",
+@@ -44,9 +55,17 @@ def nome_canonico(nome):
+ 
+ 
+ def lote_canonico(registro):
++    from app import widepay_boletos_cache
++    cliente = registro.get("cliente") or registro.get("nome") or ""
+     chave = str(registro.get("chave_lote_canonica") or "").strip().upper()
+     if chave and chave not in ("-", "NONE"):
++        norm = widepay_boletos_cache.normalizar_lote_quadra(chave, cliente=cliente)
++        if norm:
++            return norm
+         return chave
++    norm = widepay_boletos_cache.chave_lote_canonica(registro)
++    if norm:
++        return norm
+     quadra = str(registro.get("quadra") or "").strip().upper()
+     lote = str(registro.get("lote") or "").strip().upper()
+     if re.fullmatch(r"[A-H]\d{1,3}[A-Z]?", lote):
+@@ -123,24 +142,587 @@ def carregar_saneamento():
+             "linhas_planilha": {},
+             "ordem_planilha": [],
+             "movimentos_manuais": {},
++            "pagamentos_avulsos_manuais": {},
++            "correcoes_mensais_manuais": {},
++            "parcelas_contrato_manuais": {},
+             "auditoria_manual": [],
+             "resumo": {},
+         }
++    try:
++        mtime = ARQUIVO_SANEAMENTO.stat().st_mtime
++    except OSError:
++        mtime = None
++    if _SANEAMENTO_CACHE["payload"] is not None and _SANEAMENTO_CACHE["mtime"] == mtime:
++        return json.loads(json.dumps(_SANEAMENTO_CACHE["payload"]))
+     with open(ARQUIVO_SANEAMENTO, "r", encoding="utf-8") as f:
+         payload = json.load(f)
+     payload.setdefault("decisoes", {})
+     payload.setdefault("linhas_planilha", {})
+     payload.setdefault("ordem_planilha", [])
+     payload.setdefault("movimentos_manuais", {})
++    payload.setdefault("pagamentos_avulsos_manuais", {})
++    payload.setdefault("correcoes_mensais_manuais", {})
++    payload.setdefault("parcelas_contrato_manuais", {})
+     payload.setdefault("auditoria_manual", [])
+     payload.setdefault("resumo", {})
++    _SANEAMENTO_CACHE["mtime"] = mtime
++    _SANEAMENTO_CACHE["payload"] = json.loads(json.dumps(payload))
+     return payload
+ 
+ 
++
++def obter_correcao_mensal_manual(registro, mes_chave):
++    if not mes_chave:
++        return None
++    payload = carregar_saneamento()
++    chave = chave_saneamento(registro)
++    por_cliente = payload.get("correcoes_mensais_manuais", {}).get(chave, {})
++    marcado = por_cliente.get(str(mes_chave))
++    if not isinstance(marcado, dict):
++        return None
++    if marcado.get("removido"):
++        return None
++    return dict(marcado)
++
++
++def registrar_correcao_mensal_manual(registro, mes, status_manual="pago", valor_manual=None, motivo=""):
++    payload = carregar_saneamento()
++    correcoes = payload.setdefault("correcoes_mensais_manuais", {})
++    auditoria = payload.setdefault("auditoria_manual", [])
++    item = dict(registro or {})
++    item["chave_saneamento"] = chave_saneamento(item)
++    chave = item["chave_saneamento"]
++    mes_chave = str((mes or {}).get("chave") if isinstance(mes, dict) else mes or "").strip()
++    if not chave or not mes_chave:
++        raise ValueError("Registro ou mes invalido para registrar correcao mensal manual.")
++
++    status_manual_clean = str(status_manual or "pago").strip().lower()
++    if status_manual_clean not in ("pago", "vencido"):
++        raise ValueError(f"Status manual invalido: {status_manual}")
++
++    agora = datetime.now().isoformat(timespec="seconds")
++    por_cliente = correcoes.setdefault(chave, {})
++
++    valor_float = None
++    if status_manual_clean == "pago":
++        if valor_manual not in (None, "", False):
++            try:
++                if isinstance(valor_manual, str):
++                    v_str = valor_manual.replace(".", "").replace(",", ".").strip() if "," in valor_manual else valor_manual.strip()
++                    valor_float = float(v_str)
++                else:
++                    valor_float = float(valor_manual)
++                if valor_float < 0:
++                    raise ValueError("Valor nao pode ser negativo.")
++            except Exception as e:
++                raise ValueError(f"Valor manual invalido: {valor_manual}") from e
++        status_exibicao = "Pago manual"
++        acao = "Marcar Pago manual"
++    else:
++        status_exibicao = "Vencido manual"
++        acao = "Marcar Vencido manual"
++        valor_float = None
++
++    movimento = {
++        "chave": chave,
++        "cliente": item.get("cliente") or "",
++        "lote": item.get("lote") or "",
++        "quadra": item.get("quadra") or "",
++        "chave_lote_canonica": item.get("chave_lote_canonica") or "",
++        "mes": mes_chave,
++        "rotulo_mes": (mes or {}).get("rotulo") if isinstance(mes, dict) else mes_chave,
++        "ano": (mes or {}).get("ano") if isinstance(mes, dict) else (int(mes_chave.split("-")[0]) if "-" in mes_chave else ""),
++        "mes_numero": (mes or {}).get("mes") if isinstance(mes, dict) else (int(mes_chave.split("-")[1]) if "-" in mes_chave else ""),
++        "status_manual": status_manual_clean,
++        "status": status_exibicao,
++        "valor_manual": valor_float,
++        "origem": "manual_interface",
++        "motivo": motivo or f"Marcado manualmente como {status_exibicao}",
++        "atualizado_em": agora,
++    }
++    por_cliente[mes_chave] = movimento
++
++    rotulo_mes_log = (mes or {}).get("rotulo") if isinstance(mes, dict) else mes_chave
++    auditoria.append(
++        {
++            "data_hora": agora,
++            "acao_executada": acao,
++            "cliente": item.get("cliente") or "",
++            "lote": item.get("lote") or "",
++            "quadra": item.get("quadra") or "",
++            "chave_lote_canonica": item.get("chave_lote_canonica") or "",
++            "mes": mes_chave,
++            "rotulo_mes": rotulo_mes_log or mes_chave,
++            "aba_origem": "Ativ. Recentes",
++            "aba_destino": "Ativ. Recentes",
++            "status_anterior": "",
++            "status_novo": status_exibicao,
++            "valor_manual": valor_float,
++            "motivo": motivo or f"Correcao mensal manual ({status_exibicao})",
++            "origem": "manual_interface",
++        }
++    )
++    payload["auditoria_manual"] = auditoria[-300:]
++    payload["correcoes_mensais_manuais"] = correcoes
++    salvar_saneamento(payload)
++    return dict(por_cliente.get(mes_chave, movimento))
++
++
++
++def remover_correcao_mensal_manual(registro, mes):
++    payload = carregar_saneamento()
++    correcoes = payload.setdefault("correcoes_mensais_manuais", {})
++    item = dict(registro or {})
++    item["chave_saneamento"] = chave_saneamento(item)
++    chave = item["chave_saneamento"]
++    mes_chave = str((mes or {}).get("chave") if isinstance(mes, dict) else mes or "").strip()
++    if not chave or not mes_chave:
++        raise ValueError("Registro ou mes invalido para remover correcao mensal manual.")
++
++    por_cliente = correcoes.get(chave, {})
++    if not isinstance(por_cliente, dict) or mes_chave not in por_cliente:
++        return False
++
++    movimento = por_cliente.pop(mes_chave, {})
++    if not por_cliente:
++        correcoes.pop(chave, None)
++
++    agora = datetime.now().isoformat(timespec="seconds")
++    auditoria = payload.setdefault("auditoria_manual", [])
++    rotulo_mes_log = (mes or {}).get("rotulo") if isinstance(mes, dict) else mes_chave
++    auditoria.append(
++        {
++            "data_hora": agora,
++            "acao_executada": "Remover correcao mensal manual",
++            "cliente": item.get("cliente") or "",
++            "lote": item.get("lote") or "",
++            "quadra": item.get("quadra") or "",
++            "chave_lote_canonica": item.get("chave_lote_canonica") or "",
++            "mes": mes_chave,
++            "rotulo_mes": rotulo_mes_log or mes_chave,
++            "aba_origem": "Ativ. Recentes",
++            "aba_destino": "Ativ. Recentes",
++            "status_anterior": movimento.get("status", "Pago manual"),
++            "status_novo": "Correcao removida",
++            "motivo": "Remocao manual de correcao por mes",
++            "origem": "manual_interface",
++        }
++    )
++    payload["auditoria_manual"] = auditoria[-300:]
++    payload["correcoes_mensais_manuais"] = correcoes
++    salvar_saneamento(payload)
++    return True
++
++
++def obter_correcao_parcelas_manual(registro):
++    payload = carregar_saneamento()
++    manuais = payload.get("parcelas_contrato_manuais", {})
++    chave = chave_saneamento(registro or {})
++    if not chave:
++        return None
++    mov = manuais.get(chave)
++    if isinstance(mov, dict):
++        return dict(mov)
++    return None
++
++
++def registrar_correcao_parcelas_manual(
++    registro,
++    parcelas_pagas_base,
++    parcelas_total_manual,
++    parcelas_pagas_automaticas_ancora=None,
++    motivo="",
++    identificadores_ancora=None,
++    competencias_ancora=None,
++):
++    payload = carregar_saneamento()
++    manuais = payload.setdefault("parcelas_contrato_manuais", {})
++    auditoria = payload.setdefault("auditoria_manual", [])
++
++    item = dict(registro or {})
++    chave = chave_saneamento(item)
++    if not chave:
++        raise ValueError("Registro invalido para registrar correcao manual de parcelas.")
++
++    if isinstance(parcelas_pagas_base, bool) or not isinstance(parcelas_pagas_base, int):
++        raise ValueError(f"Parcelas pagas deve ser um numero inteiro invalido: {parcelas_pagas_base}")
++    if isinstance(parcelas_total_manual, bool) or not isinstance(parcelas_total_manual, int):
++        raise ValueError(f"Total de parcelas deve ser um numero inteiro invalido: {parcelas_total_manual}")
++
++    if parcelas_pagas_base < 0:
++        raise ValueError(f"Parcelas pagas nao pode ser negativa: {parcelas_pagas_base}")
++    if parcelas_total_manual <= 0:
++        raise ValueError(f"Total de parcelas deve ser maior que zero: {parcelas_total_manual}")
++    if parcelas_pagas_base > parcelas_total_manual:
++        raise ValueError(f"Parcelas pagas ({parcelas_pagas_base}) nao pode exceder o total ({parcelas_total_manual}).")
++
++    ancora = None
++    if parcelas_pagas_automaticas_ancora is not None:
++        if isinstance(parcelas_pagas_automaticas_ancora, bool) or not isinstance(parcelas_pagas_automaticas_ancora, int):
++            try:
++                ancora = int(parcelas_pagas_automaticas_ancora)
++            except Exception:
++                ancora = None
++        else:
++            ancora = parcelas_pagas_automaticas_ancora
++
++    agora = datetime.now().isoformat(timespec="seconds")
++    mes_ref = agora[:7]
++
++    ids_anc = list(identificadores_ancora) if identificadores_ancora else []
++    comps_anc = list(competencias_ancora) if competencias_ancora else []
++
++    movimento = {
++        "chave": chave,
++        "cliente": item.get("cliente") or "",
++        "lote": item.get("lote") or "",
++        "quadra": item.get("quadra") or "",
++        "chave_lote_canonica": item.get("chave_lote_canonica") or "",
++        "parcelas_pagas_base": parcelas_pagas_base,
++        "parcelas_total_manual": parcelas_total_manual,
++        "parcelas_pagas_automaticas_ancora": ancora,
++        "identificadores_ancora": ids_anc,
++        "competencias_ancora": comps_anc,
++        "acrescimos_confirmados": 0,
++        "identificadores_incorporados": [],
++        "competencias_incorporadas": [],
++        "eventos_incorporados": [],
++        "registrado_em": agora,
++        "mes_referencia": mes_ref,
++        "atualizado_em": agora,
++        "origem": "manual_interface",
++        "motivo": motivo or f"Ajuste manual de parcelas ({parcelas_pagas_base} / {parcelas_total_manual})",
++    }
++    manuais[chave] = movimento
++
++    auditoria.append(
++        {
++            "data_hora": agora,
++            "acao_executada": "Editar parcelas do contrato",
++            "cliente": item.get("cliente") or "",
++            "lote": item.get("lote") or "",
++            "quadra": item.get("quadra") or "",
++            "chave_lote_canonica": item.get("chave_lote_canonica") or "",
++            "aba_origem": "Ativ. Recentes",
++            "aba_destino": "Ativ. Recentes",
++            "status_anterior": "",
++            "status_novo": f"{parcelas_pagas_base} / {parcelas_total_manual} pagas",
++            "motivo": motivo or "Edicao manual de parcelas do contrato",
++            "origem": "manual_interface",
++        }
++    )
++    payload["auditoria_manual"] = auditoria[-300:]
++    payload["parcelas_contrato_manuais"] = manuais
++    salvar_saneamento(payload)
++    return dict(movimento)
++
++
++def reconciliar_acrescimos_parcelas_manual(registro, eventos, origem_fluxo=""):
++    payload = carregar_saneamento()
++    manuais = payload.setdefault("parcelas_contrato_manuais", {})
++    item = dict(registro or {})
++    chave = chave_saneamento(item)
++    if not chave or chave not in manuais:
++        return 0
++
++    m = dict(manuais[chave])
++    base = m.get("parcelas_pagas_base", 0)
++    total_manual = m.get("parcelas_total_manual", 0)
++    max_acrescimos = max(0, total_manual - base)
++
++    registrado_em = m.get("registrado_em", "")
++    mes_ref = m.get("mes_referencia", registrado_em[:7])
++    ids_ancora = set(m.get("identificadores_ancora") or [])
++    comps_ancora = set(m.get("competencias_ancora") or [])
++
++    inc_antigos = m.get("eventos_incorporados") or []
++
++    mapa_competencias = {}
++    mapa_sem_comp = {}
++
++    for ev in inc_antigos:
++        if isinstance(ev, dict) and ev.get("origem") == "widepay":
++            ev_comp = str(ev.get("competencia") or "")
++            ev_id = str(ev.get("identificador") or "")
++            if ev_comp:
++                mapa_competencias[ev_comp] = dict(ev)
++            elif ev_id:
++                mapa_sem_comp[ev_id] = dict(ev)
++
++    for ev in (eventos or []):
++        if not isinstance(ev, dict):
++            continue
++        ev_id = str(ev.get("identificador") or "")
++        ev_comp = str(ev.get("competencia") or "")
++        ev_dt = str(ev.get("data_evento") or "")
++        ev_origem = str(ev.get("origem") or "")
++
++        if ev_id in ids_ancora:
++            continue
++        if ev_comp and ev_comp in comps_ancora:
++            continue
++
++        if ev_origem == "widepay":
++            if registrado_em and ev_dt:
++                ancora_dia = registrado_em[:10]
++                ev_dia = ev_dt[:10]
++                if ev_dia < ancora_dia:
++                    continue
++            elif mes_ref and ev_comp:
++                if ev_comp <= mes_ref:
++                    continue
++
++        ev_clean = {
++            "identificador": ev_id,
++            "competencia": ev_comp,
++            "data_evento": ev_dt,
++            "origem": ev_origem,
++            "quantidade": 1,
++        }
++
++        if ev_comp:
++            if ev_comp in mapa_competencias:
++                existente = mapa_competencias[ev_comp]
++                if ev_origem == "widepay" and existente.get("origem") != "widepay":
++                    mapa_competencias[ev_comp] = ev_clean
++            else:
++                mapa_competencias[ev_comp] = ev_clean
++        elif ev_id:
++            if ev_id not in mapa_sem_comp:
++                mapa_sem_comp[ev_id] = ev_clean
++
++    todos_reconciliados = list(mapa_competencias.values()) + list(mapa_sem_comp.values())
++
++    todos_reconciliados.sort(
++        key=lambda x: (
++            x.get("competencia") or "9999-99",
++            x.get("identificador") or "",
++            x.get("origem") or "",
++        )
++    )
++
++    novos_eventos = todos_reconciliados[:max_acrescimos]
++    qtd_novos = len(novos_eventos)
++    novos_ids = [ev["identificador"] for ev in novos_eventos]
++    novas_comps = [ev["competencia"] for ev in novos_eventos if ev.get("competencia")]
++
++    antigo_qtd = m.get("acrescimos_confirmados", 0)
++    antigos_eventos = m.get("eventos_incorporados", [])
++
++    if antigo_qtd == qtd_novos and antigos_eventos == novos_eventos:
++        return qtd_novos
++
++    m["acrescimos_confirmados"] = qtd_novos
++    m["identificadores_incorporados"] = novos_ids
++    m["competencias_incorporadas"] = novas_comps
++    m["eventos_incorporados"] = novos_eventos
++    agora = datetime.now().isoformat(timespec="seconds")
++    m["atualizado_em"] = agora
++    manuais[chave] = m
++
++    auditoria = payload.setdefault("auditoria_manual", [])
++    auditoria.append(
++        {
++            "data_hora": agora,
++            "acao_executada": "Reconciliar acrescimos de parcelas",
++            "cliente": item.get("cliente") or "",
++            "lote": item.get("lote") or "",
++            "quadra": item.get("quadra") or "",
++            "chave_lote_canonica": item.get("chave_lote_canonica") or "",
++            "aba_origem": "Ativ. Recentes",
++            "aba_destino": "Ativ. Recentes",
++            "status_anterior": f"{antigo_qtd} acrescimos",
++            "status_novo": f"{qtd_novos} acrescimos confirmados",
++            "motivo": f"Sincronizacao de acrescimos em parcelas manuais ({origem_fluxo or 'sincronizacao'})",
++            "origem": "manual_interface",
++        }
++    )
++    payload["auditoria_manual"] = auditoria[-300:]
++    payload["parcelas_contrato_manuais"] = manuais
++    salvar_saneamento(payload)
++    return qtd_novos
++
++
++def remover_correcao_parcelas_manual(registro):
++    payload = carregar_saneamento()
++    manuais = payload.setdefault("parcelas_contrato_manuais", {})
++    item = dict(registro or {})
++    chave = chave_saneamento(item)
++    if not chave or chave not in manuais:
++        return False
++
++    mov = manuais.pop(chave, {})
++    agora = datetime.now().isoformat(timespec="seconds")
++    auditoria = payload.setdefault("auditoria_manual", [])
++    auditoria.append(
++        {
++            "data_hora": agora,
++            "acao_executada": "Remover ajuste manual de parcelas",
++            "cliente": item.get("cliente") or "",
++            "lote": item.get("lote") or "",
++            "quadra": item.get("quadra") or "",
++            "chave_lote_canonica": item.get("chave_lote_canonica") or "",
++            "aba_origem": "Ativ. Recentes",
++            "aba_destino": "Ativ. Recentes",
++            "status_anterior": f"{mov.get('parcelas_pagas_base')} / {mov.get('parcelas_total_manual')} pagas",
++            "status_novo": "Ajuste de parcelas removido",
++            "motivo": "Remocao manual de ajuste de parcelas",
++            "origem": "manual_interface",
++        }
++    )
++    payload["auditoria_manual"] = auditoria[-300:]
++    payload["parcelas_contrato_manuais"] = manuais
++    salvar_saneamento(payload)
++    return True
++
++
++
++
++
+ def salvar_saneamento(payload):
+     ARQUIVO_SANEAMENTO.parent.mkdir(parents=True, exist_ok=True)
+-    with open(ARQUIVO_SANEAMENTO, "w", encoding="utf-8") as f:
+-        json.dump(payload, f, ensure_ascii=False, indent=2)
++    arquivo_backup = ARQUIVO_SANEAMENTO.with_suffix(".json.bak")
++    temporario = None
++    temporario_backup = None
++    try:
++        if ARQUIVO_SANEAMENTO.exists():
++            criar_snapshot_versionado(ARQUIVO_SANEAMENTO, categoria="saneamento_clientes")
++            with tempfile.NamedTemporaryFile(
++                mode="wb",
++                dir=ARQUIVO_SANEAMENTO.parent,
++                prefix=f".{arquivo_backup.name}.",
++                suffix=".tmp",
++                delete=False,
++            ) as f_backup:
++                temporario_backup = Path(f_backup.name)
++                with open(ARQUIVO_SANEAMENTO, "rb") as f_atual:
++                    shutil.copyfileobj(f_atual, f_backup)
++                f_backup.flush()
++                os.fsync(f_backup.fileno())
++            os.replace(temporario_backup, arquivo_backup)
++            temporario_backup = None
++
++        with tempfile.NamedTemporaryFile(
++            mode="w",
++            encoding="utf-8",
++            dir=ARQUIVO_SANEAMENTO.parent,
++            prefix=f".{ARQUIVO_SANEAMENTO.name}.",
++            suffix=".tmp",
++            delete=False,
++        ) as f:
++            temporario = Path(f.name)
++            json.dump(payload, f, ensure_ascii=False, indent=2)
++            f.flush()
++            os.fsync(f.fileno())
++        with open(temporario, "r", encoding="utf-8") as f_validacao:
++            payload_validado = json.load(f_validacao)
++        secoes_manuais = (
++            "movimentos_manuais",
++            "pagamentos_avulsos_manuais",
++            "correcoes_mensais_manuais",
++            "parcelas_contrato_manuais",
++            "auditoria_manual",
++        )
++        for secao in secoes_manuais:
++            if payload_validado.get(secao) != payload.get(secao):
++                raise ValueError(
++                    f"Validacao do saneamento temporario falhou na secao {secao}; versao anterior preservada."
++                )
++        os.replace(temporario, ARQUIVO_SANEAMENTO)
++        temporario = None
++    finally:
++        for pendente in (temporario, temporario_backup):
++            if pendente is None:
++                continue
++            try:
++                pendente.unlink(missing_ok=True)
++            except OSError:
++                pass
++    try:
++        _SANEAMENTO_CACHE["mtime"] = ARQUIVO_SANEAMENTO.stat().st_mtime
++        _SANEAMENTO_CACHE["payload"] = json.loads(json.dumps(payload))
++    except OSError:
++        _SANEAMENTO_CACHE["mtime"] = None
++        _SANEAMENTO_CACHE["payload"] = None
++
++
++def obter_pagamento_avulso_manual(registro, mes_chave):
++    if not mes_chave:
++        return None
++    payload = carregar_saneamento()
++    chave = chave_saneamento(registro)
++    por_cliente = payload.get("pagamentos_avulsos_manuais", {}).get(chave, {})
++    marcado = por_cliente.get(str(mes_chave))
++    if not isinstance(marcado, dict):
++        return None
++    if marcado.get("removido"):
++        return None
++    return dict(marcado)
++
++
++def registrar_pagamento_avulso_manual(registro, mes, marcar=True, motivo=""):
++    payload = carregar_saneamento()
++    pagamentos = payload.setdefault("pagamentos_avulsos_manuais", {})
++    auditoria = payload.setdefault("auditoria_manual", [])
++    item = dict(registro or {})
++    item["chave_saneamento"] = chave_saneamento(item)
++    chave = item["chave_saneamento"]
++    mes_chave = str((mes or {}).get("chave") or "").strip()
++    if not chave or not mes_chave:
++        raise ValueError("Registro ou mes invalido para marcar pago avulso.")
++
++    agora = datetime.now().isoformat(timespec="seconds")
++    por_cliente = pagamentos.setdefault(chave, {})
++    valor_base = item.get("valor_base_parcela") or ""
++    if marcar:
++        movimento = {
++            "chave": chave,
++            "cliente": item.get("cliente") or "",
++            "lote": item.get("lote") or "",
++            "quadra": item.get("quadra") or "",
++            "chave_lote_canonica": item.get("chave_lote_canonica") or "",
++            "mes": mes_chave,
++            "rotulo_mes": (mes or {}).get("rotulo") or mes_chave,
++            "ano": (mes or {}).get("ano") or "",
++            "mes_numero": (mes or {}).get("mes") or "",
++            "status": "Pago avulso",
++            "valor_base_parcela": valor_base,
++            "origem": "manual_interface",
++            "motivo": motivo or "Marcado manualmente como pago avulso em Ativ. Recentes",
++            "atualizado_em": agora,
++        }
++        por_cliente[mes_chave] = movimento
++        acao = "Marcar pago avulso"
++        status_novo = "Pago avulso"
++    else:
++        movimento = por_cliente.pop(mes_chave, {})
++        if not por_cliente:
++            pagamentos.pop(chave, None)
++        acao = "Remover pago avulso"
++        status_novo = "Manual removido"
++
++    auditoria.append(
++        {
++            "data_hora": agora,
++            "acao_executada": acao,
++            "cliente": item.get("cliente") or "",
++            "lote": item.get("lote") or "",
++            "quadra": item.get("quadra") or "",
++            "chave_lote_canonica": item.get("chave_lote_canonica") or "",
++            "mes": mes_chave,
++            "rotulo_mes": (mes or {}).get("rotulo") or mes_chave,
++            "aba_origem": "Ativ. Recentes",
++            "aba_destino": "Ativ. Recentes",
++            "status_anterior": movimento.get("status", ""),
++            "status_novo": status_novo,
++            "motivo": motivo or "Ajuste manual de boleto avulso por mes",
++            "origem": "manual_interface",
++        }
++    )
++    payload["auditoria_manual"] = auditoria[-300:]
++    payload["pagamentos_avulsos_manuais"] = pagamentos
++    salvar_saneamento(payload)
++    return dict(por_cliente.get(mes_chave, movimento or {}))
+ 
+ 
+ def _configurar_status_operacional(item, acao, origem="", motivo=""):
+diff --git a/WideAPP_EXTRA/app/widepay_boletos_cache.py b/WideAPP_EXTRA/app/widepay_boletos_cache.py
+index 120084c..e586de3 100644
+--- a/WideAPP_EXTRA/app/widepay_boletos_cache.py
++++ b/WideAPP_EXTRA/app/widepay_boletos_cache.py
+@@ -32,6 +32,7 @@ def slug_identidade_nome(texto):
+     """Normaliza variantes ortograficas aprovadas sem recorrer a fuzzy irrestrito."""
+     aliases = {
+         "sousa": "souza",
++        "emanuel": "emmanuel",
+     }
+     identidade = " ".join(aliases.get(token, token) for token in slug_busca(texto).split())
+     # Equivalencias confirmadas no proprio WidePay pelo mesmo lote/referencia.
+@@ -43,14 +44,51 @@ def slug_identidade_nome(texto):
+         "ana carolina nery da silva borges": "ana carolina nery da s borges de barros",
+         "joice carla de magalhaes gomes": "joice carla de magalhaes goncalves",
+         "rodrigo monteiro": "rodrigo monteiro de melo",
++        "emanuel felix da costa filho": "emmanuel felix da costa filho",
++        "emmanuel felix da costa": "emmanuel felix da costa filho",
++        "emanuel felix da costa": "emmanuel felix da costa filho",
+     }
+     return nomes_confirmados.get(identidade, identidade)
+ 
+ 
+-def normalizar_lote_quadra(lote="", quadra="", referencia="", pasta_local=""):
+-    """Converte variacoes como G14, 14/G e Quadra G Lote 14 para G14."""
++def normalizar_lote_quadra(lote="", quadra="", referencia="", pasta_local="", cliente=""):
++    """Converte variacoes como G14, 14/G e Quadra G Lote 14 para G14.
++    Aplica tambem regras especificas para Emmanuel (LT G3 -> G18) e Rodrigo (G1/G19).
++    """
++    cliente_norm = slug_busca(cliente or "")
++    referencia_upper = normalizar_texto(referencia).upper()
++    lote_upper = normalizar_texto(lote).upper()
++    quadra_upper = normalizar_texto(quadra).upper()
+     partes = " ".join(str(v or "") for v in (lote, quadra, referencia, Path(str(pasta_local or "")).name))
+     texto = normalizar_texto(partes).upper()
++
++    # 1. Regra especifica para Emmanuel: LT G3 / G3 -> G18
++    if "emmanuel" in cliente_norm or "emanuel" in cliente_norm:
++        if ("G3" in texto or "LT G3" in texto or "LT.G3" in texto or "LT-G3" in texto) and not ("G2" in texto and "G18" in texto):
++            return "G18"
++
++    # 2. Regra para Rodrigo: grupo G1/G19 vs F19
++    if "rodrigo" in cliente_norm:
++        if "F19" in texto or lote_upper == "F19":
++            return "F19"
++        if (
++            re.search(r"\bG1\s*[-/]?\s*G?19\b", texto)
++            or re.search(r"\bLT\.?\s*G?\s*1\s*/\s*19\b", texto)
++            or re.search(r"\bCARNE2\s+LT\s+G1\s*G-?19\b", texto)
++            or "G1/19" in texto
++            or "G1G19" in texto
++            or "G1G-19" in texto
++            or ("G1" in texto and "G19" in texto)
++            or ("G1" in texto and "G2" in texto and "2025" in texto)
++            or lote_upper in ("G1", "1", "G19", "19", "G1/G19", "01")
++        ):
++            return "G1/G19"
++
++    # Regra geral para G1/G19
++    if re.search(r"\b(?:LT\.?\s*|LOTE\s*)?G1\s*[-/]\s*G?19\b", texto) or re.search(r"\bG1G-?19\b", texto) or lote_upper == "G1/G19":
++        return "G1/G19"
++
++    # 3. Normalizacao geral de hiphens/espacos
+     texto_compacto = re.sub(r"[^A-Z0-9]+", "", texto)
+ 
+     candidatos = []
+@@ -69,14 +107,14 @@ def normalizar_lote_quadra(lote="", quadra="", referencia="", pasta_local=""):
+     if compact_match:
+         candidatos.append((compact_match.group(1), compact_match.group(2)))
+ 
+-    quadra_limpa = normalizar_texto(quadra).upper()
+-    lote_limpo = normalizar_texto(lote).upper()
+-    if quadra_limpa in QUADRA_LETRAS:
+-        numero = re.search(r"0*(\d{1,3}[A-Z]?)", lote_limpo)
++    if quadra_upper in QUADRA_LETRAS:
++        numero = re.search(r"0*(\d{1,3}[A-Z]?)", lote_upper)
+         if numero:
+-            candidatos.insert(0, (quadra_limpa, numero.group(1)))
++            candidatos.insert(0, (quadra_upper, numero.group(1)))
+ 
+     for quadra_can, lote_can in candidatos:
++        if not quadra_can:
++            continue
+         numero = re.match(r"0*(\d+)([A-Z]?)$", lote_can)
+         if not numero:
+             continue
+@@ -84,69 +122,91 @@ def normalizar_lote_quadra(lote="", quadra="", referencia="", pasta_local=""):
+         sufixo = numero.group(2) or ""
+         return f"{quadra_can}{numero_sem_zero}{sufixo}"
+ 
+-    return ""
++    return lote_upper if lote_upper and lote_upper != "-" else ""
+ 
+ 
+-def extrair_lotes_referencia(referencia="", quadra_hint=""):
++def extrair_lotes_referencia(referencia="", quadra_hint="", cliente=""):
+     """Extrai todos os lotes explicitamente citados em uma referencia WidePay."""
+     texto = normalizar_texto(referencia).upper()
++    cliente_norm = slug_busca(cliente or "")
+     encontrados = []
+ 
+-    def adicionar(quadra, lote):
+-        canonico = normalizar_lote_quadra(lote=lote, quadra=quadra)
+-        if canonico and canonico not in encontrados:
+-            encontrados.append(canonico)
++    def adicionar(lote_cand):
++        if lote_cand and lote_cand not in encontrados:
++            encontrados.append(lote_cand)
++
++    # 1. Regra Emmanuel: LT G3 / G3 -> G18
++    if ("emmanuel" in cliente_norm or "emanuel" in cliente_norm) and not ("G2" in texto and "G18" in texto):
++        if re.search(r"\b(?:LT\.?\s*|LOTE\s*)?G3\b", texto) or re.search(r"\bG3\b", texto):
++            adicionar("G18")
++
++    # 2. Regra Rodrigo: G1/G19
++    if ("rodrigo" in cliente_norm and not "F19" in texto) and (
++        re.search(r"\bG1\s*[-/]?\s*G?19\b", texto)
++        or re.search(r"\bLT\.?\s*G?\s*1\s*/\s*19\b", texto)
++        or "G1" in texto
++    ):
++        adicionar("G1/G19")
++    elif re.search(r"\b(?:LT\.?\s*|LOTE\s*)?G1\s*[-/]\s*G?19\b", texto) or re.search(r"\bG1G-?19\b", texto):
++        adicionar("G1/G19")
++
++    # 3. Conjuntos explicitos G2 e G18 (Emmanuel)
++    if "G2" in texto and "G18" in texto:
++        adicionar("G2")
++        adicionar("G18")
+ 
+     # Formas como C 8/9 ou C8/9: os dois numeros pertencem a mesma quadra.
+     for match in re.finditer(
+         r"(?:\bLT\.?\s*|\bLOTE\s*)?([A-H])\s*0*(\d{1,3}[A-Z]?)\s*/\s*0*(\d{1,3}[A-Z]?)(?![A-Z0-9])",
+         texto,
+     ):
+-        adicionar(match.group(1), match.group(2))
+-        adicionar(match.group(1), match.group(3))
++        q, l1, l2 = match.group(1), match.group(2), match.group(3)
++        if q == "G" and l1 == "1" and l2 == "19":
++            adicionar("G1/G19")
++        else:
++            adicionar(normalizar_lote_quadra(lote=l1, quadra=q, cliente=cliente))
++            adicionar(normalizar_lote_quadra(lote=l2, quadra=q, cliente=cliente))
+ 
+     # Formas prefixadas como LTF2 e LT F2.
+     for match in re.finditer(
+-        r"\b(?:LT\.?|LOTE)\s*([A-H])\s*0*(\d{1,3}[A-Z]?)(?![A-Z0-9])",
++        r"\b(?:LT\.?|LOTE)\s*([A-H])\s*[-/]?\s*0*(\d{1,3}[A-Z]?)(?![A-Z0-9])",
+         texto,
+     ):
+-        adicionar(match.group(1), match.group(2))
++        adicionar(normalizar_lote_quadra(lote=match.group(2), quadra=match.group(1), cliente=cliente))
+ 
+-    # Formas independentes compactas como G6, C8 e E19. Nao aceitamos
+-    # letra separada do numero sem prefixo LT/LOTE: em referencias mensais,
+-    # a conjuncao "e 04" nao pode virar o lote ficticio E4.
++    # Formas independentes compactas como G6, C8 e E19.
+     for match in re.finditer(r"(?<![A-Z0-9])([A-H])0*(\d{1,3}[A-Z]?)(?![A-Z0-9])", texto):
+-        adicionar(match.group(1), match.group(2))
+-
+-    # Forma abreviada LT 8/9, quando a quadra vem do contrato consultado.
+-    quadra_hint = normalizar_texto(quadra_hint).upper()
+-    if quadra_hint in QUADRA_LETRAS:
+-        for match in re.finditer(
+-            r"(?:\bLT\.?\s*|\bLOTE\s+)0*(\d{1,3}[A-Z]?)\s*/\s*0*(\d{1,3}[A-Z]?)(?![A-Z0-9])",
+-            texto,
+-        ):
+-            adicionar(quadra_hint, match.group(1))
+-            adicionar(quadra_hint, match.group(2))
++        q, l = match.group(1), match.group(2)
++        if q == "G" and l == "3" and ("emmanuel" in cliente_norm or "emanuel" in cliente_norm):
++            adicionar("G18")
++        elif q == "G" and l in ("1", "19") and "rodrigo" in cliente_norm:
++            adicionar("G1/G19")
++        else:
++            adicionar(normalizar_lote_quadra(lote=l, quadra=q, cliente=cliente))
+ 
+     return encontrados
+ 
+ 
+ def chave_lote_canonica(registro):
+-    # A presenca explicita da chave, inclusive vazia, significa que o registro
+-    # ja passou pela normalizacao segura. Nao tentar inferi-la novamente a
+-    # partir de listas mensais como "04, 05, 06 de 2026".
+-    if "chave_lote_canonica" in registro or "lote_canonico" in registro:
+-        return registro.get("chave_lote_canonica") or registro.get("lote_canonico") or ""
+-
++    cliente = registro.get("cliente_original_widepay") or registro.get("cliente") or registro.get("cliente_normalizado") or ""
+     lote = registro.get("lote") or registro.get("lote_original") or ""
+     quadra = registro.get("quadra") or ""
+-    if lote or quadra:
+-        return normalizar_lote_quadra(lote, quadra, "", registro.get("pasta_local"))
++    referencia = registro.get("referencia") or registro.get("descricao") or ""
++
++    chave = normalizar_lote_quadra(lote, quadra, referencia, registro.get("pasta_local"), cliente=cliente)
++    if chave:
++        return chave
++
+     lotes_referencia = extrair_lotes_referencia(
+-        registro.get("referencia") or registro.get("descricao") or "",
++        referencia,
+         quadra_hint=quadra,
++        cliente=cliente,
+     )
+-    return lotes_referencia[0] if len(lotes_referencia) == 1 else ""
++    if len(lotes_referencia) == 1:
++        return lotes_referencia[0]
++    elif "G1/G19" in lotes_referencia:
++        return "G1/G19"
++    return registro.get("chave_lote_canonica") or registro.get("lote_canonico") or ""
+ 
+ 
+ def _decimal(valor):
+@@ -165,17 +225,17 @@ def _registro_base(item, origem, cliente_fallback="", coletado_em="", pagina_ori
+     referencia = item.get("referencia") or item.get("descricao") or ""
+     lote_original = item.get("lote") or item.get("lote_original") or ""
+     quadra = item.get("quadra") or ""
+-    lotes_referencia = extrair_lotes_referencia(referencia, quadra_hint=quadra)
++    cliente_original = item.get("cliente") or item.get("cliente_original_widepay") or cliente_fallback
++    lotes_referencia = extrair_lotes_referencia(referencia, quadra_hint=quadra, cliente=cliente_original)
+     if lote_original or quadra:
+         chave = normalizar_lote_quadra(
+-            lote_original, quadra, "", item.get("pasta_local")
++            lote_original, quadra, referencia, item.get("pasta_local"), cliente=cliente_original
+         )
+     else:
+         # A referencia so define lote quando contem uma forma realmente
+         # explicita (F5, LT F5, LOTE F5...). Listas de competencia como
+         # "04, 05, 06 de 2026" nunca devem produzir F405/E4/E202.
+-        chave = lotes_referencia[0] if len(lotes_referencia) == 1 else ""
+-    cliente_original = item.get("cliente") or item.get("cliente_original_widepay") or cliente_fallback
++        chave = lotes_referencia[0] if len(lotes_referencia) == 1 else ("G1/G19" if "G1/G19" in lotes_referencia else "")
+     return {
+         "cliente_original_widepay": cliente_original,
+         "cliente_normalizado": slug_busca(cliente_original),
+@@ -445,82 +505,108 @@ def filtrar_por_cliente_lote(
+     payload = payload_cache if isinstance(payload_cache, dict) else carregar_cache()
+     cliente_slug = slug_busca(cliente)
+     cliente_identidade = slug_identidade_nome(cliente)
+-    lote_can = normalizar_lote_quadra(lote, quadra, "", pasta_local)
++    lote_can = normalizar_lote_quadra(lote, quadra, "", pasta_local, cliente=cliente)
+     matches = []
+     ids_matches = set()
+ 
+     def adicionar_match(item):
+-        identidade = id(item)
++        item_proc = item
++        if ("emmanuel" in cliente_slug or "emanuel" in cliente_slug) and lote_can in ("G2", "G18"):
++            ref = normalizar_texto(item.get("referencia") or item.get("descricao") or "").upper()
++            if "G2" in ref and "G18" in ref:
++                item_proc = dict(item)
++                val_orig = float(item.get("valor_original") or 0.0)
++                val_rec = float(item.get("valor_recebido") or 0.0)
++                if abs(val_orig - 198.0) < 1.0 or val_orig == 0:
++                    item_proc["valor_original"] = round(val_orig / 2.0, 2) if val_orig > 0 else 99.0
++                    item_proc["valor_recebido"] = round(val_rec / 2.0, 2)
++                item_proc["lote_canonico"] = lote_can
++                item_proc["chave_lote_canonica"] = lote_can
++
++        identidade = (
++            item_proc.get("fonte"),
++            item_proc.get("id_boleto"),
++            item_proc.get("referencia"),
++            item_proc.get("vencimento"),
++            item_proc.get("valor_original"),
++            item_proc.get("valor_recebido"),
++        )
+         if identidade not in ids_matches:
+             ids_matches.add(identidade)
+-            matches.append(item)
+-    if lote_can and isinstance(indice_cache, dict):
+-        # Inclui tambem o balde de registros sem lote ("") para nao perder
+-        # cobrancas que o WidePay deixou sem lote/quadra (senao o cliente
+-        # aparece como "Sem boleto" mesmo tendo cobrancas).
+-        candidatos = list(indice_cache.get(lote_can, [])) + list(indice_cache.get("", []))
+-    else:
+-        candidatos = payload.get("registros", [])
++            matches.append(item_proc)
++
++    candidatos = payload.get("registros", [])
+     for item in candidatos:
++        from app.isolamento_cliente import mesma_identidade
+         nome_item = item.get("cliente_normalizado") or slug_busca(item.get("cliente", ""))
+         identidade_forte = bool(
+             cliente_identidade and slug_identidade_nome(nome_item) == cliente_identidade
+-        )
++        ) or mesma_identidade(cliente, nome_item) or mesma_identidade(cliente, item.get("cliente_original_widepay", ""))
+         nome_ok = (
+             not cliente_slug
+             or cliente_slug in nome_item
+             or nome_item in cliente_slug
+             or identidade_forte
+         )
++        if not nome_ok:
++            continue
++
+         lote_item = item.get("lote_canonico") or chave_lote_canonica(item)
++        lotes_ref = extrair_lotes_referencia(item.get("referencia") or item.get("descricao") or "", quadra_hint=item.get("quadra"), cliente=cliente)
++
++        # Regras especificas de lote por cliente
++        if "emmanuel" in cliente_slug or "emanuel" in cliente_slug:
++            ref = normalizar_texto(item.get("referencia") or item.get("descricao") or "").upper()
++            if "G2" in ref and "G18" in ref:
++                if lote_can in ("G2", "G18"):
++                    item_cp = dict(item)
++                    val_orig = float(item.get("valor_original") or 0)
++                    val_rec = float(item.get("valor_recebido") or item.get("recebido") or item.get("valor_pago") or 0)
++                    half_orig = round(val_orig / 2.0, 2)
++                    half_rec = round(val_rec / 2.0, 2)
++                    if lote_can == "G2":
++                        item_cp["valor_original"] = half_orig
++                        item_cp["valor_recebido"] = half_rec
++                    else:
++                        item_cp["valor_original"] = round(val_orig - half_orig, 2)
++                        item_cp["valor_recebido"] = round(val_rec - half_rec, 2)
++                    adicionar_match(item_cp)
++                    continue
++            elif ("G3" in ref or "LT G3" in ref) and lote_can == "G18":
++                adicionar_match(item)
++                continue
++            elif "G2" in ref and lote_can == "G2":
++                adicionar_match(item)
++                continue
++
++        if "rodrigo" in cliente_slug:
++            ref = normalizar_texto(item.get("referencia") or item.get("descricao") or "").upper()
++            e_g1_19 = (
++                lote_item == "G1/G19"
++                or "G1/G19" in lotes_ref
++                or any(k in ref for k in ["G1/19", "G1 G19", "G1G19", "G1G-19", "LT G 1/19", "G1 G2"])
++                or ("G1" in ref and not "F19" in ref)
++                or (item.get("fonte") == "carne" and item.get("id_boleto") in ("42", "128", "183", "204", "232"))
++            )
++            if lote_can in ("G1/G19", "G1") and e_g1_19:
++                adicionar_match(item)
++                continue
++            elif lote_can == "F19" and not e_g1_19:
++                adicionar_match(item)
++                continue
++
+         if not lote_can:
+             lote_ok = True
+-        elif lote_item == lote_can:
++        elif lote_item == lote_can or lote_can in lotes_ref:
+             lote_ok = True
+-        elif not lote_item:
+-            # Registro que o WidePay deixou SEM lote so pode ser vinculado a um
+-            # cliente com lote informado por IDENTIDADE FORTE (igualdade canonica
+-            # de nome), nunca por nome parcial/substring. Isso corrige o falso
+-            # "Sem boleto" (ex.: Rafaela de Jesus Cruz, 24 cobrancas sem lote) sem
+-            # associar um boleto sem lote a homonimos por semelhanca de nome.
++        elif not lote_item and not lotes_ref:
+             lote_ok = identidade_forte
+         else:
+             lote_ok = False
+-        if nome_ok and lote_ok:
+-            adicionar_match(item)
+-
+-    # O campo lote_canonico historico pode ter guardado apenas o primeiro lote
+-    # (G6 em "G6 G7") ou anexado a primeira letra de "carne" (F2C). Conferir
+-    # a referencia original resolve esses casos sem usar o nome como palpite.
+-    candidatos_nome_exato = []
+-    if cliente_slug:
+-        indice_nomes = indice_cache.get("__por_nome__", {}) if isinstance(indice_cache, dict) else {}
+-        candidatos_por_nome = (
+-            indice_nomes.get(cliente_identidade, [])
+-            if isinstance(indice_nomes, dict) and cliente_identidade
+-            else payload.get("registros", [])
+-        )
+-        for item in candidatos_por_nome:
+-            nome_item = item.get("cliente_normalizado") or slug_busca(item.get("cliente", ""))
+-            if nome_item != cliente_slug and slug_identidade_nome(nome_item) != cliente_identidade:
+-                continue
+-            candidatos_nome_exato.append(item)
+-            if lote_can and lote_can in extrair_lotes_referencia(item.get("referencia", ""), quadra_hint=quadra):
+-                adicionar_match(item)
+-
+-    # Alguns registros exportados pelo WidePay possuem o cliente, mas deixam
+-    # lote/quadra/referencia vazios. O chamador somente autoriza a incorporacao
+-    # desses registros quando o nome possui uma unica identidade local segura.
+-    if not permitir_nome_sem_lote or not lote_can or not cliente_slug:
+-        return matches
+ 
+-    if not candidatos_nome_exato:
+-        return matches
+-    for item in candidatos_nome_exato:
+-        lote_item = item.get("lote_canonico") or chave_lote_canonica(item)
+-        lotes_referencia = extrair_lotes_referencia(item.get("referencia", ""), quadra_hint=quadra)
+-        if not lote_item and not lotes_referencia:
++        if lote_ok:
+             adicionar_match(item)
++
+     return matches
+ 
+ 
