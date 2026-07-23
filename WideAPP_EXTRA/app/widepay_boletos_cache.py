@@ -270,10 +270,26 @@ def salvar_cache(registros, metadados=None, permitir_vazio=False):
         raise ValueError(
             "Gravacao de cache vazio recusada: o ultimo cache WidePay valido foi preservado."
         )
-    if registros_anteriores and len(registros) < len(registros_anteriores) and not permitir_vazio:
-        raise ValueError(
-            "Gravacao recusada: o novo cache perderia registros do historico WidePay."
-        )
+    # MERGE/UPSERT por identidade: uma coleta parcial/filtrada (ex.: somente
+    # Cobrancas com Status=Recebido) NUNCA substitui o historico inteiro. Os
+    # registros que nao vieram nesta execucao sao preservados; os que vieram
+    # atualizam/adicionam. Isso substitui a antiga regra que recusava a gravacao
+    # apenas porque a coleta trazia menos registros que o cache completo.
+    if registros_anteriores:
+        por_identidade = {
+            obter_chave_identidade_cobranca(r): r for r in registros_anteriores
+        }
+        for r in registros:
+            por_identidade[obter_chave_identidade_cobranca(r)] = r
+        registros = deduplicar_boletos(list(por_identidade.values()))
+        # Protecao contra perda REAL: o conjunto mesclado nunca pode ter menos
+        # identidades distintas que o historico ja gravado.
+        base_historico = {obter_chave_identidade_cobranca(r) for r in registros_anteriores}
+        identidades_finais = {obter_chave_identidade_cobranca(r) for r in registros}
+        if len(identidades_finais) < len(base_historico) and not permitir_vazio:
+            raise ValueError(
+                "Gravacao recusada: o merge perderia registros do historico WidePay."
+            )
     novos_por_chave = {obter_chave_identidade_cobranca(r): r for r in registros}
     regressoes_recebidos = []
     for anterior in registros_anteriores:

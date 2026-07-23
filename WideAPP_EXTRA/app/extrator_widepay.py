@@ -299,8 +299,13 @@ async def ensure_widepay_logged_in(ws_url):
     motivo_str = ", ".join(motivos)
     raise RuntimeError(f"Login automatico impossivel porque: {motivo_str}. Por favor, faca login manualmente.")
 
-async def extrair_dados_clientes_bloco(ws_url, clientes_bloco, progress_callback=None, modo="completo", data_limite=None):
-    """Navega, executa pesquisa em branco e extrai dados de até 3 clientes simultaneamente."""
+async def extrair_dados_clientes_bloco(ws_url, clientes_bloco, progress_callback=None, modo="completo", data_limite=None, coletar_carnes=True):
+    """Navega, executa pesquisa em branco e extrai dados de até 3 clientes simultaneamente.
+
+    coletar_carnes=False pula a aba Carnes e coleta somente Recebimentos > Cobrancas
+    (usado por 'Atualizar clientes' e 'Atualizar Fast 12 Meses'). O historico de carnes
+    ja gravado no cache e preservado pelo merge/upsert do salvar_cache.
+    """
     await ensure_widepay_logged_in(ws_url)
 
     # Inicializar estado de progresso na janela do navegador
@@ -341,8 +346,8 @@ async def extrair_dados_clientes_bloco(ws_url, clientes_bloco, progress_callback
     eval_loc = await cdp_command(ws_url, "Runtime.evaluate", {"expression": "window.location.href", "returnByValue": True})
     current_url = eval_loc.get("result", {}).get("result", {}).get("value", "")
 
-    # 2. Navegar para Carnes
-    if "recebimentos/carnes" not in current_url:
+    # 2. Navegar para Carnes (pulado quando a coleta e apenas de Cobrancas)
+    if coletar_carnes and "recebimentos/carnes" not in current_url:
         print("Navegando para a pagina de carnes...")
         await cdp_command(ws_url, "Page.navigate", {"url": "https://www.widepay.com/conta/recebimentos/carnes"})
         await asyncio.sleep(4)
@@ -604,16 +609,20 @@ async def extrair_dados_clientes_bloco(ws_url, clientes_bloco, progress_callback
     }
     """ % (coletor_paginado_js, clientes_js_string)
 
-    eval_extract_carnes = await cdp_command(ws_url, "Runtime.evaluate", {
-        "expression": f"({js_extract_carnes})()",
-        "awaitPromise": True,
-        "returnByValue": True
-    })
-    raw_data_carnes = eval_extract_carnes.get("result", {}).get("result", {}).get("value", {}) or {}
-    print(f"[Evidência] Extração em Bloco de Carnes WidePay concluída. "
-          f"{raw_data_carnes.get('total_aceitos', 0)} registros aceitos, "
-          f"{raw_data_carnes.get('total_ignorados', 0)} ignorados de outros clientes (ignorados: {raw_data_carnes.get('clientes_ignorados', [])})")
-    validar_coleta_paginada("Carnes_Bloco", raw_data_carnes)
+    if coletar_carnes:
+        eval_extract_carnes = await cdp_command(ws_url, "Runtime.evaluate", {
+            "expression": f"({js_extract_carnes})()",
+            "awaitPromise": True,
+            "returnByValue": True
+        })
+        raw_data_carnes = eval_extract_carnes.get("result", {}).get("result", {}).get("value", {}) or {}
+        print(f"[Evidência] Extração em Bloco de Carnes WidePay concluída. "
+              f"{raw_data_carnes.get('total_aceitos', 0)} registros aceitos, "
+              f"{raw_data_carnes.get('total_ignorados', 0)} ignorados de outros clientes (ignorados: {raw_data_carnes.get('clientes_ignorados', [])})")
+        validar_coleta_paginada("Carnes_Bloco", raw_data_carnes)
+    else:
+        raw_data_carnes = {"carnes_por_cliente": {}}
+        print("[COBRANCAS-ONLY] Aba Carnes ignorada nesta atualizacao (coleta apenas de Recebimentos > Cobrancas).")
 
     # 3. Navegar para Cobranças
     print("Navegando para a pagina de cobrancas...")
